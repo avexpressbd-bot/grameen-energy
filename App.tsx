@@ -10,6 +10,7 @@ import Checkout from './pages/Checkout.tsx';
 import AdminDashboard from './pages/AdminDashboard.tsx';
 import POS from './pages/POS.tsx';
 import Login from './pages/Login.tsx';
+import OrderTracking from './pages/OrderTracking.tsx';
 import { LanguageProvider } from './components/LanguageContext.tsx';
 import { CartProvider } from './components/CartContext.tsx';
 import { ProductProvider, useProducts } from './components/ProductContext.tsx';
@@ -24,14 +25,12 @@ const AppContent: React.FC = () => {
   
   const { products } = useProducts();
 
-  // Load auth state from localStorage on startup
   useEffect(() => {
     const savedAuth = localStorage.getItem('ge_auth');
     if (savedAuth) {
       try {
         const parsed = JSON.parse(savedAuth);
         setAuth(parsed);
-        // If user was on admin or pos, stay there
         if (parsed.role && (currentPage === 'admin' || currentPage === 'pos')) {
           setCurrentPage(parsed.role);
         }
@@ -87,17 +86,16 @@ const AppContent: React.FC = () => {
         return <Cart onNavigate={navigateTo} />;
       case 'checkout':
         return <Checkout onNavigate={navigateTo} />;
+      case 'track-order':
+        return <OrderTracking onNavigate={navigateTo} />;
       case 'admin':
         return auth.isAuthenticated && auth.role === 'admin' 
           ? <AdminDashboard onNavigate={navigateTo} /> 
           : <Login type="admin" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
       case 'pos':
-        // Modified to allow both admin and pos roles to access POS terminal
         return auth.isAuthenticated && (auth.role === 'pos' || auth.role === 'admin')
           ? <POS /> 
           : <Login type="pos" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
-      case 'contact':
-        return <div className="max-w-4xl mx-auto px-4 py-16 text-center font-bold text-2xl">যোগাযোগের জন্য: support@grameenenergy.com</div>;
       default:
         return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
     }

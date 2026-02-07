@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Product, Sale, Customer, SiteSettings, BlogPost } from '../types';
+import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus } from '../types';
 import { db } from '../services/firebase';
 import { 
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment 
@@ -17,6 +17,7 @@ interface ProductContextType {
   updateProduct: (id: string, product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   recordSale: (sale: Sale) => Promise<void>;
+  updateSaleStatus: (id: string, status: OrderStatus) => Promise<void>;
   updateCustomerDue: (phone: string, name: string, amountPaid: number) => Promise<void>;
   updateSettings: (newSettings: SiteSettings) => Promise<void>;
   addBlog: (blog: BlogPost) => Promise<void>;
@@ -37,7 +38,6 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     if (!db) return;
 
-    // Listeners
     const unsubProducts = onSnapshot(collection(db, "products"), (s) => setProducts(s.docs.map(d => ({...d.data(), id: d.id})) as Product[]));
     const unsubSales = onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (s) => setSales(s.docs.map(d => ({...d.data(), id: d.id})) as Sale[]));
     const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]));
@@ -77,6 +77,13 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const recordSale = async (sale: Sale) => {
     const { id, ...data } = sale;
     await setDoc(doc(db, "sales", id), data);
+    
+    // Auto Stock Reduce Logic
+    for (const item of sale.items) {
+      const pRef = doc(db, "products", item.productId);
+      await updateDoc(pRef, { stock: increment(-item.quantity) });
+    }
+
     if (sale.customerPhone) {
       const cRef = doc(db, "customers", sale.customerPhone);
       const cSnap = await getDocs(query(collection(db, "customers")));
@@ -88,17 +95,21 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  const updateSaleStatus = async (id: string, status: OrderStatus) => {
+    await updateDoc(doc(db, "sales", id), { status });
+  };
+
   const updateCustomerDue = async (phone: string, name: string, amount: number) => {
     await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
   };
 
-  const syncWithFirebase = async () => {}; // Placeholder
+  const syncWithFirebase = async () => {};
 
   return (
     <ProductContext.Provider value={{ 
       products, sales, customers, blogs, settings, loading, 
       addProduct, updateProduct, deleteProduct, recordSale, 
-      updateCustomerDue, updateSettings, addBlog, deleteBlog, syncWithFirebase 
+      updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog, syncWithFirebase 
     }}>
       {children}
     </ProductContext.Provider>

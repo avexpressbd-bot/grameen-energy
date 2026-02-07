@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useLanguage } from './LanguageContext';
 import { useCart } from './CartContext';
-import { ShoppingCart, Menu, X, Search, Phone, MessageSquare, ScanLine, Zap, Lock, LayoutDashboard } from 'lucide-react';
+import { ShoppingCart, Menu, X, Search, Phone, MessageSquare, ScanLine, Zap, Lock, LayoutDashboard, MapPin } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
 const Header: React.FC<{ 
@@ -25,10 +26,12 @@ const Header: React.FC<{
         <BarcodeScanner onScan={handleScan} onClose={() => setIsScannerOpen(false)} />
       )}
       <header className="sticky top-0 z-50 bg-white shadow-sm border-b">
-        {/* Top bar */}
         <div className="bg-blue-900 text-white py-2 px-4 text-xs md:text-sm flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><Phone size={14}/> +880 1XXX-XXXXXX</span>
+            <span className="flex items-center gap-1 font-bold"><Phone size={14}/> +880 1XXX-XXXXXX</span>
+            <button onClick={() => onNavigate('track-order')} className="hidden md:flex items-center gap-1 hover:text-emerald-400 font-bold transition">
+              <MapPin size={14}/> {t('Track Order', 'অর্ডার ট্র্যাক করুন')}
+            </button>
           </div>
           <div className="flex gap-4 items-center">
             <button onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')} className="hover:text-emerald-400 font-bold">
@@ -40,7 +43,6 @@ const Header: React.FC<{
           </div>
         </div>
 
-        {/* Main Nav */}
         <div className="max-w-7xl mx-auto px-4 h-16 md:h-20 flex items-center justify-between gap-4">
           <button onClick={() => onNavigate('home')} className="flex items-center gap-2 group shrink-0">
             <div className="bg-emerald-600 text-white p-1 rounded font-bold text-xl md:text-2xl group-hover:bg-blue-700 transition">GE</div>
@@ -56,23 +58,19 @@ const Header: React.FC<{
             
             {currentRole === 'admin' ? (
               <button onClick={() => onNavigate('admin')} className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition shadow-lg animate-pulse">
-                <LayoutDashboard size={16}/>
-                {t('Dashboard', 'ড্যাশবোর্ড')}
+                <LayoutDashboard size={16}/> {t('Dashboard', 'ড্যাশবোর্ড')}
               </button>
             ) : currentRole === 'pos' ? (
               <button onClick={() => onNavigate('pos')} className="flex items-center gap-1 bg-emerald-600 text-white px-4 py-2 rounded-full hover:bg-emerald-700 transition shadow-lg">
-                <Zap size={16}/>
-                {t('Sales Terminal', 'সেলস প্যানেল')}
+                <Zap size={16}/> {t('Sales Terminal', 'সেলস প্যানেল')}
               </button>
             ) : (
               <div className="flex gap-2">
                 <button onClick={() => onNavigate('admin')} className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition border">
-                  <Lock size={14}/>
-                  {t('Admin', 'এডমিন')}
+                  <Lock size={14}/> {t('Admin', 'এডমিন')}
                 </button>
                 <button onClick={() => onNavigate('pos')} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition border border-blue-100">
-                  <Zap size={14}/>
-                  {t('Sales', 'সেলস')}
+                  <Zap size={14}/> {t('Sales', 'সেলস')}
                 </button>
               </div>
             )}
@@ -96,11 +94,11 @@ const Header: React.FC<{
           </div>
         </div>
 
-        {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden bg-white border-t p-6 flex flex-col gap-5 animate-slide-down shadow-xl">
+          <div className="lg:hidden bg-white border-t p-6 flex flex-col gap-5 shadow-xl">
             <button onClick={() => { onNavigate('home'); setIsMenuOpen(false); }} className="text-left font-bold text-lg text-gray-800 border-b pb-2">{t('Home', 'হোম')}</button>
             <button onClick={() => { onNavigate('shop'); setIsMenuOpen(false); }} className="text-left font-bold text-lg text-gray-800 border-b pb-2">{t('Shop', 'শপ')}</button>
+            <button onClick={() => { onNavigate('track-order'); setIsMenuOpen(false); }} className="text-left font-bold text-lg text-emerald-600 border-b pb-2">{t('Track Order', 'অর্ডার ট্র্যাকিং')}</button>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button onClick={() => { onNavigate('admin'); setIsMenuOpen(false); }} className="flex flex-col items-center justify-center gap-2 p-4 bg-gray-50 rounded-2xl border text-gray-600 font-bold">
                 <Lock size={24}/>
