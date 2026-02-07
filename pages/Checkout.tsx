@@ -1,14 +1,28 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../components/CartContext';
 import { useLanguage } from '../components/LanguageContext';
-import { CheckCircle, Truck, CreditCard, Building2, Phone, MapPin, User, ChevronLeft } from 'lucide-react';
+import { useProducts } from '../components/ProductContext';
+import { Sale, SaleItem } from '../types';
+import { CheckCircle, Truck, CreditCard, Phone, MapPin, User, ChevronLeft, Wallet, Calculator } from 'lucide-react';
 
 const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const { cart, total, clearCart } = useCart();
   const { t } = useLanguage();
+  const { recordSale } = useProducts();
   const [isOrdered, setIsOrdered] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bkash' | 'nagad' | 'bank'>('cash');
+  const [orderId, setOrderId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bkash' | 'nagad' | 'due'>('cash');
+  const [paidAmount, setPaidAmount] = useState<number>(total);
+
+  // Default paid amount to total when switching to full payment methods
+  useEffect(() => {
+    if (paymentMethod !== 'due') {
+      setPaidAmount(total);
+    } else {
+      setPaidAmount(0);
+    }
+  }, [paymentMethod, total]);
 
   const [shippingInfo, setShippingInfo] = useState({
     name: '',
@@ -17,12 +31,50 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
     city: 'Dhaka',
   });
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const dueAmount = Math.max(0, total - paidAmount);
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you'd send this to an API
-    setIsOrdered(true);
-    clearCart();
-    window.scrollTo(0, 0);
+    
+    if (dueAmount > 0 && !shippingInfo.phone) {
+      alert(t('Phone number is required for due orders!', 'বাকি অর্ডারের জন্য ফোন নম্বর অবশ্যই দিতে হবে!'));
+      return;
+    }
+
+    const id = 'ORD-' + Math.floor(Math.random() * 90000 + 10000);
+
+    const saleItems: SaleItem[] = cart.map(item => ({
+      productId: item.id,
+      name: item.nameBn,
+      quantity: item.quantity,
+      unitPrice: item.discountPrice || item.price,
+      totalPrice: (item.discountPrice || item.price) * item.quantity,
+      warranty: item.warranty
+    }));
+
+    const newSale: Sale = {
+      id,
+      customerName: shippingInfo.name,
+      customerPhone: shippingInfo.phone,
+      items: saleItems,
+      subtotal: total,
+      discount: 0,
+      total: total,
+      paidAmount: paidAmount,
+      dueAmount: dueAmount,
+      paymentMethod: paymentMethod.toUpperCase(),
+      date: new Date().toISOString()
+    };
+
+    try {
+      await recordSale(newSale);
+      setOrderId(id);
+      setIsOrdered(true);
+      clearCart();
+      window.scrollTo(0, 0);
+    } catch (error) {
+      alert("Something went wrong. Please try again.");
+    }
   };
 
   if (isOrdered) {
@@ -34,7 +86,7 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
         <div className="space-y-4">
           <h2 className="text-3xl font-bold text-gray-900">{t('Order Placed Successfully!', 'অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে!')}</h2>
           <p className="text-gray-500 text-lg leading-relaxed">
-            {t('Thank you for shopping with Grameen Energy. Your order ID is #GE-' + Math.floor(Math.random() * 90000 + 10000) + '. We will contact you shortly.', 'গ্রামিন এনার্জি থেকে কেনাকাটা করার জন্য ধন্যবাদ। আপনার অর্ডার আইডি #GE-' + Math.floor(Math.random() * 90000 + 10000) + '। আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব।')}
+            {t('Thank you for shopping with Grameen Energy. Your order ID is #' + orderId + '. We will contact you shortly.', 'গ্রামিন এনার্জি থেকে কেনাকাটা করার জন্য ধন্যবাদ। আপনার অর্ডার আইডি #' + orderId + '। আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব।')}
           </p>
         </div>
         <button 
@@ -60,13 +112,12 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
       <h1 className="text-3xl font-bold text-blue-900 mb-8">{t('Checkout', 'চেকআউট')}</h1>
 
       <form onSubmit={handlePlaceOrder} className="grid lg:grid-cols-3 gap-12">
-        {/* Left Column: Form */}
         <div className="lg:col-span-2 space-y-8">
           {/* Shipping Information */}
           <section className="bg-white p-8 rounded-3xl shadow-sm border space-y-6">
             <h3 className="text-xl font-bold flex items-center gap-3 text-blue-900">
               <User size={24} className="text-emerald-600" />
-              {t('Shipping Information', 'শিপিং তথ্য')}
+              {t('Customer Information', 'ক্রেতার তথ্য')}
             </h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -78,7 +129,7 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
                     type="text" 
                     value={shippingInfo.name}
                     onChange={(e) => setShippingInfo({...shippingInfo, name: e.target.value})}
-                    placeholder={t('Enter your name', 'আপনার নাম লিখুন')}
+                    placeholder={t('Enter customer name', 'ক্রেতার নাম লিখুন')}
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition"
                   />
                 </div>
@@ -103,97 +154,78 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
                   <MapPin className="absolute left-3 top-3 text-gray-400" size={18} />
                   <textarea 
                     required 
-                    rows={3}
+                    rows={2}
                     value={shippingInfo.address}
                     onChange={(e) => setShippingInfo({...shippingInfo, address: e.target.value})}
-                    placeholder={t('House/Road/Area...', 'বাড়ি/রাস্তা/এলাকা...')}
+                    placeholder={t('Village/Road/Area...', 'গ্রাম/রাস্তা/এলাকা...')}
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition resize-none"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-600 uppercase tracking-wider">{t('City', 'শহর')}</label>
-                <select 
-                  value={shippingInfo.city}
-                  onChange={(e) => setShippingInfo({...shippingInfo, city: e.target.value})}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 transition"
-                >
-                  <option value="Dhaka">Dhaka</option>
-                  <option value="Chittagong">Chittagong</option>
-                  <option value="Sylhet">Sylhet</option>
-                  <option value="Rajshahi">Rajshahi</option>
-                  <option value="Khulna">Khulna</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
             </div>
           </section>
 
-          {/* Payment Method */}
+          {/* Payment Section */}
           <section className="bg-white p-8 rounded-3xl shadow-sm border space-y-6">
             <h3 className="text-xl font-bold flex items-center gap-3 text-blue-900">
               <CreditCard size={24} className="text-emerald-600" />
-              {t('Payment Method', 'পেমেন্ট পদ্ধতি')}
+              {t('Payment & Settlement', 'পেমেন্ট ও বকেয়া হিসাব')}
             </h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <button 
-                type="button"
-                onClick={() => setPaymentMethod('cash')}
-                className={`p-6 border-2 rounded-2xl flex flex-col items-center gap-4 transition text-center ${paymentMethod === 'cash' ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-50' : 'border-gray-100 hover:bg-gray-50'}`}
-              >
-                <Truck className={paymentMethod === 'cash' ? 'text-emerald-600' : 'text-gray-400'} size={32} />
-                <div className="space-y-1">
-                  <p className="font-bold text-gray-900">{t('Cash on Delivery', 'ক্যাশ অন ডেলিভারি')}</p>
-                  <p className="text-xs text-gray-500">{t('Pay when you receive the product', 'পণ্য বুঝে পেয়ে মূল্য দিন')}</p>
-                </div>
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => setPaymentMethod('bkash')}
-                className={`p-6 border-2 rounded-2xl flex flex-col items-center gap-4 transition text-center ${paymentMethod === 'bkash' ? 'border-[#D12053] bg-pink-50 ring-4 ring-pink-50' : 'border-gray-100 hover:bg-gray-50'}`}
-              >
-                <img src="https://www.logo.wine/a/logo/BKash/BKash-Logo.wine.svg" className="h-10 w-auto" alt="bKash" />
-                <div className="space-y-1">
-                  <p className="font-bold text-gray-900">{t('bKash', 'বিকাশ')}</p>
-                  <p className="text-xs text-gray-500">{t('Fast & Secure Payment', 'দ্রুত ও নিরাপদ পেমেন্ট')}</p>
-                </div>
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => setPaymentMethod('nagad')}
-                className={`p-6 border-2 rounded-2xl flex flex-col items-center gap-4 transition text-center ${paymentMethod === 'nagad' ? 'border-[#ED1C24] bg-red-50 ring-4 ring-red-50' : 'border-gray-100 hover:bg-gray-50'}`}
-              >
-                <img src="https://upload.wikimedia.org/wikipedia/commons/8/8c/Nagad_Logo.svg" className="h-10 w-auto" alt="Nagad" />
-                <div className="space-y-1">
-                  <p className="font-bold text-gray-900">{t('Nagad', 'নগদ')}</p>
-                  <p className="text-xs text-gray-500">{t('Digital Financial Service', 'ডিজিটাল পেমেন্ট সার্ভিস')}</p>
-                </div>
-              </button>
-
-              <button 
-                type="button"
-                onClick={() => setPaymentMethod('bank')}
-                className={`p-6 border-2 rounded-2xl flex flex-col items-center gap-4 transition text-center ${paymentMethod === 'bank' ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-50' : 'border-gray-100 hover:bg-gray-50'}`}
-              >
-                <Building2 className={paymentMethod === 'bank' ? 'text-blue-600' : 'text-gray-400'} size={32} />
-                <div className="space-y-1">
-                  <p className="font-bold text-gray-900">{t('Bank Transfer', 'ব্যাংক ট্রান্সফার')}</p>
-                  <p className="text-xs text-gray-500">{t('Direct bank payment', 'সরাসরি ব্যাংক পেমেন্ট')}</p>
-                </div>
-              </button>
+            
+            <div className="grid sm:grid-cols-4 gap-4">
+              {[
+                { id: 'cash', label: 'Cash', labelBn: 'নগদ', icon: Truck },
+                { id: 'due', label: 'Due/Credit', labelBn: 'বাকি', icon: Wallet },
+                { id: 'bkash', label: 'bKash', labelBn: 'বিকাশ', icon: CreditCard },
+                { id: 'nagad', label: 'Nagad', labelBn: 'নগদ', icon: CreditCard },
+              ].map((method) => (
+                <button 
+                  key={method.id}
+                  type="button"
+                  onClick={() => setPaymentMethod(method.id as any)}
+                  className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition text-center ${paymentMethod === method.id ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'}`}
+                >
+                  <method.icon className={paymentMethod === method.id ? 'text-blue-600' : 'text-gray-400'} size={24} />
+                  <p className="font-bold text-xs">{t(method.label, method.labelBn)}</p>
+                </button>
+              ))}
             </div>
 
-            {paymentMethod !== 'cash' && (
-              <div className="p-4 bg-gray-50 border rounded-xl text-sm text-gray-600 animate-in fade-in duration-300">
-                <p className="font-bold mb-1">{t('Instructions:', 'নির্দেশনা:')}</p>
-                <p>{t('Please send the total amount to ', 'অনুগ্রহ করে মোট টাকাটি নিচের নম্বরে পাঠান: ')} 
-                   <span className="font-bold text-gray-900">01XXX-XXXXXX</span> 
-                   {t(' and use your Phone Number as reference.', ' এবং রেফারেন্স হিসেবে আপনার ফোন নম্বর ব্যবহার করুন।')}
-                </p>
-              </div>
-            )}
+            {/* Custom Payment Input */}
+            <div className="bg-slate-900 rounded-3xl p-8 text-white">
+               <div className="grid md:grid-cols-2 gap-8 items-center">
+                 <div className="space-y-4">
+                   <div className="flex items-center gap-2 text-emerald-400">
+                     <Calculator size={18} />
+                     <span className="text-[10px] font-black uppercase tracking-widest">{t('Enter Paid Amount', 'জমা টাকার পরিমাণ')}</span>
+                   </div>
+                   <div className="relative">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-500">৳</span>
+                     <input 
+                       type="number"
+                       value={paidAmount}
+                       onChange={(e) => setPaidAmount(Number(e.target.value))}
+                       className="w-full pl-10 pr-4 py-4 bg-white/5 border-2 border-white/10 rounded-2xl text-3xl font-black outline-none focus:border-emerald-500 transition"
+                     />
+                   </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <div className="flex justify-between items-center text-sm border-b border-white/10 pb-2">
+                      <span className="text-slate-400 font-bold">{t('Grand Total', 'সর্বমোট')}</span>
+                      <span className="font-black">৳ {total}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`font-bold ${dueAmount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {dueAmount > 0 ? t('Remaining Due', 'বাকি রয়েছে') : t('Fully Paid', 'সম্পূর্ণ পরিশোধিত')}
+                      </span>
+                      <span className={`text-2xl font-black ${dueAmount > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                        ৳ {dueAmount}
+                      </span>
+                    </div>
+                 </div>
+               </div>
+            </div>
           </section>
         </div>
 
@@ -201,7 +233,6 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
         <div className="space-y-8">
           <div className="bg-white p-8 rounded-3xl shadow-sm border sticky top-24 space-y-6">
             <h3 className="text-xl font-bold border-b pb-4 text-blue-900">{t('Order Summary', 'অর্ডার সামারি')}</h3>
-            
             <div className="space-y-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
               {cart.map(item => (
                 <div key={item.id} className="flex justify-between items-center gap-4">
@@ -213,33 +244,18 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
                 </div>
               ))}
             </div>
-
             <div className="pt-4 border-t space-y-3">
-              <div className="flex justify-between text-gray-600">
-                <span>{t('Subtotal', 'সাবটোটাল')}</span>
-                <span>৳ {total}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>{t('Shipping Fee', 'শিপিং চার্জ')}</span>
-                <span className="text-emerald-600 font-bold">{t('Free', 'ফ্রি')}</span>
-              </div>
-              <div className="flex justify-between text-xl font-black text-blue-900 pt-2 border-t">
-                <span>{t('Total', 'মোট')}</span>
+              <div className="flex justify-between text-2xl font-black text-blue-900 pt-2 border-t">
+                <span>{t('Payable', 'মোট প্রদেয়')}</span>
                 <span>৳ {total}</span>
               </div>
             </div>
-
             <button 
               type="submit"
-              className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition shadow-xl shadow-emerald-50 text-lg"
+              className="w-full py-5 bg-blue-900 text-white rounded-2xl font-bold hover:bg-blue-800 transition shadow-xl text-lg uppercase tracking-widest"
             >
               {t('Confirm Order', 'অর্ডার নিশ্চিত করুন')}
             </button>
-
-            <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
-              <CreditCard size={14} />
-              {t('Secure SSL Checkout', 'এসএসএল এনক্রিপ্টেড পেমেন্ট')}
-            </div>
           </div>
         </div>
       </form>
