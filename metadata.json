@@ -1,0 +1,8 @@
+{
+  "name": "Grameen Energy - গ্রামিন এনার্জি",
+  "description": "A modern, responsive eCommerce platform for electrical and energy products in Bangladesh, featuring smart energy recommendations and bilingual support.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
