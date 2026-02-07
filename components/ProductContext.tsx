@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus } from '../types';
+import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser } from '../types';
 import { db } from '../services/firebase';
 import { 
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment 
@@ -9,7 +9,8 @@ import {
 interface ProductContextType {
   products: Product[];
   sales: Sale[];
-  customers: Customer[];
+  customers: Customer[]; // This refers to 'customers' collection (Dues)
+  registeredUsers: CustomerUser[]; // This refers to 'users' collection (Accounts)
   blogs: BlogPost[];
   settings: SiteSettings | null;
   loading: boolean;
@@ -31,6 +32,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [registeredUsers, setRegisteredUsers] = useState<CustomerUser[]>([]);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,11 +43,14 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const unsubProducts = onSnapshot(collection(db, "products"), (s) => setProducts(s.docs.map(d => ({...d.data(), id: d.id})) as Product[]));
     const unsubSales = onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (s) => setSales(s.docs.map(d => ({...d.data(), id: d.id})) as Sale[]));
     const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]));
+    const unsubUsers = onSnapshot(collection(db, "users"), (s) => setRegisteredUsers(s.docs.map(d => ({...d.data(), uid: d.id})) as CustomerUser[]));
     const unsubBlogs = onSnapshot(query(collection(db, "blogs"), orderBy("date", "desc")), (s) => setBlogs(s.docs.map(d => ({...d.data(), id: d.id})) as BlogPost[]));
     const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => d.exists() && setSettings(d.data() as SiteSettings));
 
     setLoading(false);
-    return () => { unsubProducts(); unsubSales(); unsubCustomers(); unsubBlogs(); unsubSettings(); };
+    return () => { 
+      unsubProducts(); unsubSales(); unsubCustomers(); unsubUsers(); unsubBlogs(); unsubSettings(); 
+    };
   }, []);
 
   const updateSettings = async (newSettings: SiteSettings) => {
@@ -107,7 +112,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   return (
     <ProductContext.Provider value={{ 
-      products, sales, customers, blogs, settings, loading, 
+      products, sales, customers, registeredUsers, blogs, settings, loading, 
       addProduct, updateProduct, deleteProduct, recordSale, 
       updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog, syncWithFirebase 
     }}>

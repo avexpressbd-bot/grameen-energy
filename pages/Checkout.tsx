@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../components/CartContext';
 import { useLanguage } from '../components/LanguageContext';
 import { useProducts } from '../components/ProductContext';
+import { useAuth } from '../components/AuthContext';
 import { Sale, SaleItem, OrderStatus } from '../types';
 import { 
   CheckCircle, Truck, CreditCard, Phone, MapPin, 
-  User, ChevronLeft, Wallet, Calculator, Building2, 
+  User as UserIcon, ChevronLeft, Wallet, Calculator, Building2, 
   MessageCircle, ShoppingBag, ArrowRight, Loader2
 } from 'lucide-react';
 
@@ -14,6 +15,7 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
   const { cart, total: cartTotal, clearCart } = useCart();
   const { t } = useLanguage();
   const { recordSale } = useProducts();
+  const { user } = useAuth();
   
   const [isOrdered, setIsOrdered] = useState(false);
   const [orderId, setOrderId] = useState('');
@@ -22,11 +24,23 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Online' | 'Due'>('COD');
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const [shippingInfo, setShippingInfo] = useState({
-    name: '',
-    phone: '',
-    address: '',
-    city: 'Inside Dhaka',
+    name: user?.name || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+    city: user?.city || 'Inside Dhaka',
   });
+
+  // Re-sync if user logs in during checkout
+  useEffect(() => {
+    if (user) {
+      setShippingInfo({
+        name: user.name,
+        phone: user.phone,
+        address: user.address || '',
+        city: user.city || 'Inside Dhaka'
+      });
+    }
+  }, [user]);
 
   // Dynamic delivery charge
   const deliveryFee = shippingInfo.city === 'Inside Dhaka' ? 60 : 120;
@@ -59,6 +73,7 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
 
     const newSale: Sale = {
       id,
+      userId: user?.uid, // Link to account
       customerName: shippingInfo.name,
       customerPhone: shippingInfo.phone,
       customerAddress: shippingInfo.address,
@@ -110,15 +125,26 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      <header className="mb-10">
+      <header className="mb-10 flex flex-col md:flex-row justify-between items-center gap-6">
         <h1 className="text-4xl font-black text-blue-900 tracking-tight uppercase">{t('Checkout', 'চেকআউট')}</h1>
+        {!user && (
+          <div className="bg-blue-50 px-6 py-3 rounded-2xl border border-blue-100 flex items-center gap-4">
+            <p className="text-xs font-bold text-blue-700">{t('Already a member?', 'ইতিমধ্যে মেম্বার কি?')}</p>
+            <button 
+              onClick={() => onNavigate('customer-auth')}
+              className="text-xs font-black uppercase tracking-widest text-blue-900 hover:underline"
+            >
+              {t('Login Now', 'লগইন করুন')}
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="flex flex-col lg:flex-row gap-12">
         <div className="flex-1 space-y-8">
           <form id="checkout-form" onSubmit={handlePlaceOrder} className="space-y-8">
             <section className="bg-white p-8 rounded-[2rem] border border-blue-50 shadow-sm space-y-6">
-              <h3 className="text-xl font-black text-slate-800 uppercase flex items-center gap-3"><User size={20}/> {t('1. Customer Info', '১. তথ্য')}</h3>
+              <h3 className="text-xl font-black text-slate-800 uppercase flex items-center gap-3"><UserIcon size={20}/> {t('1. Customer Info', '১. তথ্য')}</h3>
               <div className="grid md:grid-cols-2 gap-6">
                 <input required type="text" value={shippingInfo.name} onChange={(e) => setShippingInfo({...shippingInfo, name: e.target.value})} placeholder={t('Full Name', 'পুরো নাম')} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" />
                 <input required type="tel" value={shippingInfo.phone} onChange={(e) => setShippingInfo({...shippingInfo, phone: e.target.value})} placeholder="01XXXXXXXXX" className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold font-mono" />

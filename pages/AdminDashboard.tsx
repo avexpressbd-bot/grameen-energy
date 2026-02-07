@@ -2,20 +2,20 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
-import { Category, Product, Customer, BlogPost, SiteSettings, Sale, OrderStatus } from '../types';
+import { Category, Product, Customer, BlogPost, SiteSettings, Sale, OrderStatus, CustomerUser } from '../types';
 import { 
   Plus, Edit2, Trash2, Box, X, Save, Search, DollarSign, RefreshCw, Star, Tag, Users, User,
   Wallet, CheckCircle, Settings, LayoutDashboard, FileText, ShoppingCart, Info, 
   Image as ImageIcon, MapPin, Phone, Eye, ArrowRight, Loader2, Bell, Volume2, 
-  Download, Filter, CheckCircle2, Truck, XCircle, Clock, Printer, AlertTriangle, TrendingUp
+  Download, Filter, CheckCircle2, Truck, XCircle, Clock, Printer, AlertTriangle, TrendingUp, Hash
 } from 'lucide-react';
 import Invoice from '../components/Invoice';
 
-type AdminTab = 'inventory' | 'dues' | 'sales' | 'blogs' | 'settings';
+type AdminTab = 'inventory' | 'dues' | 'sales' | 'customers' | 'blogs' | 'settings';
 
 const AdminDashboard: React.FC = () => {
   const { 
-    products, sales, customers, blogs, settings, 
+    products, sales, customers, registeredUsers, blogs, settings, 
     addProduct, updateProduct, deleteProduct, updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog 
   } = useProducts();
   const { t } = useLanguage();
@@ -108,6 +108,7 @@ const AdminDashboard: React.FC = () => {
           {[
             { id: 'inventory', icon: Box, label: 'স্টক ম্যানেজমেন্ট' },
             { id: 'sales', icon: ShoppingCart, label: 'অর্ডার ও বিক্রয়' },
+            { id: 'customers', icon: Users, label: 'কাস্টমার তালিকা' },
             { id: 'dues', icon: Wallet, label: 'বাকি তালিকা' },
             { id: 'blogs', icon: FileText, label: 'ব্লগ ও আপডেট' },
             { id: 'settings', icon: Settings, label: 'সাইট সেটিংস' },
@@ -120,7 +121,6 @@ const AdminDashboard: React.FC = () => {
       </aside>
 
       <main className="flex-1 p-6 lg:p-12 overflow-y-auto">
-        {/* Top Header */}
         <header className="flex justify-between items-center mb-10">
           <div>
             <h1 className="text-3xl font-black text-slate-900 uppercase">{activeTab}</h1>
@@ -131,61 +131,57 @@ const AdminDashboard: React.FC = () => {
               <Search className="absolute left-4 top-3 text-slate-400" size={18}/>
               <input type="text" placeholder="Search..." className="pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl w-64 outline-none font-bold text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
             </div>
-            <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-sm uppercase shadow-xl hover:bg-emerald-700 transition">
-              <Plus size={20}/>
-            </button>
           </div>
         </header>
 
-        {/* Dash Summary Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Daily Pulse */}
-          <div className="lg:col-span-2 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl">
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-               <div className="space-y-2">
-                 <div className="flex items-center gap-2 text-emerald-400 font-black uppercase text-[10px] tracking-widest">
-                   <TrendingUp size={14}/> Today's Sales Pulse
+        {activeTab !== 'settings' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <div className="lg:col-span-2 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl">
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+                 <div className="space-y-2">
+                   <div className="flex items-center gap-2 text-emerald-400 font-black uppercase text-[10px] tracking-widest">
+                     <TrendingUp size={14}/> Today's Sales Pulse
+                   </div>
+                   <p className="text-5xl font-black">৳{dailyStats.revenue.toLocaleString()}</p>
+                   <p className="text-slate-400 font-bold text-xs">{dailyStats.count} Total Orders Finalized Today</p>
                  </div>
-                 <p className="text-5xl font-black">৳{dailyStats.revenue.toLocaleString()}</p>
-                 <p className="text-slate-400 font-bold text-xs">{dailyStats.count} Total Orders Finalized Today</p>
+                 <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
+                   <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center">
+                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Cash</p>
+                     <p className="text-xl font-black text-emerald-400">{dailyStats.cash}</p>
+                   </div>
+                   <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center">
+                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Digital</p>
+                     <p className="text-xl font-black text-blue-400">{dailyStats.digital}</p>
+                   </div>
+                 </div>
+              </div>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+               <div className="flex justify-between items-center mb-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Critical Stock</h4>
+                  <div className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">{lowStockProducts.length} Items</div>
                </div>
-               <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-                 <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center">
-                   <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Cash</p>
-                   <p className="text-xl font-black text-emerald-400">{dailyStats.cash}</p>
-                 </div>
-                 <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center">
-                   <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Digital</p>
-                   <p className="text-xl font-black text-blue-400">{dailyStats.digital}</p>
-                 </div>
+               <div className="flex-1 space-y-4 overflow-y-auto max-h-[150px] custom-scrollbar">
+                  {lowStockProducts.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-slate-300 text-[10px] font-bold uppercase">All systems clear</div>
+                  ) : lowStockProducts.map(p => (
+                    <div key={p.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100">
+                      <span className="text-[10px] font-black text-slate-700 truncate mr-2">{p.nameBn}</span>
+                      <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[8px] font-black">{p.stock}</span>
+                    </div>
+                  ))}
                </div>
             </div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
           </div>
+        )}
 
-          {/* Low Stock Alerts */}
-          <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-             <div className="flex justify-between items-center mb-6">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Critical Stock</h4>
-                <div className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">{lowStockProducts.length} Items</div>
-             </div>
-             <div className="flex-1 space-y-4 overflow-y-auto max-h-[150px] custom-scrollbar">
-                {lowStockProducts.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-slate-300 text-[10px] font-bold uppercase">All systems clear</div>
-                ) : lowStockProducts.map(p => (
-                  <div key={p.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100">
-                    <span className="text-[10px] font-black text-slate-700 truncate mr-2">{p.nameBn}</span>
-                    <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[8px] font-black">{p.stock}</span>
-                  </div>
-                ))}
-             </div>
-          </div>
-        </div>
-
-        {/* Tab Content Rendering */}
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden min-h-[500px]">
           {activeTab === 'inventory' && <InventoryTab products={products} searchTerm={searchTerm} onEdit={(p) => {setEditingItem(p); setIsModalOpen(true);}} onDelete={deleteProduct}/>}
           {activeTab === 'sales' && <SalesTab sales={sales} searchTerm={searchTerm} onUpdateStatus={updateSaleStatus}/>}
+          {activeTab === 'customers' && <CustomersTab users={registeredUsers} searchTerm={searchTerm}/>}
           {activeTab === 'dues' && <DuesTab customers={customers} searchTerm={searchTerm} updateDue={updateCustomerDue}/>}
           {activeTab === 'blogs' && <BlogsTab blogs={blogs} searchTerm={searchTerm} onDelete={deleteBlog}/>}
           {activeTab === 'settings' && <SettingsTab form={settingsForm} setForm={setSettingsForm} onSave={handleSettingsUpdate}/>}
@@ -194,7 +190,7 @@ const AdminDashboard: React.FC = () => {
 
       {isModalOpen && (
         <AdminModal 
-          type={activeTab} 
+          type={activeTab === 'inventory' ? 'inventory' : 'blogs'} 
           item={editingItem} 
           onClose={() => setIsModalOpen(false)}
           onSubmit={async (data) => {
@@ -211,42 +207,87 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-// ... (Sub-components: InventoryTab, SalesTab, DuesTab, BlogsTab, SettingsTab, InputField, AdminModal - keeping existing implementations but integrating seamlessly)
+// --- Sub-Components ---
+
+const CustomersTab = ({ users, searchTerm }: { users: CustomerUser[], searchTerm: string }) => {
+  const filtered = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.phone.includes(searchTerm) || u.accountId.toLowerCase().includes(searchTerm.toLowerCase()));
+  
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+          <tr>
+            <th className="px-8 py-5 text-left">Account ID</th>
+            <th className="px-6 py-5 text-left">Name</th>
+            <th className="px-6 py-5 text-left">Phone</th>
+            <th className="px-6 py-5 text-left">Location</th>
+            <th className="px-8 py-5 text-right">Registered</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50 font-bold text-sm">
+          {filtered.map((u) => (
+            <tr key={u.uid} className="hover:bg-slate-50 transition">
+              <td className="px-8 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center"><Hash size={14}/></div>
+                  <span className="font-mono text-xs font-black text-blue-600">{u.accountId}</span>
+                </div>
+              </td>
+              <td className="px-6 py-4 text-slate-900">{u.name}</td>
+              <td className="px-6 py-4 font-mono text-slate-500">{u.phone}</td>
+              <td className="px-6 py-4">
+                <div className="flex flex-col">
+                  <span className="text-xs text-slate-700">{u.city || 'N/A'}</span>
+                  <span className="text-[10px] text-slate-400 truncate w-32">{u.address || ''}</span>
+                </div>
+              </td>
+              <td className="px-8 py-4 text-right text-xs text-slate-400">
+                {new Date(u.createdAt).toLocaleDateString()}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 const InventoryTab = ({ products, searchTerm, onEdit, onDelete }: any) => (
-  <table className="w-full">
-    <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-      <tr>
-        <th className="px-8 py-5 text-left">Product</th>
-        <th className="px-6 py-5 text-left">Category</th>
-        <th className="px-6 py-5 text-left">Stock</th>
-        <th className="px-6 py-5 text-left">Price</th>
-        <th className="px-8 py-5 text-right">Action</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-slate-50 font-bold text-sm">
-      {products.filter((p:any) => p.nameBn.includes(searchTerm)).map((p:any) => (
-        <tr key={p.id} className="hover:bg-slate-50 transition">
-          <td className="px-8 py-4 flex items-center gap-4">
-            <img src={p.image} className="w-10 h-10 rounded-lg object-cover border" />
-            <div>
-              <p className="text-slate-900">{p.nameBn}</p>
-              <p className="text-[10px] text-slate-400 font-mono">{p.id}</p>
-            </div>
-          </td>
-          <td className="px-6 py-4 text-slate-500">{p.category}</td>
-          <td className="px-6 py-4">
-            <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${p.stock <= 5 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{p.stock} PCS</span>
-          </td>
-          <td className="px-6 py-4 text-blue-900">৳{p.discountPrice || p.price}</td>
-          <td className="px-8 py-4 text-right space-x-2">
-            <button onClick={() => onEdit(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={16}/></button>
-            <button onClick={() => onDelete(p.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
-          </td>
+  <div className="overflow-x-auto">
+    <table className="w-full">
+      <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+        <tr>
+          <th className="px-8 py-5 text-left">Product</th>
+          <th className="px-6 py-5 text-left">Category</th>
+          <th className="px-6 py-5 text-left">Stock</th>
+          <th className="px-6 py-5 text-left">Price</th>
+          <th className="px-8 py-5 text-right">Action</th>
         </tr>
-      ))}
-    </tbody>
-  </table>
+      </thead>
+      <tbody className="divide-y divide-slate-50 font-bold text-sm">
+        {products.filter((p:any) => p.nameBn.includes(searchTerm) || p.name.toLowerCase().includes(searchTerm.toLowerCase())).map((p:any) => (
+          <tr key={p.id} className="hover:bg-slate-50 transition">
+            <td className="px-8 py-4 flex items-center gap-4">
+              <img src={p.image} className="w-10 h-10 rounded-lg object-cover border" />
+              <div>
+                <p className="text-slate-900">{p.nameBn}</p>
+                <p className="text-[10px] text-slate-400 font-mono">{p.id}</p>
+              </div>
+            </td>
+            <td className="px-6 py-4 text-slate-500">{p.category}</td>
+            <td className="px-6 py-4">
+              <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${p.stock <= 5 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{p.stock} PCS</span>
+            </td>
+            <td className="px-6 py-4 text-blue-900">৳{p.discountPrice || p.price}</td>
+            <td className="px-8 py-4 text-right space-x-2">
+              <button onClick={() => onEdit(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={16}/></button>
+              <button onClick={() => onDelete(p.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 );
 
 const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
@@ -328,7 +369,7 @@ const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
 
       {selectedOrder && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[400] flex items-center justify-center p-4">
-           <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden">
+           <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
               <div className="p-8 bg-slate-50 border-b flex justify-between items-center">
                 <h3 className="text-xl font-black uppercase">Order #{selectedOrder.id}</h3>
                 <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-red-50 text-red-500 rounded-xl"><X size={24}/></button>
@@ -374,14 +415,12 @@ const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
   );
 };
 
-// ... Remaining Tabs (DuesTab, BlogsTab, SettingsTab, etc.)
-
 const DuesTab = ({ customers, searchTerm, updateDue }: any) => {
   const [selected, setSelected] = useState<any>(null);
   const [amount, setAmount] = useState(0);
 
   return (
-    <div className="p-4">
+    <div className="p-4 overflow-x-auto">
       <table className="w-full">
         <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
           <tr>
@@ -422,29 +461,31 @@ const DuesTab = ({ customers, searchTerm, updateDue }: any) => {
 };
 
 const BlogsTab = ({ blogs, onDelete }: any) => (
-  <table className="w-full">
-    <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-      <tr>
-        <th className="px-8 py-5 text-left">Title</th>
-        <th className="px-6 py-5 text-left">Date</th>
-        <th className="px-8 py-5 text-right">Action</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-slate-50 font-bold text-sm">
-      {blogs.map((b:any) => (
-        <tr key={b.id}>
-          <td className="px-8 py-4 flex items-center gap-4">
-            <img src={b.image} className="w-10 h-10 rounded-lg object-cover" />
-            <span>{b.titleBn}</span>
-          </td>
-          <td className="px-6 py-4 text-slate-500">{new Date(b.date).toLocaleDateString()}</td>
-          <td className="px-8 py-4 text-right">
-            <button onClick={() => onDelete(b.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
-          </td>
+  <div className="overflow-x-auto">
+    <table className="w-full">
+      <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+        <tr>
+          <th className="px-8 py-5 text-left">Title</th>
+          <th className="px-6 py-5 text-left">Date</th>
+          <th className="px-8 py-5 text-right">Action</th>
         </tr>
-      ))}
-    </tbody>
-  </table>
+      </thead>
+      <tbody className="divide-y divide-slate-50 font-bold text-sm">
+        {blogs.map((b:any) => (
+          <tr key={b.id}>
+            <td className="px-8 py-4 flex items-center gap-4">
+              <img src={b.image} className="w-10 h-10 rounded-lg object-cover" />
+              <span>{b.titleBn}</span>
+            </td>
+            <td className="px-6 py-4 text-slate-500">{new Date(b.date).toLocaleDateString()}</td>
+            <td className="px-8 py-4 text-right">
+              <button onClick={() => onDelete(b.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 );
 
 const SettingsTab = ({ form, setForm, onSave }: any) => (

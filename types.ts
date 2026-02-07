@@ -70,6 +70,7 @@ export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | '
 
 export interface Sale {
   id: string;
+  userId?: string; // Link to customer account
   customerName: string;
   customerPhone: string;
   customerAddress: string;
@@ -90,6 +91,17 @@ export interface Customer {
   name: string;
   totalDue: number;
   lastUpdate: string;
+}
+
+export interface CustomerUser {
+  uid: string;
+  accountId: string; // Unique human-readable ID like GE-C-1234
+  name: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  createdAt: string;
 }
 
 export type Language = 'en' | 'bn';

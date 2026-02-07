@@ -11,14 +11,17 @@ import AdminDashboard from './pages/AdminDashboard.tsx';
 import POS from './pages/POS.tsx';
 import Login from './pages/Login.tsx';
 import OrderTracking from './pages/OrderTracking.tsx';
+import CustomerAuth from './pages/CustomerAuth.tsx';
+import Profile from './pages/Profile.tsx';
 import { LanguageProvider } from './components/LanguageContext.tsx';
 import { CartProvider } from './components/CartContext.tsx';
 import { ProductProvider, useProducts } from './components/ProductContext.tsx';
+import { AuthProvider } from './components/AuthContext.tsx';
 
 const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [auth, setAuth] = useState<{ isAuthenticated: boolean, role: 'admin' | 'pos' | null }>({
+  const [staffAuth, setStaffAuth] = useState<{ isAuthenticated: boolean, role: 'admin' | 'pos' | null }>({
     isAuthenticated: false,
     role: null
   });
@@ -30,12 +33,9 @@ const AppContent: React.FC = () => {
     if (savedAuth) {
       try {
         const parsed = JSON.parse(savedAuth);
-        setAuth(parsed);
-        if (parsed.role && (currentPage === 'admin' || currentPage === 'pos')) {
-          setCurrentPage(parsed.role);
-        }
+        setStaffAuth(parsed);
       } catch (e) {
-        console.error("Auth Load Error", e);
+        console.error("Staff Auth Load Error", e);
       }
     }
   }, []);
@@ -51,15 +51,15 @@ const AppContent: React.FC = () => {
     window.scrollTo(0, 0);
   };
 
-  const handleLoginSuccess = (role: 'admin' | 'pos') => {
+  const handleStaffLoginSuccess = (role: 'admin' | 'pos') => {
     const newAuth = { isAuthenticated: true, role };
-    setAuth(newAuth);
+    setStaffAuth(newAuth);
     localStorage.setItem('ge_auth', JSON.stringify(newAuth));
     navigateTo(role);
   };
 
-  const handleLogout = () => {
-    setAuth({ isAuthenticated: false, role: null });
+  const handleStaffLogout = () => {
+    setStaffAuth({ isAuthenticated: false, role: null });
     localStorage.removeItem('ge_auth');
     navigateTo('home');
   };
@@ -88,14 +88,18 @@ const AppContent: React.FC = () => {
         return <Checkout onNavigate={navigateTo} />;
       case 'track-order':
         return <OrderTracking onNavigate={navigateTo} />;
+      case 'customer-auth':
+        return <CustomerAuth onNavigate={navigateTo} />;
+      case 'profile':
+        return <Profile onNavigate={navigateTo} />;
       case 'admin':
-        return auth.isAuthenticated && auth.role === 'admin' 
+        return staffAuth.isAuthenticated && staffAuth.role === 'admin' 
           ? <AdminDashboard onNavigate={navigateTo} /> 
-          : <Login type="admin" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
+          : <Login type="admin" onLoginSuccess={handleStaffLoginSuccess} onBack={() => navigateTo('home')} />;
       case 'pos':
-        return auth.isAuthenticated && (auth.role === 'pos' || auth.role === 'admin')
+        return staffAuth.isAuthenticated && (staffAuth.role === 'pos' || staffAuth.role === 'admin')
           ? <POS /> 
-          : <Login type="pos" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
+          : <Login type="pos" onLoginSuccess={handleStaffLoginSuccess} onBack={() => navigateTo('home')} />;
       default:
         return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
     }
@@ -103,15 +107,15 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header onNavigate={navigateTo} onScanResult={handleScanResult} currentRole={auth.role} />
+      <Header onNavigate={navigateTo} onScanResult={handleScanResult} currentStaffRole={staffAuth.role} />
       <main className="flex-1">
         {renderPage()}
       </main>
       {currentPage !== 'pos' && (
         <Footer 
           onNavigate={navigateTo} 
-          isAuthenticated={auth.isAuthenticated} 
-          onLogout={handleLogout} 
+          isAuthenticated={staffAuth.isAuthenticated} 
+          onLogout={handleStaffLogout} 
         />
       )}
     </div>
@@ -121,11 +125,13 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <LanguageProvider>
-      <ProductProvider>
-        <CartProvider>
-          <AppContent />
-        </CartProvider>
-      </ProductProvider>
+      <AuthProvider>
+        <ProductProvider>
+          <CartProvider>
+            <AppContent />
+          </CartProvider>
+        </ProductProvider>
+      </AuthProvider>
     </LanguageProvider>
   );
 };
