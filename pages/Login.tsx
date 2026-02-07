@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { useLanguage } from '../components/LanguageContext';
-import { Lock, User, Eye, EyeOff, ArrowLeft, ShieldCheck, Zap } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ArrowLeft, ShieldCheck, Zap, Info } from 'lucide-react';
 
 interface LoginProps {
   type: 'admin' | 'pos';
@@ -110,10 +109,14 @@ const Login: React.FC<LoginProps> = ({ type, onLoginSuccess, onBack }) => {
             {t('Login Now', 'লগইন করুন')}
           </button>
           
-          <div className="text-center pt-4">
-            <p className="text-xs text-gray-400 font-medium">
-              {t('Forgot credentials? Contact store owner.', 'আইডি বা পাসওয়ার্ড ভুলে গেছেন? মালিকের সাথে যোগাযোগ করুন।')}
-            </p>
+          {/* Helper info for the user during development/test */}
+          <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex gap-3 items-start">
+            <Info className="text-blue-600 shrink-0" size={18} />
+            <div className="text-[10px] text-blue-700 font-bold leading-relaxed">
+              <p className="uppercase mb-1 tracking-widest">{t('Demo Access', 'লগইন তথ্য')}</p>
+              <p>ID: <span className="text-blue-900">{type === 'admin' ? 'admin' : 'posuser'}</span></p>
+              <p>Pass: <span className="text-blue-900">{type === 'admin' ? 'admin123' : 'pos123'}</span></p>
+            </div>
           </div>
         </form>
       </div>

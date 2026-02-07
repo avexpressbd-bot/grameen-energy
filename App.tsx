@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
 import Home from './pages/Home.tsx';
@@ -23,6 +23,23 @@ const AppContent: React.FC = () => {
   
   const { products } = useProducts();
 
+  // Load auth state from localStorage on startup
+  useEffect(() => {
+    const savedAuth = localStorage.getItem('ge_auth');
+    if (savedAuth) {
+      try {
+        const parsed = JSON.parse(savedAuth);
+        setAuth(parsed);
+        // If user was on admin or pos, stay there
+        if (parsed.role) {
+          setCurrentPage(parsed.role);
+        }
+      } catch (e) {
+        console.error("Auth Load Error", e);
+      }
+    }
+  }, []);
+
   const navigateTo = (page: string) => {
     setCurrentPage(page);
     window.scrollTo(0, 0);
@@ -35,12 +52,15 @@ const AppContent: React.FC = () => {
   };
 
   const handleLoginSuccess = (role: 'admin' | 'pos') => {
-    setAuth({ isAuthenticated: true, role });
+    const newAuth = { isAuthenticated: true, role };
+    setAuth(newAuth);
+    localStorage.setItem('ge_auth', JSON.stringify(newAuth));
     navigateTo(role);
   };
 
   const handleLogout = () => {
     setAuth({ isAuthenticated: false, role: null });
+    localStorage.removeItem('ge_auth');
     navigateTo('home');
   };
 
@@ -75,7 +95,7 @@ const AppContent: React.FC = () => {
           ? <POS /> 
           : <Login type="pos" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
       case 'contact':
-        return <div className="max-w-4xl mx-auto px-4 py-16 text-center"><h1>Contact Us</h1></div>;
+        return <div className="max-w-4xl mx-auto px-4 py-16 text-center font-bold text-2xl">যোগাযোগের জন্য: support@grameenenergy.com</div>;
       default:
         return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
     }
@@ -83,7 +103,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header onNavigate={navigateTo} onScanResult={handleScanResult} />
+      <Header onNavigate={navigateTo} onScanResult={handleScanResult} currentRole={auth.role} />
       <main className="flex-1">
         {renderPage()}
       </main>
