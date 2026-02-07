@@ -1,18 +1,17 @@
-
 import React, { useState } from 'react';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import Home from './pages/Home';
-import Shop from './pages/Shop';
-import ProductDetail from './pages/ProductDetail';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import AdminDashboard from './pages/AdminDashboard';
-import POS from './pages/POS';
-import Login from './pages/Login';
-import { LanguageProvider } from './components/LanguageContext';
-import { CartProvider } from './components/CartContext';
-import { ProductProvider, useProducts } from './components/ProductContext';
+import Header from './components/Header.tsx';
+import Footer from './components/Footer.tsx';
+import Home from './pages/Home.tsx';
+import Shop from './pages/Shop.tsx';
+import ProductDetail from './pages/ProductDetail.tsx';
+import Cart from './pages/Cart.tsx';
+import Checkout from './pages/Checkout.tsx';
+import AdminDashboard from './pages/AdminDashboard.tsx';
+import POS from './pages/POS.tsx';
+import Login from './pages/Login.tsx';
+import { LanguageProvider } from './components/LanguageContext.tsx';
+import { CartProvider } from './components/CartContext.tsx';
+import { ProductProvider, useProducts } from './components/ProductContext.tsx';
 
 const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
@@ -50,7 +49,7 @@ const AppContent: React.FC = () => {
     if (matched) {
       showProduct(matched.id);
     } else {
-      alert(`Product not found for code: ${code}`);
+      alert(`পণ্য পাওয়া যায়নি: ${code}`);
     }
   };
 
@@ -67,40 +66,23 @@ const AppContent: React.FC = () => {
         return <Cart onNavigate={navigateTo} />;
       case 'checkout':
         return <Checkout onNavigate={navigateTo} />;
-      
-      // Auth Protected Pages
       case 'admin':
         return auth.isAuthenticated && auth.role === 'admin' 
           ? <AdminDashboard onNavigate={navigateTo} /> 
           : <Login type="admin" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
-      
       case 'pos':
         return auth.isAuthenticated && auth.role === 'pos' 
           ? <POS /> 
           : <Login type="pos" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
-
       case 'contact':
-        return (
-          <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-6">
-            <h1 className="text-3xl font-bold">Contact Us</h1>
-            <p>Phone: +880 1234 567 890</p>
-            <p>Address: Uttara, Dhaka</p>
-          </div>
-        );
-      case 'blog':
-        return (
-          <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-6">
-            <h1 className="text-3xl font-bold">Energy Saving Tips</h1>
-            <p>Coming Soon...</p>
-          </div>
-        );
+        return <div className="max-w-4xl mx-auto px-4 py-16 text-center"><h1>Contact Us</h1></div>;
       default:
         return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans">
+    <div className="min-h-screen flex flex-col">
       <Header onNavigate={navigateTo} onScanResult={handleScanResult} />
       <main className="flex-1">
         {renderPage()}

@@ -1,7 +1,8 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import App from './App.tsx';
+
+console.log("Grameen Energy App Initializing...");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

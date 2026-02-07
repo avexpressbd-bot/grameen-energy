@@ -1,9 +1,14 @@
+import { GoogleGenAI } from "@google/genai";
 
-import { GoogleGenAI, Type } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// API Key না থাকলে অ্যাপ ক্রাশ রোধে ডিফল্ট ভ্যালু
+const apiKey = process.env.API_KEY || "AI_KEY_NOT_FOUND";
+const ai = new GoogleGenAI({ apiKey });
 
 export const getEnergyAdvice = async (loadDetails: string, language: 'en' | 'bn') => {
+  if (apiKey === "AI_KEY_NOT_FOUND") {
+    return language === 'bn' ? "দুঃখিত, বর্তমানে এআই পরামর্শ সেবা বন্ধ আছে।" : "Sorry, AI advice service is currently unavailable.";
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
