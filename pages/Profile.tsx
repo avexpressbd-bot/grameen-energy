@@ -9,7 +9,12 @@ import {
   ShieldCheck, ArrowRight, Hash
 } from 'lucide-react';
 
-const Profile: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
+interface ProfileProps {
+  onNavigate: (page: string) => void;
+  onTrackOrder: (id: string, phone: string) => void;
+}
+
+const Profile: React.FC<ProfileProps> = ({ onNavigate, onTrackOrder }) => {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const { sales } = useProducts();
@@ -185,7 +190,7 @@ const Profile: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate 
                   </div>
 
                   <button 
-                    onClick={() => onNavigate('track-order')}
+                    onClick={() => onTrackOrder(order.id, user.phone)}
                     className="w-full md:w-auto px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-emerald-600 transition flex items-center justify-center gap-2"
                   >
                     {t('Track', 'ট্র্যাক করুন')} <ChevronRight size={16}/>

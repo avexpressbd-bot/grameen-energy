@@ -1,30 +1,32 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
 import { Search, MapPin, Package, Truck, CheckCircle, ChevronLeft, Loader2 } from 'lucide-react';
 import { Sale } from '../types';
 
-const OrderTracking: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
+interface OrderTrackingProps {
+  onNavigate: (page: string) => void;
+  initialOrderId?: string;
+  initialPhone?: string;
+}
+
+const OrderTracking: React.FC<OrderTrackingProps> = ({ onNavigate, initialOrderId, initialPhone }) => {
   const { sales } = useProducts();
   const { t } = useLanguage();
-  const [orderId, setOrderId] = useState('');
-  const [phone, setPhone] = useState('');
+  const [orderId, setOrderId] = useState(initialOrderId || '');
+  const [phone, setPhone] = useState(initialPhone || '');
   const [foundOrder, setFoundOrder] = useState<Sale | null>(null);
   const [searched, setSearched] = useState(false);
 
-  const handleTrack = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Normalize inputs: trim spaces and handle case sensitivity
-    const searchId = orderId.trim().toLowerCase();
-    const searchPhone = phone.trim();
+  const performTrack = useCallback((id: string, ph: string) => {
+    const searchId = id.trim().toLowerCase();
+    const searchPhone = ph.trim();
 
     const order = sales.find(s => {
       const saleId = s.id.toLowerCase();
       const salePhone = s.customerPhone?.trim() || "";
       
-      // Flexible matching: check if full ID matches or if the suffix matches
       const isIdMatch = saleId === searchId || saleId.endsWith(searchId);
       const isPhoneMatch = salePhone === searchPhone || (salePhone.slice(-11) === searchPhone.slice(-11) && searchPhone.length >= 11);
 
@@ -33,6 +35,17 @@ const OrderTracking: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
 
     setFoundOrder(order || null);
     setSearched(true);
+  }, [sales]);
+
+  useEffect(() => {
+    if (initialOrderId && initialPhone && sales.length > 0) {
+      performTrack(initialOrderId, initialPhone);
+    }
+  }, [initialOrderId, initialPhone, sales, performTrack]);
+
+  const handleTrack = (e: React.FormEvent) => {
+    e.preventDefault();
+    performTrack(orderId, phone);
   };
 
   const getStatusStep = (status: string) => {

@@ -20,12 +20,20 @@ import { AuthProvider, useAuth } from './components/AuthContext.tsx';
 const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [trackingContext, setTrackingContext] = useState<{id: string, phone: string} | null>(null);
   
   const { products } = useProducts();
   const { user, staffRole, logout } = useAuth();
 
   const navigateTo = (page: string) => {
+    if (page !== 'track-order') setTrackingContext(null);
     setCurrentPage(page);
+    window.scrollTo(0, 0);
+  };
+
+  const handleTrackOrder = (id: string, phone: string) => {
+    setTrackingContext({ id, phone });
+    setCurrentPage('track-order');
     window.scrollTo(0, 0);
   };
 
@@ -58,11 +66,11 @@ const AppContent: React.FC = () => {
       case 'checkout':
         return <Checkout onNavigate={navigateTo} />;
       case 'track-order':
-        return <OrderTracking onNavigate={navigateTo} />;
+        return <OrderTracking onNavigate={navigateTo} initialOrderId={trackingContext?.id} initialPhone={trackingContext?.phone} />;
       case 'customer-auth':
         return <CustomerAuth onNavigate={navigateTo} />;
       case 'profile':
-        return <Profile onNavigate={navigateTo} />;
+        return <Profile onNavigate={navigateTo} onTrackOrder={handleTrackOrder} />;
       case 'admin':
         return staffRole === 'admin' 
           ? <AdminDashboard onNavigate={navigateTo} /> 
