@@ -1,16 +1,25 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// আপনার ফায়ারবেস কনসোল থেকে নিচের কি-গুলো পরিবর্তন করুন
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "grameen-energy.firebaseapp.com",
-  projectId: "grameen-energy",
-  storageBucket: "grameen-energy.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyApP0pgJcqQs8N9sWWAHWVrFtHEHKFmf0w",
+  authDomain: "grameen-energy-ac9ac.firebaseapp.com",
+  databaseURL: "https://grameen-energy-ac9ac-default-rtdb.firebaseio.com",
+  projectId: "grameen-energy-ac9ac",
+  storageBucket: "grameen-energy-ac9ac.firebasestorage.app",
+  messagingSenderId: "235538916133",
+  appId: "1:235538916133:web:1e6609142353ef1e1fb0cc"
 };
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+let db: any;
+
+try {
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  console.log("Firebase initialized successfully with project:", firebaseConfig.projectId);
+} catch (error) {
+  console.error("Firebase Initialization Error:", error);
+}
+
+export { db };
 export default db;
