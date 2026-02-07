@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
@@ -31,7 +32,7 @@ const AppContent: React.FC = () => {
         const parsed = JSON.parse(savedAuth);
         setAuth(parsed);
         // If user was on admin or pos, stay there
-        if (parsed.role) {
+        if (parsed.role && (currentPage === 'admin' || currentPage === 'pos')) {
           setCurrentPage(parsed.role);
         }
       } catch (e) {
@@ -91,7 +92,8 @@ const AppContent: React.FC = () => {
           ? <AdminDashboard onNavigate={navigateTo} /> 
           : <Login type="admin" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
       case 'pos':
-        return auth.isAuthenticated && auth.role === 'pos' 
+        // Modified to allow both admin and pos roles to access POS terminal
+        return auth.isAuthenticated && (auth.role === 'pos' || auth.role === 'admin')
           ? <POS /> 
           : <Login type="pos" onLoginSuccess={handleLoginSuccess} onBack={() => navigateTo('home')} />;
       case 'contact':

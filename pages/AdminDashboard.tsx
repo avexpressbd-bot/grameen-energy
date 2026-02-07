@@ -2,10 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
-import { Category, Product, Customer, BlogPost, SiteSettings, Sale } from '../types';
+import { Category, Product, Customer, BlogPost, SiteSettings, Sale, OrderStatus } from '../types';
 import { 
   Plus, Edit2, Trash2, Box, X, Save, Search, DollarSign, RefreshCw, Star, Tag, Users, 
-  Wallet, CheckCircle, Settings, LayoutDashboard, FileText, ShoppingCart, Info, Image as ImageIcon
+  Wallet, CheckCircle, Settings, LayoutDashboard, FileText, ShoppingCart, Info, 
+  Image as ImageIcon, MapPin, Phone, Eye, ArrowRight, Loader2
 } from 'lucide-react';
 
 type AdminTab = 'inventory' | 'dues' | 'sales' | 'blogs' | 'settings';
@@ -222,32 +223,121 @@ const SettingsTab = ({ form, setForm, onSave }: any) => (
   </form>
 );
 
-const SalesTab = ({ sales, searchTerm }: any) => (
-  <table className="w-full">
-    <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-      <tr>
-        <th className="px-8 py-5 text-left">Invoice</th>
-        <th className="px-6 py-5 text-left">Customer</th>
-        <th className="px-6 py-5 text-left">Date</th>
-        <th className="px-6 py-5 text-left">Status</th>
-        <th className="px-8 py-5 text-right">Total</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-slate-50 font-bold text-sm">
-      {sales.map((s: Sale) => (
-        <tr key={s.id}>
-          <td className="px-8 py-4 font-mono text-blue-600">{s.id}</td>
-          <td className="px-6 py-4">{s.customerName} <br/><span className="text-[10px] text-slate-400">{s.customerPhone}</span></td>
-          <td className="px-6 py-4 text-slate-500">{new Date(s.date).toLocaleDateString()}</td>
-          <td className="px-6 py-4">
-            <span className={`px-2 py-1 rounded text-[10px] ${s.dueAmount > 0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{s.dueAmount > 0 ? 'DUE' : 'PAID'}</span>
-          </td>
-          <td className="px-8 py-4 text-right font-black text-slate-900">৳{s.total}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-);
+const SalesTab = ({ sales, searchTerm }: any) => {
+  const [selectedOrder, setSelectedOrder] = useState<Sale | null>(null);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+          <tr>
+            <th className="px-8 py-5 text-left">Invoice</th>
+            <th className="px-6 py-5 text-left">Customer</th>
+            <th className="px-6 py-5 text-left">Area</th>
+            <th className="px-6 py-5 text-left">Status</th>
+            <th className="px-8 py-5 text-right">Total</th>
+            <th className="px-8 py-5 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50 font-bold text-sm">
+          {sales.map((s: Sale) => (
+            <tr key={s.id} className="hover:bg-slate-50 transition group">
+              <td className="px-8 py-4 font-mono text-blue-600">{s.id}</td>
+              <td className="px-6 py-4">
+                <div className="flex flex-col">
+                  <span className="text-slate-900">{s.customerName}</span>
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono"><Phone size={10}/> {s.customerPhone}</span>
+                </div>
+              </td>
+              <td className="px-6 py-4">
+                <span className="text-xs text-slate-500 font-bold flex items-center gap-1">
+                  <MapPin size={12} className="text-blue-400" />
+                  {s.customerCity || 'N/A'}
+                </span>
+              </td>
+              <td className="px-6 py-4">
+                <span className={`px-2 py-1 rounded-[6px] text-[10px] font-black uppercase tracking-widest ${
+                  s.status === 'Pending' ? 'bg-amber-100 text-amber-600' : 
+                  s.status === 'Delivered' ? 'bg-emerald-100 text-emerald-600' :
+                  s.status === 'Cancelled' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                }`}>
+                  {s.status || 'Pending'}
+                </span>
+              </td>
+              <td className="px-8 py-4 text-right font-black text-slate-900">৳{s.total}</td>
+              <td className="px-8 py-4 text-right">
+                 <button 
+                   onClick={() => setSelectedOrder(s)}
+                   className="p-2 text-slate-400 hover:text-blue-600 transition"
+                 >
+                   <Eye size={18} />
+                 </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Order Details Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+           <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+              <div className="p-8 bg-slate-50 border-b flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-900 text-white p-2 rounded-xl"><ShoppingCart size={20}/></div>
+                  <h3 className="text-xl font-black uppercase tracking-tight">Order Details #{selectedOrder.id}</h3>
+                </div>
+                <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-red-50 text-red-500 rounded-xl transition"><X size={24}/></button>
+              </div>
+              <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto">
+                 <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">Customer Info</h4>
+                       <p className="text-sm font-black text-slate-800">{selectedOrder.customerName}</p>
+                       <p className="text-xs text-slate-500 font-mono">{selectedOrder.customerPhone}</p>
+                    </div>
+                    <div className="space-y-4">
+                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">Delivery To</h4>
+                       <p className="text-xs font-bold text-slate-600 leading-relaxed">
+                         <MapPin size={12} className="inline mr-1 text-emerald-500"/>
+                         {selectedOrder.customerAddress}, {selectedOrder.customerCity}
+                       </p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">Order Items</h4>
+                    <div className="space-y-2">
+                       {selectedOrder.items.map((item, i) => (
+                         <div key={i} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                            <span className="text-xs font-bold text-slate-700">{item.name} x {item.quantity}</span>
+                            <span className="text-xs font-black text-blue-900">৳{item.totalPrice}</span>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+
+                 <div className="flex justify-between items-center p-6 bg-blue-900 text-white rounded-[2rem]">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-300">Total Amount</p>
+                      <p className="text-2xl font-black">৳{selectedOrder.total}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-300">Method</p>
+                      <p className="text-sm font-black">{selectedOrder.paymentMethod}</p>
+                    </div>
+                 </div>
+              </div>
+              <div className="p-8 bg-slate-50 border-t flex gap-4">
+                 <button className="flex-1 bg-white border-2 border-slate-200 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition">Print Invoice</button>
+                 <button className="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition">Mark Shipped</button>
+              </div>
+           </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const DuesTab = ({ customers, searchTerm, updateDue }: any) => {
   const [selected, setSelected] = useState<any>(null);

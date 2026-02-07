@@ -27,9 +27,6 @@ export interface Product {
   stock: number;
 }
 
-/**
- * Added CartItem interface which extends Product with a quantity property.
- */
 export interface CartItem extends Product {
   quantity: number;
 }
@@ -69,10 +66,14 @@ export interface SaleItem {
   warranty?: string;
 }
 
+export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+
 export interface Sale {
   id: string;
   customerName: string;
   customerPhone: string;
+  customerAddress: string;
+  customerCity: string;
   items: SaleItem[];
   subtotal: number;
   discount: number;
@@ -80,6 +81,7 @@ export interface Sale {
   paidAmount: number;
   dueAmount: number;
   paymentMethod: string;
+  status: OrderStatus;
   date: string;
 }
 
