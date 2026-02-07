@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../components/LanguageContext';
 import { useAuth } from '../components/AuthContext';
-import { Lock, User, Phone, Eye, EyeOff, ArrowRight, UserPlus, LogIn, Mail, MapPin } from 'lucide-react';
+import { Lock, User, Phone, Eye, EyeOff, ArrowRight, UserPlus, LogIn, Mail, MapPin, ShieldCheck, Zap } from 'lucide-react';
 
 const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const { t } = useLanguage();
@@ -13,10 +13,9 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Form states
   const [formData, setFormData] = useState({
     name: '',
-    phone: '',
+    idOrPhone: '', // Primary field for ID or Phone
     password: '',
     email: '',
     address: '',
@@ -30,9 +29,11 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
 
     try {
       if (isLogin) {
-        const success = await login(formData.phone, formData.password);
-        if (success) onNavigate('profile');
-        else setError(t('Invalid Phone or Password', 'ভুল ফোন নম্বর অথবা পাসওয়ার্ড'));
+        const role = await login(formData.idOrPhone, formData.password);
+        if (role === 'admin') onNavigate('admin');
+        else if (role === 'pos') onNavigate('pos');
+        else if (role === 'customer') onNavigate('profile');
+        else setError(t('Invalid ID or Password', 'ভুল আইডি অথবা পাসওয়ার্ড'));
       } else {
         if (formData.password.length < 6) {
           setError(t('Password must be at least 6 characters', 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে'));
@@ -41,7 +42,7 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
         }
         await register({
           name: formData.name,
-          phone: formData.phone,
+          phone: formData.idOrPhone, // In registration, ID is the Phone
           email: formData.email,
           address: formData.address,
           city: formData.city
@@ -63,12 +64,12 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
           <div className="relative z-10">
             <div className="bg-emerald-500 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl mb-6 shadow-lg">GE</div>
             <h2 className="text-3xl font-black uppercase tracking-tight leading-tight mb-4">
-              {isLogin ? t('Welcome Back!', 'স্বাগতম!') : t('Join the Energy Revolution', 'আমাদের সাথে যোগ দিন')}
+              {isLogin ? t('Access Portal', 'অ্যাক্সেস পোর্টাল') : t('Join the Energy Revolution', 'রেজিস্ট্রেশন করুন')}
             </h2>
             <p className="text-blue-200 text-sm font-bold leading-relaxed">
               {isLogin 
-                ? t('Login to access your orders and profile.', 'আপনার অর্ডার এবং প্রোফাইল দেখতে লগইন করুন।') 
-                : t('Register today for exclusive offers and faster checkout.', 'অফার এবং দ্রুত চেকআউটের জন্য আজই রেজিস্টার করুন।')}
+                ? t('Universal login for customers and management.', 'কাস্টমার এবং ম্যানেজমেন্টের জন্য সাধারণ লগইন।') 
+                : t('Register today for exclusive offers and faster checkout.', 'নতুন প্রোফাইল তৈরি করুন সব সুবিধা পেতে।')}
             </p>
           </div>
           
@@ -76,7 +77,7 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
             onClick={() => setIsLogin(!isLogin)}
             className="relative z-10 mt-8 py-3 px-6 bg-white/10 border border-white/20 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/20 transition"
           >
-            {isLogin ? t('Create Account', 'অ্যাকাউন্ট তৈরি করুন') : t('Already have account?', 'লগইন করুন')}
+            {isLogin ? t('Register Now', 'রেজিস্ট্রেশন করুন') : t('Existing Member?', 'লগইন করুন')}
           </button>
 
           {/* Decorative elements */}
@@ -86,9 +87,17 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
 
         {/* Auth Form */}
         <div className="flex-1 p-10 md:p-12">
-          <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">
-            {isLogin ? t('Customer Login', 'কাস্টমার লগইন') : t('Create Account', 'রেজিস্ট্রেশন')}
-          </h3>
+          <div className="flex justify-between items-start mb-8">
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+              {isLogin ? t('Login', 'লগইন') : t('New Profile', 'নতুন প্রোফাইল')}
+            </h3>
+            {isLogin && (
+              <div className="flex gap-1">
+                 <div title="Staff Access" className="w-6 h-6 bg-blue-50 text-blue-400 rounded-lg flex items-center justify-center"><ShieldCheck size={14}/></div>
+                 <div title="Customer Access" className="w-6 h-6 bg-emerald-50 text-emerald-400 rounded-lg flex items-center justify-center"><User size={14}/></div>
+              </div>
+            )}
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
@@ -115,15 +124,17 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Phone Number', 'ফোন নম্বর')}</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                {isLogin ? t('Phone or Staff ID', 'ফোন নম্বর অথবা স্টাফ আইডি') : t('Phone Number', 'ফোন নম্বর')}
+              </label>
               <div className="relative">
-                <Phone className="absolute left-4 top-3.5 text-slate-300" size={18} />
+                {isLogin ? <User className="absolute left-4 top-3.5 text-slate-300" size={18} /> : <Phone className="absolute left-4 top-3.5 text-slate-300" size={18} />}
                 <input 
                   required
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  placeholder="01XXXXXXXXX"
+                  type="text"
+                  value={formData.idOrPhone}
+                  onChange={(e) => setFormData({...formData, idOrPhone: e.target.value})}
+                  placeholder={isLogin ? "01XXXXXXXXX / admin" : "01XXXXXXXXX"}
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl outline-none focus:bg-white focus:border-blue-500/10 transition font-bold font-mono"
                 />
               </div>

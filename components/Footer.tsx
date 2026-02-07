@@ -50,10 +50,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, isAuthenticated, onLogout }
             {isAuthenticated ? (
               <li><button onClick={onLogout} className="flex items-center gap-1 text-red-400 hover:text-red-500 transition"><LogOut size={14}/> {t('Logout', 'লগআউট')}</button></li>
             ) : (
-              <>
-                <li><button onClick={() => onNavigate?.('pos')} className="flex items-center gap-1 hover:text-emerald-500 transition"><Zap size={14}/> {t('Sales Panel (POS)', 'সেলস প্যানেল (পিওএস)')}</button></li>
-                <li><button onClick={() => onNavigate?.('admin')} className="flex items-center gap-1 hover:text-emerald-500 transition"><Lock size={14}/> {t('Admin Panel', 'এডমিন প্যানেল')}</button></li>
-              </>
+              <li><button onClick={() => onNavigate?.('customer-auth')} className="flex items-center gap-1 hover:text-emerald-500 transition"><Lock size={14}/> {t('Management Login', 'ম্যানেজমেন্ট লগইন')}</button></li>
             )}
           </ul>
         </div>

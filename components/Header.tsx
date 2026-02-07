@@ -156,15 +156,6 @@ const Header: React.FC<{
                   <User size={20}/> {t('Login / Register', 'লগইন / রেজিস্ট্রেশন')}
                 </button>
               )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => { onNavigate('admin'); setIsMenuOpen(false); }} className="p-4 bg-slate-50 border rounded-2xl flex flex-col items-center gap-2 text-slate-500 font-bold text-xs uppercase tracking-widest">
-                  <Lock size={20}/> Admin
-                </button>
-                <button onClick={() => { onNavigate('pos'); setIsMenuOpen(false); }} className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex flex-col items-center gap-2 text-blue-600 font-bold text-xs uppercase tracking-widest">
-                  <Zap size={20}/> POS
-                </button>
-              </div>
             </div>
           </div>
         )}

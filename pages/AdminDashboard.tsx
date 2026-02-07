@@ -3,24 +3,25 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
 import { Category, Product, Customer, BlogPost, SiteSettings, Sale, OrderStatus, CustomerUser } from '../types';
+// Fixed: Added CreditCard and Banknote to imports from lucide-react
 import { 
   Plus, Edit2, Trash2, Box, X, Save, Search, DollarSign, RefreshCw, Star, Tag, Users, User,
   Wallet, CheckCircle, Settings, LayoutDashboard, FileText, ShoppingCart, Info, 
   Image as ImageIcon, MapPin, Phone, Eye, ArrowRight, Loader2, Bell, Volume2, 
-  Download, Filter, CheckCircle2, Truck, XCircle, Clock, Printer, AlertTriangle, TrendingUp, Hash
+  Download, Filter, CheckCircle2, Truck, XCircle, Clock, Printer, AlertTriangle, TrendingUp, Hash, Activity, BarChart3,
+  CreditCard, Banknote
 } from 'lucide-react';
-import Invoice from '../components/Invoice';
 
-type AdminTab = 'inventory' | 'dues' | 'sales' | 'customers' | 'blogs' | 'settings';
+type AdminTab = 'overview' | 'inventory' | 'dues' | 'sales' | 'customers' | 'blogs' | 'settings';
 
-const AdminDashboard: React.FC = () => {
+const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const { 
     products, sales, customers, registeredUsers, blogs, settings, 
     addProduct, updateProduct, deleteProduct, updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog 
   } = useProducts();
   const { t } = useLanguage();
   
-  const [activeTab, setActiveTab] = useState<AdminTab>('inventory');
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -43,27 +44,22 @@ const AdminDashboard: React.FC = () => {
   }, [sales]);
 
   // Daily Pulse Stats
-  const todaySales = sales.filter(s => {
+  const todaySales = useMemo(() => sales.filter(s => {
     const saleDate = new Date(s.date).toDateString();
     const today = new Date().toDateString();
     return saleDate === today;
-  });
+  }), [sales]);
 
-  const dailyStats = {
+  const dailyStats = useMemo(() => ({
     revenue: todaySales.reduce((acc, s) => acc + s.total, 0),
     count: todaySales.length,
     cash: todaySales.filter(s => s.paymentMethod === 'Cash' || s.paymentMethod === 'Cash on Delivery').length,
-    digital: todaySales.filter(s => s.paymentMethod !== 'Cash' && s.paymentMethod !== 'Cash on Delivery').length
-  };
+    digital: todaySales.filter(s => s.paymentMethod !== 'Cash' && s.paymentMethod !== 'Cash on Delivery').length,
+    web: todaySales.filter(s => s.id.startsWith('GE-')).length,
+    pos: todaySales.filter(s => s.id.startsWith('POS-')).length,
+  }), [todaySales]);
 
   const lowStockProducts = products.filter(p => p.stock < 5);
-
-  const stats = {
-    inventory: products.reduce((acc, p) => acc + (p.price * p.stock), 0),
-    revenue: sales.reduce((acc, s) => acc + s.total, 0),
-    dues: customers.reduce((acc, c) => acc + c.totalDue, 0),
-    count: products.length
-  };
 
   const [settingsForm, setSettingsForm] = useState<SiteSettings>(settings || {
     siteName: 'Grameen Energy', siteNameBn: 'গ্রামিন এনার্জি',
@@ -82,7 +78,7 @@ const AdminDashboard: React.FC = () => {
       <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" />
 
       {newOrderAlert && (
-        <div className="fixed top-6 right-6 z-[300] w-96 bg-blue-900 text-white p-6 rounded-[2rem] shadow-2xl animate-in slide-in-from-right duration-500">
+        <div className="fixed top-6 right-6 z-[300] w-96 bg-blue-900 text-white p-6 rounded-[2rem] shadow-2xl animate-in slide-in-from-right duration-500 border border-white/10">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
               <Bell className="animate-swing text-emerald-400" size={24}/>
@@ -91,21 +87,24 @@ const AdminDashboard: React.FC = () => {
               <h4 className="font-black text-sm uppercase tracking-widest mb-1">New Order!</h4>
               <p className="text-xs text-blue-200 font-bold">#{newOrderAlert.id} from {newOrderAlert.customerName}.</p>
               <div className="mt-4 flex gap-2">
-                <button onClick={() => { setActiveTab('sales'); setNewOrderAlert(null); }} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">View</button>
-                <button onClick={() => setNewOrderAlert(null)} className="px-4 py-2 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Dismiss</button>
+                <button onClick={() => { setActiveTab('sales'); setNewOrderAlert(null); }} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition hover:bg-emerald-600">View</button>
+                <button onClick={() => setNewOrderAlert(null)} className="px-4 py-2 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition hover:bg-white/20">Dismiss</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Sidebar Navigation */}
       <aside className="w-full lg:w-72 bg-blue-900 text-white flex flex-col shrink-0">
         <div className="p-8 border-b border-white/10">
-          <div className="bg-emerald-500 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl mb-4">GE</div>
+          <div className="bg-emerald-500 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl">GE</div>
           <h2 className="font-black text-xl tracking-tight uppercase">Admin Panel</h2>
+          <p className="text-[10px] text-blue-300 font-black uppercase tracking-[0.2em] mt-1">Management Hub</p>
         </div>
         <nav className="p-6 space-y-2 flex-1">
           {[
+            { id: 'overview', icon: LayoutDashboard, label: 'ওভারভিউ' },
             { id: 'inventory', icon: Box, label: 'স্টক ম্যানেজমেন্ট' },
             { id: 'sales', icon: ShoppingCart, label: 'অর্ডার ও বিক্রয়' },
             { id: 'customers', icon: Users, label: 'কাস্টমার তালিকা' },
@@ -113,87 +112,138 @@ const AdminDashboard: React.FC = () => {
             { id: 'blogs', icon: FileText, label: 'ব্লগ ও আপডেট' },
             { id: 'settings', icon: Settings, label: 'সাইট সেটিংস' },
           ].map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id as AdminTab)} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all text-sm ${activeTab === item.id ? 'bg-white text-blue-900 shadow-xl' : 'hover:bg-white/5 text-blue-100'}`}>
+            <button 
+              key={item.id} 
+              onClick={() => setActiveTab(item.id as AdminTab)} 
+              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all text-sm ${activeTab === item.id ? 'bg-white text-blue-900 shadow-xl scale-[1.02]' : 'hover:bg-white/5 text-blue-100'}`}
+            >
               <item.icon size={20}/> {item.label}
             </button>
           ))}
         </nav>
+        <div className="p-6 border-t border-white/10">
+           <button onClick={() => onNavigate('pos')} className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 transition shadow-lg">
+             <Activity size={16}/> Go to POS
+           </button>
+        </div>
       </aside>
 
-      <main className="flex-1 p-6 lg:p-12 overflow-y-auto">
-        <header className="flex justify-between items-center mb-10">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 uppercase">{activeTab}</h1>
-            <p className="text-slate-400 font-bold text-xs uppercase mt-1">Real-time business management</p>
+      {/* Main Content Area */}
+      <main className="flex-1 p-6 lg:p-12 overflow-y-auto bg-[#f8fafc]">
+        {/* TOP COMPONENT: Today's Sales Pulse (Pinned at top) */}
+        <section className="mb-12 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl border border-white/5">
+          <div className="relative z-10 flex flex-col xl:flex-row justify-between items-center gap-10">
+             <div className="space-y-4 text-center xl:text-left">
+               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full font-black uppercase text-[10px] tracking-widest border border-emerald-500/20">
+                 <TrendingUp size={14}/> Today's Sales Pulse
+               </div>
+               <div>
+                 <p className="text-6xl font-black tracking-tighter mb-1">৳{dailyStats.revenue.toLocaleString()}</p>
+                 <p className="text-slate-400 font-bold text-sm">{dailyStats.count} Total Transactions Finalized Today</p>
+               </div>
+             </div>
+             
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full xl:w-auto">
+               {[
+                 { label: 'Web Orders', val: dailyStats.web, icon: ShoppingCart, color: 'blue' },
+                 { label: 'POS Sales', val: dailyStats.pos, icon: Activity, color: 'emerald' },
+                 { label: 'Digital Pay', val: dailyStats.digital, icon: CreditCard, color: 'purple' },
+                 { label: 'Cash Sales', val: dailyStats.cash, icon: Banknote, color: 'amber' },
+               ].map((stat, i) => (
+                 <div key={i} className="bg-white/5 p-5 rounded-[2rem] border border-white/10 text-center flex flex-col items-center gap-2 hover:bg-white/10 transition">
+                   <stat.icon size={20} className={`text-${stat.color}-400`} />
+                   <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{stat.label}</p>
+                   <p className="text-2xl font-black">{stat.val}</p>
+                 </div>
+               ))}
+             </div>
           </div>
-          <div className="flex gap-4">
-            <div className="relative hidden md:block">
-              <Search className="absolute left-4 top-3 text-slate-400" size={18}/>
-              <input type="text" placeholder="Search..." className="pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl w-64 outline-none font-bold text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
-            </div>
-          </div>
-        </header>
+          {/* Background visuals */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none"></div>
+        </section>
 
-        {activeTab !== 'settings' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            <div className="lg:col-span-2 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl">
-              <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                 <div className="space-y-2">
-                   <div className="flex items-center gap-2 text-emerald-400 font-black uppercase text-[10px] tracking-widest">
-                     <TrendingUp size={14}/> Today's Sales Pulse
-                   </div>
-                   <p className="text-5xl font-black">৳{dailyStats.revenue.toLocaleString()}</p>
-                   <p className="text-slate-400 font-bold text-xs">{dailyStats.count} Total Orders Finalized Today</p>
-                 </div>
-                 <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-                   <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center">
-                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Cash</p>
-                     <p className="text-xl font-black text-emerald-400">{dailyStats.cash}</p>
-                   </div>
-                   <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-center">
-                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Digital</p>
-                     <p className="text-xl font-black text-blue-400">{dailyStats.digital}</p>
-                   </div>
-                 </div>
+        {/* Dynamic Tab Content */}
+        <div className="space-y-10">
+          {activeTab === 'overview' && (
+            <div className="grid lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-8">
+                <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
+                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-6 flex items-center gap-3">
+                    <BarChart3 size={20} className="text-blue-600"/> Recent Sales Activities
+                  </h3>
+                  <SalesTab sales={sales.slice(0, 10)} searchTerm="" onUpdateStatus={updateSaleStatus} />
+                  <button onClick={() => setActiveTab('sales')} className="w-full mt-6 py-4 bg-slate-50 rounded-2xl text-slate-400 font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 hover:text-blue-600 transition">
+                    View Full Sales History
+                  </button>
+                </div>
               </div>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-            </div>
+              <div className="space-y-8">
+                {/* Critical Stock Alert */}
+                <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                   <div className="flex justify-between items-center mb-6">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <AlertTriangle size={14} className="text-amber-500" /> Critical Stock
+                      </h4>
+                      <div className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">{lowStockProducts.length} Items</div>
+                   </div>
+                   <div className="space-y-4">
+                      {lowStockProducts.length === 0 ? (
+                        <div className="py-10 flex flex-col items-center justify-center text-slate-300 gap-4">
+                          <CheckCircle size={40} className="text-emerald-500 opacity-20" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">Inventory Healthy</p>
+                        </div>
+                      ) : lowStockProducts.slice(0, 5).map(p => (
+                        <div key={p.id} className="flex justify-between items-center bg-red-50 p-4 rounded-2xl border border-red-100 group hover:bg-red-100 transition">
+                          <div className="flex items-center gap-3">
+                            <img src={p.image} className="w-10 h-10 rounded-xl object-cover" />
+                            <span className="text-[11px] font-black text-slate-700 truncate w-32">{p.nameBn}</span>
+                          </div>
+                          <span className="bg-red-600 text-white px-3 py-1 rounded-lg text-[10px] font-black">{p.stock}</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
 
-            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-               <div className="flex justify-between items-center mb-6">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Critical Stock</h4>
-                  <div className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">{lowStockProducts.length} Items</div>
-               </div>
-               <div className="flex-1 space-y-4 overflow-y-auto max-h-[150px] custom-scrollbar">
-                  {lowStockProducts.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-slate-300 text-[10px] font-bold uppercase">All systems clear</div>
-                  ) : lowStockProducts.map(p => (
-                    <div key={p.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100">
-                      <span className="text-[10px] font-black text-slate-700 truncate mr-2">{p.nameBn}</span>
-                      <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[8px] font-black">{p.stock}</span>
-                    </div>
-                  ))}
-               </div>
+                {/* Quick Actions Card */}
+                <div className="bg-blue-900 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden">
+                  <h4 className="text-[10px] font-black text-blue-300 uppercase tracking-widest mb-6">Quick Tools</h4>
+                  <div className="grid grid-cols-1 gap-3 relative z-10">
+                    <button onClick={() => { setActiveTab('inventory'); setEditingItem(null); setIsModalOpen(true); }} className="w-full flex items-center gap-4 bg-white/10 p-4 rounded-2xl hover:bg-white/20 transition">
+                      <Plus size={20} className="text-emerald-400"/>
+                      <span className="text-xs font-black uppercase tracking-widest">Add New Product</span>
+                    </button>
+                    <button onClick={() => { setActiveTab('blogs'); setEditingItem(null); setIsModalOpen(true); }} className="w-full flex items-center gap-4 bg-white/10 p-4 rounded-2xl hover:bg-white/20 transition">
+                      <FileText size={20} className="text-blue-400"/>
+                      <span className="text-xs font-black uppercase tracking-widest">Post Blog Update</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-hidden min-h-[500px]">
-          {activeTab === 'inventory' && <InventoryTab products={products} searchTerm={searchTerm} onEdit={(p) => {setEditingItem(p); setIsModalOpen(true);}} onDelete={deleteProduct}/>}
-          {activeTab === 'sales' && <SalesTab sales={sales} searchTerm={searchTerm} onUpdateStatus={updateSaleStatus}/>}
-          {activeTab === 'customers' && <CustomersTab users={registeredUsers} searchTerm={searchTerm}/>}
-          {activeTab === 'dues' && <DuesTab customers={customers} searchTerm={searchTerm} updateDue={updateCustomerDue}/>}
-          {activeTab === 'blogs' && <BlogsTab blogs={blogs} searchTerm={searchTerm} onDelete={deleteBlog}/>}
-          {activeTab === 'settings' && <SettingsTab form={settingsForm} setForm={setSettingsForm} onSave={handleSettingsUpdate}/>}
+          {/* Standard Tab Views */}
+          {activeTab !== 'overview' && (
+            <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden min-h-[600px] animate-in slide-in-from-bottom-6 duration-500">
+              {activeTab === 'inventory' && <InventoryTab products={products} searchTerm={searchTerm} onEdit={(p:any) => {setEditingItem(p); setIsModalOpen(true);}} onDelete={deleteProduct}/>}
+              {activeTab === 'sales' && <SalesTab sales={sales} searchTerm={searchTerm} onUpdateStatus={updateSaleStatus}/>}
+              {activeTab === 'customers' && <CustomersTab users={registeredUsers} searchTerm={searchTerm}/>}
+              {activeTab === 'dues' && <DuesTab customers={customers} searchTerm={searchTerm} updateDue={updateCustomerDue}/>}
+              {activeTab === 'blogs' && <BlogsTab blogs={blogs} searchTerm={searchTerm} onDelete={deleteBlog}/>}
+              {activeTab === 'settings' && <SettingsTab form={settingsForm} setForm={setSettingsForm} onSave={handleSettingsUpdate}/>}
+            </div>
+          )}
         </div>
       </main>
 
+      {/* Reusable Admin Modal */}
       {isModalOpen && (
         <AdminModal 
           type={activeTab === 'inventory' ? 'inventory' : 'blogs'} 
           item={editingItem} 
           onClose={() => setIsModalOpen(false)}
-          onSubmit={async (data) => {
+          onSubmit={async (data:any) => {
             if (activeTab === 'inventory') {
               editingItem ? await updateProduct(editingItem.id, data) : await addProduct({...data, id: 'GE-'+Math.floor(1000+Math.random()*9000)});
             } else if (activeTab === 'blogs') {
@@ -207,7 +257,7 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-// --- Sub-Components ---
+// --- Sub-Components (Cleanly separated) ---
 
 const CustomersTab = ({ users, searchTerm }: { users: CustomerUser[], searchTerm: string }) => {
   const filtered = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.phone.includes(searchTerm) || u.accountId.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -235,11 +285,8 @@ const CustomersTab = ({ users, searchTerm }: { users: CustomerUser[], searchTerm
               </td>
               <td className="px-6 py-4 text-slate-900">{u.name}</td>
               <td className="px-6 py-4 font-mono text-slate-500">{u.phone}</td>
-              <td className="px-6 py-4">
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-700">{u.city || 'N/A'}</span>
-                  <span className="text-[10px] text-slate-400 truncate w-32">{u.address || ''}</span>
-                </div>
+              <td className="px-6 py-4 text-xs text-slate-600">
+                 {u.city || 'N/A'}
               </td>
               <td className="px-8 py-4 text-right text-xs text-slate-400">
                 {new Date(u.createdAt).toLocaleDateString()}
@@ -303,16 +350,6 @@ const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
     });
   }, [sales, activeSubTab, searchTerm]);
 
-  const exportToCSV = () => {
-    const headers = ['Order ID', 'Date', 'Customer', 'Phone', 'Status', 'Total'];
-    const rows = filteredSales.map((s: Sale) => [s.id, new Date(s.date).toLocaleDateString(), s.customerName, s.customerPhone, s.status, s.total]);
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", `GE_Sales_${activeSubTab}.csv`);
-    link.click();
-  };
-
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case 'Pending': return 'bg-amber-100 text-amber-600';
@@ -333,9 +370,6 @@ const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
             </button>
           ))}
         </div>
-        <button onClick={exportToCSV} className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition">
-          <Download size={16} /> Export
-        </button>
       </div>
 
       <div className="overflow-x-auto">
@@ -353,7 +387,7 @@ const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
             {filteredSales.map((s: Sale) => (
               <tr key={s.id} className="hover:bg-slate-50 transition">
                 <td className="px-8 py-4 font-mono text-xs text-blue-600">#{s.id}</td>
-                <td className="px-6 py-4">{s.customerName}</td>
+                <td className="px-6 py-4 truncate max-w-[120px]">{s.customerName}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded-[6px] text-[10px] font-black uppercase tracking-widest ${getStatusColor(s.status)}`}>{s.status}</span>
                 </td>

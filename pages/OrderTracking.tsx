@@ -15,10 +15,22 @@ const OrderTracking: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
 
   const handleTrack = (e: React.FormEvent) => {
     e.preventDefault();
-    const order = sales.find(s => 
-      s.id.toLowerCase() === orderId.toLowerCase() && 
-      s.customerPhone === phone
-    );
+    
+    // Normalize inputs: trim spaces and handle case sensitivity
+    const searchId = orderId.trim().toLowerCase();
+    const searchPhone = phone.trim();
+
+    const order = sales.find(s => {
+      const saleId = s.id.toLowerCase();
+      const salePhone = s.customerPhone?.trim() || "";
+      
+      // Flexible matching: check if full ID matches or if the suffix matches
+      const isIdMatch = saleId === searchId || saleId.endsWith(searchId);
+      const isPhoneMatch = salePhone === searchPhone || (salePhone.slice(-11) === searchPhone.slice(-11) && searchPhone.length >= 11);
+
+      return isIdMatch && isPhoneMatch;
+    });
+
     setFoundOrder(order || null);
     setSearched(true);
   };
@@ -50,7 +62,7 @@ const OrderTracking: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
               <input 
                 required
                 type="text" 
-                placeholder="GE-XXXXXX" 
+                placeholder="Ex: GE-123456" 
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
                 className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold font-mono border-2 border-transparent focus:border-blue-500/10 outline-none transition" 
@@ -67,7 +79,7 @@ const OrderTracking: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
                   onChange={(e) => setPhone(e.target.value)}
                   className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl font-bold font-mono border-2 border-transparent focus:border-blue-500/10 outline-none transition" 
                 />
-                <button type="submit" className="bg-blue-900 text-white px-8 rounded-2xl hover:bg-blue-800 transition shadow-xl shadow-blue-900/10">
+                <button type="submit" className="bg-blue-900 text-white px-8 rounded-2xl hover:bg-blue-800 transition shadow-xl shadow-blue-900/10 flex items-center justify-center">
                   <Search size={24}/>
                 </button>
               </div>
@@ -75,8 +87,9 @@ const OrderTracking: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
           </form>
 
           {searched && !foundOrder && (
-            <div className="p-12 bg-red-50 text-red-600 rounded-[2rem] text-center font-bold">
-              {t('No order found with these details. Please check again.', 'এই তথ্যে কোনো অর্ডার পাওয়া যায়নি। সঠিক তথ্য দিয়ে আবার চেষ্টা করুন।')}
+            <div className="p-12 bg-red-50 text-red-600 rounded-[2rem] text-center">
+              <p className="font-black uppercase text-xs tracking-widest mb-2">Order Not Found</p>
+              <p className="font-bold">{t('No order found with these details. Please check ID and Phone again.', 'এই তথ্যে কোনো অর্ডার পাওয়া যায়নি। আইডি এবং ফোন নম্বর আবার চেক করুন।')}</p>
             </div>
           )}
 
@@ -94,7 +107,7 @@ const OrderTracking: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
               </div>
 
               {/* Status Timeline */}
-              <div className="relative">
+              <div className="relative py-10">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -translate-y-1/2 z-0"></div>
                 <div 
                   className="absolute top-1/2 left-0 h-1 bg-emerald-500 -translate-y-1/2 z-1 transition-all duration-1000"
@@ -109,10 +122,11 @@ const OrderTracking: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
                     { label: 'Delivered', icon: CheckCircle, labelBn: 'ডেলিভার্ড' },
                   ].map((step, i) => {
                     const isActive = getStatusStep(foundOrder.status) >= i;
+                    const isCurrent = getStatusStep(foundOrder.status) === i;
                     return (
                       <div key={step.label} className="flex flex-col items-center gap-4">
-                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${isActive ? 'bg-white border-emerald-500 text-emerald-500 shadow-xl' : 'bg-white border-slate-100 text-slate-300'}`}>
-                          <step.icon size={24} className={step.label === 'Processing' && foundOrder.status === 'Processing' ? 'animate-spin' : ''} />
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all duration-500 bg-white ${isActive ? 'border-emerald-500 text-emerald-500 shadow-xl' : 'border-slate-100 text-slate-300'}`}>
+                          <step.icon size={24} className={isCurrent && step.label === 'Processing' ? 'animate-spin' : ''} />
                         </div>
                         <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-slate-900' : 'text-slate-300'}`}>{t(step.label, step.labelBn)}</span>
                       </div>

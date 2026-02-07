@@ -2,11 +2,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CustomerUser } from '../types';
 import { db } from '../services/firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: CustomerUser | null;
-  login: (phone: string, password: string) => Promise<boolean>;
+  staffRole: 'admin' | 'pos' | null;
+  login: (id: string, password: string) => Promise<'admin' | 'pos' | 'customer' | false>;
   register: (userData: Omit<CustomerUser, 'uid' | 'createdAt' | 'accountId'>, password: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<CustomerUser>) => Promise<void>;
@@ -17,23 +18,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<CustomerUser | null>(null);
+  const [staffRole, setStaffRole] = useState<'admin' | 'pos' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('ge_customer_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const savedStaff = localStorage.getItem('ge_staff_role');
+    
+    if (savedUser) setUser(JSON.parse(savedUser));
+    if (savedStaff) setStaffRole(savedStaff as 'admin' | 'pos');
+    
     setLoading(false);
   }, []);
 
-  const login = async (phone: string, password: string) => {
-    const userDoc = await getDoc(doc(db, 'users', phone));
+  const login = async (id: string, password: string): Promise<'admin' | 'pos' | 'customer' | false> => {
+    // 1. Check Hardcoded Staff Credentials
+    if (id === 'admin' && password === 'admin123') {
+      setStaffRole('admin');
+      localStorage.setItem('ge_staff_role', 'admin');
+      return 'admin';
+    }
+    
+    if (id === 'posuser' && password === 'pos123') {
+      setStaffRole('pos');
+      localStorage.setItem('ge_staff_role', 'pos');
+      return 'pos';
+    }
+
+    // 2. Check Customer Credentials in Firestore
+    const userDoc = await getDoc(doc(db, 'users', id));
     if (userDoc.exists()) {
       const data = userDoc.data();
       if (data.password === password) {
         const customer: CustomerUser = {
-          uid: phone,
+          uid: id,
           accountId: data.accountId,
           name: data.name,
           phone: data.phone,
@@ -44,7 +62,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
         setUser(customer);
         localStorage.setItem('ge_customer_user', JSON.stringify(customer));
-        return true;
+        return 'customer';
       }
     }
     return false;
@@ -58,7 +76,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       throw new Error('User already exists');
     }
 
-    // Generate a unique Account ID: GE-C- + Random 5 digits
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
     const accountId = `GE-C-${randomSuffix}`;
 
@@ -85,7 +102,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
+    setStaffRole(null);
     localStorage.removeItem('ge_customer_user');
+    localStorage.removeItem('ge_staff_role');
   };
 
   const updateProfile = async (data: Partial<CustomerUser>) => {
@@ -97,7 +116,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateProfile, loading }}>
+    <AuthContext.Provider value={{ user, staffRole, login, register, logout, updateProfile, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -9,36 +9,20 @@ import Cart from './pages/Cart.tsx';
 import Checkout from './pages/Checkout.tsx';
 import AdminDashboard from './pages/AdminDashboard.tsx';
 import POS from './pages/POS.tsx';
-import Login from './pages/Login.tsx';
 import OrderTracking from './pages/OrderTracking.tsx';
 import CustomerAuth from './pages/CustomerAuth.tsx';
 import Profile from './pages/Profile.tsx';
 import { LanguageProvider } from './components/LanguageContext.tsx';
 import { CartProvider } from './components/CartContext.tsx';
 import { ProductProvider, useProducts } from './components/ProductContext.tsx';
-import { AuthProvider } from './components/AuthContext.tsx';
+import { AuthProvider, useAuth } from './components/AuthContext.tsx';
 
 const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [staffAuth, setStaffAuth] = useState<{ isAuthenticated: boolean, role: 'admin' | 'pos' | null }>({
-    isAuthenticated: false,
-    role: null
-  });
   
   const { products } = useProducts();
-
-  useEffect(() => {
-    const savedAuth = localStorage.getItem('ge_auth');
-    if (savedAuth) {
-      try {
-        const parsed = JSON.parse(savedAuth);
-        setStaffAuth(parsed);
-      } catch (e) {
-        console.error("Staff Auth Load Error", e);
-      }
-    }
-  }, []);
+  const { user, staffRole, logout } = useAuth();
 
   const navigateTo = (page: string) => {
     setCurrentPage(page);
@@ -49,19 +33,6 @@ const AppContent: React.FC = () => {
     setSelectedProductId(id);
     setCurrentPage('product-detail');
     window.scrollTo(0, 0);
-  };
-
-  const handleStaffLoginSuccess = (role: 'admin' | 'pos') => {
-    const newAuth = { isAuthenticated: true, role };
-    setStaffAuth(newAuth);
-    localStorage.setItem('ge_auth', JSON.stringify(newAuth));
-    navigateTo(role);
-  };
-
-  const handleStaffLogout = () => {
-    setStaffAuth({ isAuthenticated: false, role: null });
-    localStorage.removeItem('ge_auth');
-    navigateTo('home');
   };
 
   const handleScanResult = (code: string) => {
@@ -93,13 +64,13 @@ const AppContent: React.FC = () => {
       case 'profile':
         return <Profile onNavigate={navigateTo} />;
       case 'admin':
-        return staffAuth.isAuthenticated && staffAuth.role === 'admin' 
+        return staffRole === 'admin' 
           ? <AdminDashboard onNavigate={navigateTo} /> 
-          : <Login type="admin" onLoginSuccess={handleStaffLoginSuccess} onBack={() => navigateTo('home')} />;
+          : <CustomerAuth onNavigate={navigateTo} />;
       case 'pos':
-        return staffAuth.isAuthenticated && (staffAuth.role === 'pos' || staffAuth.role === 'admin')
+        return (staffRole === 'pos' || staffRole === 'admin')
           ? <POS /> 
-          : <Login type="pos" onLoginSuccess={handleStaffLoginSuccess} onBack={() => navigateTo('home')} />;
+          : <CustomerAuth onNavigate={navigateTo} />;
       default:
         return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
     }
@@ -107,15 +78,15 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header onNavigate={navigateTo} onScanResult={handleScanResult} currentStaffRole={staffAuth.role} />
+      <Header onNavigate={navigateTo} onScanResult={handleScanResult} currentStaffRole={staffRole} />
       <main className="flex-1">
         {renderPage()}
       </main>
       {currentPage !== 'pos' && (
         <Footer 
           onNavigate={navigateTo} 
-          isAuthenticated={staffAuth.isAuthenticated} 
-          onLogout={handleStaffLogout} 
+          isAuthenticated={!!staffRole} 
+          onLogout={logout} 
         />
       )}
     </div>
