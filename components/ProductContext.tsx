@@ -1,27 +1,26 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Product, Sale } from '../types';
+import { Product, Sale, Customer, SiteSettings, BlogPost } from '../types';
 import { db } from '../services/firebase';
-import { products as mockProducts } from '../data/mockData';
 import { 
-  collection, 
-  onSnapshot, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  setDoc,
-  query,
-  orderBy,
-  getDocs
+  collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment 
 } from "firebase/firestore";
 
 interface ProductContextType {
   products: Product[];
   sales: Sale[];
+  customers: Customer[];
+  blogs: BlogPost[];
+  settings: SiteSettings | null;
   loading: boolean;
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (id: string, product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   recordSale: (sale: Sale) => Promise<void>;
+  updateCustomerDue: (phone: string, name: string, amountPaid: number) => Promise<void>;
+  updateSettings: (newSettings: SiteSettings) => Promise<void>;
+  addBlog: (blog: BlogPost) => Promise<void>;
+  deleteBlog: (id: string) => Promise<void>;
   syncWithFirebase: () => Promise<void>;
 }
 
@@ -30,103 +29,84 @@ const ProductContext = createContext<ProductContextType | undefined>(undefined);
 export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const syncWithFirebase = async () => {
-    if (!db) return;
-    try {
-      setLoading(true);
-      const snapshot = await getDocs(collection(db, "products"));
-      if (snapshot.empty) {
-        console.log("No data in Firestore. Seeding...");
-        for (const p of mockProducts) {
-          const { id, ...data } = p;
-          await setDoc(doc(db, "products", id), data);
-        }
-      }
-    } catch (error) {
-      console.error("Sync Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!db) {
-      setLoading(false);
-      return;
-    }
+    if (!db) return;
 
-    syncWithFirebase();
+    // Listeners
+    const unsubProducts = onSnapshot(collection(db, "products"), (s) => setProducts(s.docs.map(d => ({...d.data(), id: d.id})) as Product[]));
+    const unsubSales = onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (s) => setSales(s.docs.map(d => ({...d.data(), id: d.id})) as Sale[]));
+    const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]));
+    const unsubBlogs = onSnapshot(query(collection(db, "blogs"), orderBy("date", "desc")), (s) => setBlogs(s.docs.map(d => ({...d.data(), id: d.id})) as BlogPost[]));
+    const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => d.exists() && setSettings(d.data() as SiteSettings));
 
-    const unsubscribeProducts = onSnapshot(collection(db, "products"), (snapshot) => {
-      const productData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Product[];
-      setProducts(productData);
-      setLoading(false);
-    }, (error) => {
-      console.error("Firestore Error:", error);
-      setLoading(false);
-    });
-
-    const qSales = query(collection(db, "sales"), orderBy("date", "desc"));
-    const unsubscribeSales = onSnapshot(qSales, (snapshot) => {
-      const salesData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Sale[];
-      setSales(salesData);
-    });
-
-    return () => {
-      unsubscribeProducts();
-      unsubscribeSales();
-    };
+    setLoading(false);
+    return () => { unsubProducts(); unsubSales(); unsubCustomers(); unsubBlogs(); unsubSettings(); };
   }, []);
 
-  const addProduct = async (newProduct: Product) => {
-    try {
-      const { id, ...data } = newProduct;
-      await setDoc(doc(db, "products", id), data);
-    } catch (error) { console.error(error); }
+  const updateSettings = async (newSettings: SiteSettings) => {
+    await setDoc(doc(db, "site", "config"), newSettings);
   };
 
-  const updateProduct = async (id: string, updatedProduct: Product) => {
-    try {
-      const { id: _, ...data } = updatedProduct;
-      await updateDoc(doc(db, "products", id), data as any);
-    } catch (error) { console.error(error); }
+  const addProduct = async (p: Product) => {
+    const { id, ...data } = p;
+    await setDoc(doc(db, "products", id), data);
+  };
+
+  const updateProduct = async (id: string, p: Product) => {
+    const { id: _, ...data } = p;
+    await updateDoc(doc(db, "products", id), data as any);
   };
 
   const deleteProduct = async (id: string) => {
-    if (window.confirm('ডিলিট করতে নিশ্চিত?')) {
-      try { await deleteDoc(doc(db, "products", id)); } catch (error) { console.error(error); }
-    }
+    if(confirm('ডিলিট?')) await deleteDoc(doc(db, "products", id));
+  };
+
+  const addBlog = async (b: BlogPost) => {
+    await setDoc(doc(db, "blogs", b.id), b);
+  };
+
+  const deleteBlog = async (id: string) => {
+    await deleteDoc(doc(db, "blogs", id));
   };
 
   const recordSale = async (sale: Sale) => {
-    try {
-      const { id, ...saleData } = sale;
-      await setDoc(doc(db, "sales", id), saleData);
-      for (const item of sale.items) {
-        const product = products.find(p => p.id === item.productId);
-        if (product) {
-          await updateDoc(doc(db, "products", product.id), { stock: Math.max(0, product.stock - item.quantity) });
-        }
+    const { id, ...data } = sale;
+    await setDoc(doc(db, "sales", id), data);
+    if (sale.customerPhone) {
+      const cRef = doc(db, "customers", sale.customerPhone);
+      const cSnap = await getDocs(query(collection(db, "customers")));
+      if (!cSnap.docs.some(d => d.id === sale.customerPhone)) {
+        await setDoc(cRef, { name: sale.customerName || "Walking", totalDue: sale.dueAmount, lastUpdate: new Date().toISOString() });
+      } else {
+        await updateDoc(cRef, { totalDue: increment(sale.dueAmount), lastUpdate: new Date().toISOString() });
       }
-    } catch (error) { console.error(error); }
+    }
   };
 
+  const updateCustomerDue = async (phone: string, name: string, amount: number) => {
+    await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
+  };
+
+  const syncWithFirebase = async () => {}; // Placeholder
+
   return (
-    <ProductContext.Provider value={{ products, sales, loading, addProduct, updateProduct, deleteProduct, recordSale, syncWithFirebase }}>
-      {loading ? (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-500 font-bold">লোড হচ্ছে...</p>
-        </div>
-      ) : children}
+    <ProductContext.Provider value={{ 
+      products, sales, customers, blogs, settings, loading, 
+      addProduct, updateProduct, deleteProduct, recordSale, 
+      updateCustomerDue, updateSettings, addBlog, deleteBlog, syncWithFirebase 
+    }}>
+      {children}
     </ProductContext.Provider>
   );
 };
 
 export const useProducts = () => {
   const context = useContext(ProductContext);
-  if (!context) throw new Error('useProducts must be used within ProductProvider');
+  if (!context) throw new Error('useProducts error');
   return context;
 };

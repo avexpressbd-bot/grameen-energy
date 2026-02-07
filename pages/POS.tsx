@@ -1,18 +1,17 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
 import { Product, Sale, SaleItem, Category } from '../types';
 import { 
-  Search, Plus, Minus, Trash2, Printer, User, Phone, Tag, Zap, 
-  ScanLine, Edit3, PackagePlus, PlusCircle, X, Save, ImageIcon, 
-  ShoppingCart, ShieldCheck, Banknote, Wallet, CreditCard
+  Search, Plus, Minus, Trash2, Printer, User, Phone, Zap, 
+  ScanLine, ShoppingCart, Banknote, CreditCard
 } from 'lucide-react';
 import Invoice from '../components/Invoice';
 import BarcodeScanner from '../components/BarcodeScanner';
 
 const POS: React.FC = () => {
-  const { products, addProduct, updateProduct, recordSale } = useProducts();
+  const { products, recordSale } = useProducts();
   const { t } = useLanguage();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,19 +20,10 @@ const POS: React.FC = () => {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [paidAmount, setPaidAmount] = useState<number>(0); // New
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
-
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isManualItemModalOpen, setIsManualItemModalOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [productFormData, setProductFormData] = useState<Partial<Product>>({
-    name: '', nameBn: '', price: 0, category: Category.LED, image: '', description: '', descriptionBn: '', specs: {}, warranty: '', stock: 0
-  });
-  const [manualItemData, setManualItemData] = useState({ name: '', price: 0, qty: 1, warranty: '' });
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -90,9 +80,15 @@ const POS: React.FC = () => {
 
   const subtotal = currentSale.reduce((acc, item) => acc + item.totalPrice, 0);
   const total = Math.max(0, subtotal - discount);
+  const dueAmount = Math.max(0, total - paidAmount); // Calculated Due
 
   const finalizeSale = () => {
     if (currentSale.length === 0) return;
+    if (dueAmount > 0 && !customerPhone) {
+      alert(t('Customer phone required for due sales!', 'বাকি বিক্রয়ের জন্য কাস্টমার ফোন নম্বর বাধ্যতামূলক!'));
+      return;
+    }
+
     const newSale: Sale = {
       id: 'INV-' + Date.now().toString().slice(-6),
       customerName, 
@@ -101,10 +97,12 @@ const POS: React.FC = () => {
       subtotal, 
       discount, 
       total, 
+      paidAmount, // New
+      dueAmount,  // New
       paymentMethod, 
       date: new Date().toISOString()
     };
-    recordSale(newSale); // Permanently save to history and deduct stock
+    recordSale(newSale);
     setCompletedSale(newSale);
   };
 
@@ -113,6 +111,7 @@ const POS: React.FC = () => {
     setCustomerName(''); 
     setCustomerPhone(''); 
     setDiscount(0); 
+    setPaidAmount(0);
     setCompletedSale(null);
   };
 
@@ -134,17 +133,15 @@ const POS: React.FC = () => {
               <input 
                 type="text" 
                 placeholder={t('Search products...', 'পণ্য খুঁজুন...')}
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 transition-all font-medium text-slate-700"
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 transition-all font-medium text-slate-700"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setIsScannerOpen(true)} className="flex items-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 rounded-2xl hover:bg-blue-100 transition-all font-bold">
-                <ScanLine size={18} />
-                <span className="hidden sm:inline">{t('Scan', 'স্ক্যান')}</span>
-              </button>
-            </div>
+            <button onClick={() => setIsScannerOpen(true)} className="flex items-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 rounded-2xl hover:bg-blue-100 transition-all font-bold">
+              <ScanLine size={18} />
+              <span className="hidden sm:inline">{t('Scan', 'স্ক্যান')}</span>
+            </button>
           </div>
           
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -163,15 +160,14 @@ const POS: React.FC = () => {
           {filteredProducts.map(product => (
             <div key={product.id} onClick={() => addToSale(product)} className={`group relative flex flex-col bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer overflow-hidden p-2 ${product.stock <= 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}>
               <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-50 mb-2">
-                <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
-                <div className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded text-[8px] font-black uppercase ${product.stock <= 5 ? 'bg-red-500 text-white animate-pulse' : 'bg-blue-600 text-white'}`}>
+                <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="" />
+                <div className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded text-[8px] font-black uppercase ${product.stock <= 5 ? 'bg-red-500 text-white' : 'bg-blue-600 text-white'}`}>
                   {product.stock} {t('in Stock', 'স্টক')}
                 </div>
               </div>
               <div className="px-1 flex flex-col flex-1">
                 <h4 className="font-bold text-slate-800 text-[11px] leading-snug line-clamp-2 min-h-[30px] mb-1">{t(product.name, product.nameBn)}</h4>
                 <div className="mt-auto flex items-center justify-between pt-1.5 border-t">
-                  <span className="text-[9px] text-slate-400 font-mono">{product.id}</span>
                   <span className="text-blue-900 font-black text-sm">৳{product.discountPrice || product.price}</span>
                 </div>
               </div>
@@ -185,12 +181,12 @@ const POS: React.FC = () => {
           <h2 className="text-sm font-black uppercase tracking-tight mb-4">{t('Checkout Order', 'চেকআউট অর্ডার')}</h2>
           <div className="flex items-center gap-2 bg-white/5 p-3 rounded-xl border border-white/5">
             <div className="flex-1 space-y-0.5">
-              <p className="text-[8px] font-black text-slate-400 uppercase">{t('Customer', 'ক্রেতা')}</p>
+              <p className="text-[8px] font-black text-slate-400 uppercase">{t('Customer Name', 'ক্রেতার নাম')}</p>
               <input type="text" className="w-full bg-transparent border-none text-xs font-bold placeholder:text-slate-500 outline-none" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder={t('Enter Name', 'নাম লিখুন')} />
             </div>
             <div className="w-px h-6 bg-white/10" />
             <div className="flex-1 space-y-0.5">
-              <p className="text-[8px] font-black text-slate-400 uppercase">{t('Phone', 'ফোন')}</p>
+              <p className="text-[8px] font-black text-slate-400 uppercase">{t('Phone Number', 'ফোন নম্বর')}</p>
               <input type="tel" className="w-full bg-transparent border-none text-xs font-bold placeholder:text-slate-500 outline-none" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="01XXXXXXXXX" />
             </div>
           </div>
@@ -205,11 +201,10 @@ const POS: React.FC = () => {
           ) : (
             <div className="divide-y divide-slate-100">
               {currentSale.map((item, index) => (
-                <div key={item.productId} className="flex items-center gap-3 bg-white p-3 hover:bg-blue-50/30 transition-colors">
-                  <div className="w-6 h-6 shrink-0 bg-slate-100 text-slate-500 rounded-md flex items-center justify-center text-[10px] font-black">{index + 1}</div>
+                <div key={item.productId} className="flex items-center gap-3 bg-white p-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-xs text-slate-900 truncate">{item.name}</p>
-                    <span className="text-[10px] text-slate-500 font-bold">৳{item.unitPrice}</span>
+                    <span className="text-[10px] text-slate-500 font-bold">৳{item.unitPrice} x {item.quantity}</span>
                   </div>
                   <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5 shrink-0">
                     <button onClick={() => updateQuantity(item.productId, -1)} className="p-1 hover:bg-white rounded transition text-slate-500"><Minus size={12}/></button>
@@ -226,34 +221,34 @@ const POS: React.FC = () => {
 
         <div className="p-6 bg-white border-t border-slate-100 space-y-4 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
           <div className="space-y-2">
-            <div className="flex justify-between text-xs font-bold text-slate-500">
-              <span className="uppercase">{t('Subtotal', 'সাবটোটাল')}</span>
+            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
+              <span>{t('Subtotal', 'সাবটোটাল')}</span>
               <span className="text-slate-900">৳{subtotal}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-slate-500 uppercase">{t('Discount', 'ডিসকাউন্ট')}</span>
-              <input type="number" className="w-24 px-2 py-1 bg-slate-50 border rounded-lg text-right font-black text-blue-900 text-xs" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t('Discount', 'ডিসকাউন্ট')}</span>
+                <input type="number" className="w-full px-2 py-1.5 bg-slate-50 border rounded-lg font-black text-red-600 text-xs outline-none focus:ring-1" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t('Paid Amount', 'জমা (টাকা)')}</span>
+                <input type="number" className="w-full px-2 py-1.5 bg-emerald-50 border border-emerald-100 rounded-lg font-black text-emerald-700 text-xs outline-none focus:ring-1" value={paidAmount} onChange={(e) => setPaidAmount(Number(e.target.value))} />
+              </div>
             </div>
             <div className="h-px bg-slate-100 w-full" />
             <div className="flex justify-between items-end">
               <div>
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t('Payable', 'প্রদেয়')}</span>
-                <div className="text-3xl font-black text-slate-900">৳{total}</div>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t('Payable', 'মোট প্রদেয়')}</span>
+                <div className="text-2xl font-black text-slate-900">৳{total}</div>
               </div>
-              <div className="flex flex-col items-end gap-1.5">
-                <p className="text-[8px] font-black text-slate-400 uppercase">{t('Method', 'পদ্ধতি')}</p>
-                <div className="flex gap-1">
-                  {['Cash', 'bKash', 'Nagad'].map(m => (
-                    <button key={m} onClick={() => setPaymentMethod(m)} className={`w-8 h-8 rounded-lg border flex items-center justify-center text-[8px] font-black ${paymentMethod === m ? 'bg-blue-900 border-transparent text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>
-                      {m.charAt(0)}
-                    </button>
-                  ))}
-                </div>
+              <div className="text-right">
+                <span className="text-[8px] font-black text-red-400 uppercase tracking-widest">{t('Due', 'বাকি আছে')}</span>
+                <div className={`text-xl font-black ${dueAmount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>৳{dueAmount}</div>
               </div>
             </div>
           </div>
           <button disabled={currentSale.length === 0} onClick={finalizeSale} className="w-full bg-blue-900 py-4 rounded-xl font-black text-xs text-white uppercase tracking-widest shadow-xl hover:bg-blue-800 transition-all disabled:opacity-30">
-            <Printer size={16} className="inline mr-2" /> {t('Complete Order', 'অর্ডার সম্পন্ন')}
+            <Printer size={16} className="inline mr-2" /> {t('Complete Sale', 'বিক্রয় সম্পন্ন')}
           </button>
         </div>
       </div>

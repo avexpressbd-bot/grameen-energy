@@ -24,11 +24,40 @@ export interface Product {
   discountPrice?: number;
   specs: Record<string, string>;
   warranty?: string;
-  stock: number; // New property to track quantity
+  stock: number;
 }
 
+/**
+ * Added CartItem interface which extends Product with a quantity property.
+ */
 export interface CartItem extends Product {
   quantity: number;
+}
+
+export interface SiteSettings {
+  siteName: string;
+  siteNameBn: string;
+  contactPhone: string;
+  contactEmail: string;
+  address: string;
+  addressBn: string;
+  whatsappNumber: string;
+  heroTitleEn: string;
+  heroTitleBn: string;
+  heroSubtitleEn: string;
+  heroSubtitleBn: string;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  titleBn: string;
+  content: string;
+  contentBn: string;
+  excerpt: string;
+  excerptBn: string;
+  date: string;
+  image: string;
 }
 
 export interface SaleItem {
@@ -48,18 +77,17 @@ export interface Sale {
   subtotal: number;
   discount: number;
   total: number;
+  paidAmount: number;
+  dueAmount: number;
   paymentMethod: string;
   date: string;
 }
 
-export interface BlogPost {
+export interface Customer {
   id: string;
-  title: string;
-  titleBn: string;
-  excerpt: string;
-  excerptBn: string;
-  date: string;
-  image: string;
+  name: string;
+  totalDue: number;
+  lastUpdate: string;
 }
 
 export type Language = 'en' | 'bn';

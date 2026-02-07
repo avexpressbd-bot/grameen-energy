@@ -68,6 +68,9 @@ export const blogPosts: BlogPost[] = [
     id: 'b1',
     title: 'How to choose the right IPS for your home',
     titleBn: 'আপনার বাসার জন্য সঠিক আইপিএস কিভাবে নির্বাচন করবেন',
+    // Added content and contentBn properties to match BlogPost interface
+    content: 'Choosing the right IPS depends on your total home load. Calculate the wattage of your fans and lights before selecting an inverter capacity.',
+    contentBn: 'আপনার বাসার জন্য সঠিক আইপিএস নির্বাচন করতে প্রথমে মোট লোড হিসাব করুন। ফ্যান এবং লাইটের ওয়াটেজ দেখে ইনভার্টার নির্বাচন করা উচিত।',
     excerpt: 'Calculate your load and pick the best inverter.',
     excerptBn: 'আপনার লোড হিসাব করুন এবং সেরা ইনভার্টার বেছে নিন।',
     date: '2024-05-15',
