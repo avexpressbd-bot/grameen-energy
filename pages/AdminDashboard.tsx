@@ -3,7 +3,6 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
 import { Category, Product, Customer, BlogPost, SiteSettings, Sale, OrderStatus, CustomerUser } from '../types';
-// Fixed: Added CreditCard and Banknote to imports from lucide-react
 import { 
   Plus, Edit2, Trash2, Box, X, Save, Search, DollarSign, RefreshCw, Star, Tag, Users, User,
   Wallet, CheckCircle, Settings, LayoutDashboard, FileText, ShoppingCart, Info, 
@@ -43,7 +42,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     prevSalesCountRef.current = sales.length;
   }, [sales]);
 
-  // Daily Pulse Stats
   const todaySales = useMemo(() => sales.filter(s => {
     const saleDate = new Date(s.date).toDateString();
     const today = new Date().toDateString();
@@ -95,7 +93,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
         </div>
       )}
 
-      {/* Sidebar Navigation */}
       <aside className="w-full lg:w-72 bg-blue-900 text-white flex flex-col shrink-0">
         <div className="p-8 border-b border-white/10">
           <div className="bg-emerald-500 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl">GE</div>
@@ -128,9 +125,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="flex-1 p-6 lg:p-12 overflow-y-auto bg-[#f8fafc]">
-        {/* TOP COMPONENT: Today's Sales Pulse (Pinned at top) */}
         <section className="mb-12 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl border border-white/5">
           <div className="relative z-10 flex flex-col xl:flex-row justify-between items-center gap-10">
              <div className="space-y-4 text-center xl:text-left">
@@ -158,12 +153,10 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                ))}
              </div>
           </div>
-          {/* Background visuals */}
           <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none"></div>
         </section>
 
-        {/* Dynamic Tab Content */}
         <div className="space-y-10">
           {activeTab === 'overview' && (
             <div className="grid lg:grid-cols-3 gap-8">
@@ -179,7 +172,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                 </div>
               </div>
               <div className="space-y-8">
-                {/* Critical Stock Alert */}
                 <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden flex flex-col">
                    <div className="flex justify-between items-center mb-6">
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -205,7 +197,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                    </div>
                 </div>
 
-                {/* Quick Actions Card */}
                 <div className="bg-blue-900 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden">
                   <h4 className="text-[10px] font-black text-blue-300 uppercase tracking-widest mb-6">Quick Tools</h4>
                   <div className="grid grid-cols-1 gap-3 relative z-10">
@@ -223,7 +214,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
             </div>
           )}
 
-          {/* Standard Tab Views */}
           {activeTab !== 'overview' && (
             <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden min-h-[600px] animate-in slide-in-from-bottom-6 duration-500">
               {activeTab === 'inventory' && <InventoryTab products={products} searchTerm={searchTerm} onEdit={(p:any) => {setEditingItem(p); setIsModalOpen(true);}} onDelete={deleteProduct}/>}
@@ -237,7 +227,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
         </div>
       </main>
 
-      {/* Reusable Admin Modal */}
       {isModalOpen && (
         <AdminModal 
           type={activeTab === 'inventory' ? 'inventory' : 'blogs'} 
@@ -256,8 +245,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     </div>
   );
 };
-
-// --- Sub-Components (Cleanly separated) ---
 
 const CustomersTab = ({ users, searchTerm }: { users: CustomerUser[], searchTerm: string }) => {
   const filtered = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.phone.includes(searchTerm) || u.accountId.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -392,7 +379,16 @@ const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
                   <span className={`px-2 py-1 rounded-[6px] text-[10px] font-black uppercase tracking-widest ${getStatusColor(s.status)}`}>{s.status}</span>
                 </td>
                 <td className="px-8 py-4 text-right font-black">৳{s.total}</td>
-                <td className="px-8 py-4 text-right">
+                <td className="px-8 py-4 text-right flex justify-end gap-2">
+                  {s.status !== 'Delivered' && (
+                    <button 
+                      onClick={() => onUpdateStatus(s.id, 'Delivered')}
+                      title="Deliver Order"
+                      className="p-2 text-emerald-600 hover:bg-emerald-50 transition bg-slate-100 rounded-lg flex items-center gap-1 text-[10px] font-black uppercase"
+                    >
+                      <CheckCircle2 size={16}/> Deliver
+                    </button>
+                  )}
                   <button onClick={() => setSelectedOrder(s)} className="p-2 text-slate-400 hover:text-blue-600 transition bg-slate-100 rounded-lg"><Eye size={16}/></button>
                 </td>
               </tr>
