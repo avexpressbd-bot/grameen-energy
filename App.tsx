@@ -4,6 +4,7 @@ import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
 import Home from './pages/Home.tsx';
 import Shop from './pages/Shop.tsx';
+import Services from './pages/Services.tsx';
 import ProductDetail from './pages/ProductDetail.tsx';
 import Cart from './pages/Cart.tsx';
 import Checkout from './pages/Checkout.tsx';
@@ -58,6 +59,8 @@ const AppContent: React.FC = () => {
         return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
       case 'shop':
         return <Shop onProductClick={showProduct} />;
+      case 'services':
+        return <Services />;
       case 'product-detail':
         const product = products.find(p => p.id === selectedProductId);
         return product ? <ProductDetail product={product} onNavigate={navigateTo} /> : <Home onProductClick={showProduct} onNavigate={navigateTo} />;

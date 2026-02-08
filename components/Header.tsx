@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useLanguage } from './LanguageContext';
 import { useCart } from './CartContext';
 import { useAuth } from './AuthContext';
-import { ShoppingCart, Menu, X, Search, Phone, MessageSquare, ScanLine, Zap, Lock, LayoutDashboard, MapPin, User, LogOut, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Menu, X, Search, Phone, MessageSquare, ScanLine, Zap, Lock, LayoutDashboard, MapPin, User, LogOut, ChevronDown, Wrench } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
 const Header: React.FC<{ 
@@ -58,6 +58,9 @@ const Header: React.FC<{
           <nav className="hidden lg:flex items-center gap-8 font-black whitespace-nowrap text-xs uppercase tracking-widest text-slate-500">
             <button onClick={() => onNavigate('home')} className="hover:text-blue-900 transition">{t('Home', 'হোম')}</button>
             <button onClick={() => onNavigate('shop')} className="hover:text-blue-900 transition">{t('Shop', 'শপ')}</button>
+            <button onClick={() => onNavigate('services')} className="hover:text-blue-900 transition flex items-center gap-2 text-emerald-600">
+              <Wrench size={14}/> {t('Services', 'সার্ভিস')}
+            </button>
             <button onClick={() => onNavigate('track-order')} className="hover:text-blue-900 transition">{t('Tracking', 'ট্র্যাকিং')}</button>
             
             {currentStaffRole && (
@@ -76,7 +79,6 @@ const Header: React.FC<{
               <ScanLine size={24}/>
             </button>
 
-            {/* Account Dropdown */}
             <div className="relative">
               {user ? (
                 <button 
@@ -135,12 +137,12 @@ const Header: React.FC<{
           </div>
         </div>
 
-        {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="lg:hidden bg-white border-t p-6 flex flex-col gap-6 shadow-xl animate-in slide-in-from-top-4">
             <button onClick={() => { onNavigate('home'); setIsMenuOpen(false); }} className="text-left font-black text-xl text-slate-900 tracking-tight">{t('Home', 'হোম')}</button>
             <button onClick={() => { onNavigate('shop'); setIsMenuOpen(false); }} className="text-left font-black text-xl text-slate-900 tracking-tight">{t('Shop', 'শপ')}</button>
-            <button onClick={() => { onNavigate('track-order'); setIsMenuOpen(false); }} className="text-left font-black text-xl text-emerald-600 tracking-tight">{t('Track Order', 'অর্ডার ট্র্যাক')}</button>
+            <button onClick={() => { onNavigate('services'); setIsMenuOpen(false); }} className="text-left font-black text-xl text-emerald-600 tracking-tight">{t('Services', 'সার্ভিস')}</button>
+            <button onClick={() => { onNavigate('track-order'); setIsMenuOpen(false); }} className="text-left font-black text-xl text-slate-900 tracking-tight">{t('Track Order', 'অর্ডার ট্র্যাক')}</button>
             
             <div className="border-t pt-4 space-y-4">
               {user ? (

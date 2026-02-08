@@ -2,21 +2,22 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
-import { Category, Product, Customer, BlogPost, SiteSettings, Sale, OrderStatus, CustomerUser } from '../types';
+import { Category, Product, Customer, BlogPost, SiteSettings, Sale, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus } from '../types';
 import { 
   Plus, Edit2, Trash2, Box, X, Save, Search, DollarSign, RefreshCw, Star, Tag, Users, User,
   Wallet, CheckCircle, Settings, LayoutDashboard, FileText, ShoppingCart, Info, 
   Image as ImageIcon, MapPin, Phone, Eye, ArrowRight, Loader2, Bell, Volume2, 
   Download, Filter, CheckCircle2, Truck, XCircle, Clock, Printer, AlertTriangle, TrendingUp, Hash, Activity, BarChart3,
-  CreditCard, Banknote, Facebook, Instagram, Youtube
+  CreditCard, Banknote, Facebook, Instagram, Youtube, Wrench, HeartPulse, Sparkles
 } from 'lucide-react';
 
-type AdminTab = 'overview' | 'inventory' | 'dues' | 'sales' | 'customers' | 'blogs' | 'settings';
+type AdminTab = 'overview' | 'inventory' | 'dues' | 'sales' | 'customers' | 'services' | 'blogs' | 'settings';
 
 const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const { 
-    products, sales, customers, registeredUsers, blogs, settings, 
-    addProduct, updateProduct, deleteProduct, updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog 
+    products, sales, customers, registeredUsers, blogs, settings, serviceRequests, serviceAds,
+    addProduct, updateProduct, deleteProduct, updateSaleStatus, updateCustomerDue, updateSettings, 
+    addBlog, deleteBlog, updateServiceStatus, addServiceAd, deleteServiceAd
   } = useProducts();
   const { t } = useLanguage();
   
@@ -25,22 +26,30 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   
-  const [newOrderAlert, setNewOrderAlert] = useState<Sale | null>(null);
+  const [newOrderAlert, setNewOrderAlert] = useState<any>(null);
   const prevSalesCountRef = useRef(sales.length);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prevServiceCountRef = useRef(serviceRequests.length);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
+    // New Sale Alert
     if (sales.length > prevSalesCountRef.current) {
-      const latestSale = sales[0];
-      if (latestSale && latestSale.id.startsWith('GE-')) {
-        setNewOrderAlert(latestSale);
-        if (audioRef.current) {
-          audioRef.current.play().catch(e => console.log('Audio play blocked'));
-        }
+      const latest = sales[0];
+      if (latest?.id.startsWith('GE-')) {
+        setNewOrderAlert({ type: 'order', data: latest });
+        audioRef.current?.play().catch(e => {});
       }
     }
     prevSalesCountRef.current = sales.length;
-  }, [sales]);
+
+    // New Service Alert
+    if (serviceRequests.length > prevServiceCountRef.current) {
+      const latest = serviceRequests[0];
+      setNewOrderAlert({ type: 'service', data: latest });
+      audioRef.current?.play().catch(e => {});
+    }
+    prevServiceCountRef.current = serviceRequests.length;
+  }, [sales, serviceRequests]);
 
   const todaySales = useMemo(() => sales.filter(s => {
     const saleDate = new Date(s.date).toDateString();
@@ -51,13 +60,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const dailyStats = useMemo(() => ({
     revenue: todaySales.reduce((acc, s) => acc + s.total, 0),
     count: todaySales.length,
-    cash: todaySales.filter(s => s.paymentMethod === 'Cash' || s.paymentMethod === 'Cash on Delivery').length,
-    digital: todaySales.filter(s => s.paymentMethod !== 'Cash' && s.paymentMethod !== 'Cash on Delivery').length,
-    web: todaySales.filter(s => s.id.startsWith('GE-')).length,
-    pos: todaySales.filter(s => s.id.startsWith('POS-')).length,
-  }), [todaySales]);
-
-  const lowStockProducts = products.filter(p => p.stock < 5);
+    serviceCount: serviceRequests.filter(sr => sr.status === 'Pending').length
+  }), [todaySales, serviceRequests]);
 
   const [settingsForm, setSettingsForm] = useState<SiteSettings>(settings || {
     siteName: 'Grameen Energy', siteNameBn: 'গ্রামিন এনার্জি',
@@ -66,38 +70,33 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     heroTitleEn: '', heroTitleBn: '', heroSubtitleEn: '', heroSubtitleBn: ''
   });
 
-  // Re-sync local form when settings change in Firestore
-  useEffect(() => {
-    if (settings) {
-      setSettingsForm(prev => ({ ...prev, ...settings }));
-    }
-  }, [settings]);
-
-  const handleSettingsUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await updateSettings(settingsForm);
-    alert('সেটিংস সফলভাবে আপডেট হয়েছে!');
-  };
+  useEffect(() => { if (settings) setSettingsForm(prev => ({ ...prev, ...settings })); }, [settings]);
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 relative">
       <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" />
 
       {newOrderAlert && (
-        <div className="fixed top-6 right-6 z-[300] w-96 bg-blue-900 text-white p-6 rounded-[2rem] shadow-2xl animate-in slide-in-from-right duration-500 border border-white/10">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
-              <Bell className="animate-swing text-emerald-400" size={24}/>
+        <div className="fixed top-6 right-6 z-[500] w-96 bg-slate-900 text-white p-8 rounded-[3rem] shadow-2xl animate-in slide-in-from-right duration-500 border border-white/10 overflow-hidden">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${newOrderAlert.type === 'order' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
+                {newOrderAlert.type === 'order' ? 'New Order' : 'Service Alert'}
+              </span>
+              <button onClick={() => setNewOrderAlert(null)} className="text-slate-400 hover:text-white transition">✕</button>
             </div>
-            <div className="flex-1">
-              <h4 className="font-black text-sm uppercase tracking-widest mb-1">New Order!</h4>
-              <p className="text-xs text-blue-200 font-bold">#{newOrderAlert.id} from {newOrderAlert.customerName}.</p>
-              <div className="mt-4 flex gap-2">
-                <button onClick={() => { setActiveTab('sales'); setNewOrderAlert(null); }} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition hover:bg-emerald-600">View</button>
-                <button onClick={() => setNewOrderAlert(null)} className="px-4 py-2 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition hover:bg-white/20">Dismiss</button>
-              </div>
-            </div>
+            <p className="text-xl font-black mb-1">{newOrderAlert.data.customerName}</p>
+            <p className="text-sm text-slate-400 font-bold mb-6">
+              {newOrderAlert.type === 'order' ? `Purchased for ৳${newOrderAlert.data.total}` : `Requested for ${newOrderAlert.data.serviceType}`}
+            </p>
+            <button 
+              onClick={() => { setActiveTab(newOrderAlert.type === 'order' ? 'sales' : 'services'); setNewOrderAlert(null); }}
+              className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-100 transition"
+            >
+              Take Action
+            </button>
           </div>
+          <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl"></div>
         </div>
       )}
 
@@ -105,130 +104,194 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
         <div className="p-8 border-b border-white/10">
           <div className="bg-emerald-500 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl">GE</div>
           <h2 className="font-black text-xl tracking-tight uppercase">Admin Panel</h2>
-          <p className="text-[10px] text-blue-300 font-black uppercase tracking-[0.2em] mt-1">Management Hub</p>
         </div>
         <nav className="p-6 space-y-2 flex-1">
           {[
             { id: 'overview', icon: LayoutDashboard, label: 'ওভারভিউ' },
-            { id: 'inventory', icon: Box, label: 'স্টক ম্যানেজমেন্ট' },
-            { id: 'sales', icon: ShoppingCart, label: 'অর্ডার ও বিক্রয়' },
-            { id: 'customers', icon: Users, label: 'কাস্টমার তালিকা' },
-            { id: 'dues', icon: Wallet, label: 'বাকি তালিকা' },
-            { id: 'blogs', icon: FileText, label: 'ব্লগ ও আপডেট' },
-            { id: 'settings', icon: Settings, label: 'সাইট সেটিংস' },
+            { id: 'inventory', icon: Box, label: 'ইনভেন্টরি' },
+            { id: 'sales', icon: ShoppingCart, label: 'অর্ডার লিস্ট' },
+            { id: 'services', icon: Wrench, label: 'সার্ভিস রিকোয়েস্ট' },
+            { id: 'customers', icon: Users, label: 'কাস্টমার' },
+            { id: 'dues', icon: Wallet, label: 'বকেয়া' },
+            { id: 'settings', icon: Settings, label: 'সেটিংস' },
           ].map(item => (
             <button 
               key={item.id} 
               onClick={() => setActiveTab(item.id as AdminTab)} 
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all text-sm ${activeTab === item.id ? 'bg-white text-blue-900 shadow-xl scale-[1.02]' : 'hover:bg-white/5 text-blue-100'}`}
+              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all text-sm ${activeTab === item.id ? 'bg-white text-blue-900 shadow-xl' : 'hover:bg-white/5 text-blue-100'}`}
             >
               <item.icon size={20}/> {item.label}
             </button>
           ))}
         </nav>
-        <div className="p-6 border-t border-white/10">
-           <button onClick={() => onNavigate('pos')} className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 transition shadow-lg">
-             <Activity size={16}/> Go to POS
-           </button>
-        </div>
       </aside>
 
-      <main className="flex-1 p-6 lg:p-12 overflow-y-auto bg-[#f8fafc]">
-        {activeTab === 'overview' ? (
-          <>
-            <section className="mb-12 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl border border-white/5">
-              <div className="relative z-10 flex flex-col xl:flex-row justify-between items-center gap-10">
-                <div className="space-y-4 text-center xl:text-left">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full font-black uppercase text-[10px] tracking-widest border border-emerald-500/20">
-                    <TrendingUp size={14}/> Today's Sales Pulse
-                  </div>
-                  <div>
-                    <p className="text-6xl font-black tracking-tighter mb-1">৳{dailyStats.revenue.toLocaleString()}</p>
-                    <p className="text-slate-400 font-bold text-sm">{dailyStats.count} Total Transactions Finalized Today</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full xl:w-auto">
-                  {[
-                    { label: 'Web Orders', val: dailyStats.web, icon: ShoppingCart, color: 'blue' },
-                    { label: 'POS Sales', val: dailyStats.pos, icon: Activity, color: 'emerald' },
-                    { label: 'Digital Pay', val: dailyStats.digital, icon: CreditCard, color: 'purple' },
-                    { label: 'Cash Sales', val: dailyStats.cash, icon: Banknote, color: 'amber' },
-                  ].map((stat, i) => (
-                    <div key={i} className="bg-white/5 p-5 rounded-[2rem] border border-white/10 text-center flex flex-col items-center gap-2 hover:bg-white/10 transition">
-                      <stat.icon size={20} className={`text-${stat.color}-400`} />
-                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{stat.label}</p>
-                      <p className="text-2xl font-black">{stat.val}</p>
-                    </div>
-                  ))}
-                </div>
+      <main className="flex-1 p-6 lg:p-12 overflow-y-auto">
+        {activeTab === 'overview' && (
+           <div className="grid md:grid-cols-3 gap-8 mb-12">
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-6">
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center"><TrendingUp size={32}/></div>
+                <div><p className="text-xs font-black text-slate-400 uppercase tracking-widest">Today's Revenue</p><p className="text-3xl font-black text-slate-900">৳{dailyStats.revenue}</p></div>
               </div>
-            </section>
-
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-8">
-                <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
-                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-6 flex items-center gap-3">
-                    <BarChart3 size={20} className="text-blue-600"/> Recent Sales Activities
-                  </h3>
-                  <SalesTab sales={sales.slice(0, 10)} searchTerm="" onUpdateStatus={updateSaleStatus} />
-                </div>
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-6">
+                <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center"><ShoppingCart size={32}/></div>
+                <div><p className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Sales</p><p className="text-3xl font-black text-slate-900">{dailyStats.count}</p></div>
               </div>
-              <div className="space-y-8">
-                <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                  <div className="flex justify-between items-center mb-6">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <AlertTriangle size={14} className="text-amber-500" /> Critical Stock
-                    </h4>
-                    <div className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">{lowStockProducts.length} Items</div>
-                  </div>
-                  <div className="space-y-4">
-                    {lowStockProducts.length === 0 ? (
-                      <div className="py-10 flex flex-col items-center justify-center text-slate-300 gap-4">
-                        <CheckCircle size={40} className="text-emerald-500 opacity-20" />
-                        <p className="text-[10px] font-black uppercase tracking-widest">Inventory Healthy</p>
-                      </div>
-                    ) : lowStockProducts.slice(0, 5).map(p => (
-                      <div key={p.id} className="flex justify-between items-center bg-red-50 p-4 rounded-2xl border border-red-100 group hover:bg-red-100 transition">
-                        <div className="flex items-center gap-3">
-                          <img src={p.image} className="w-10 h-10 rounded-xl object-cover" />
-                          <span className="text-[11px] font-black text-slate-700 truncate w-32">{p.nameBn}</span>
-                        </div>
-                        <span className="bg-red-600 text-white px-3 py-1 rounded-lg text-[10px] font-black">{p.stock}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-6">
+                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-3xl flex items-center justify-center"><Wrench size={32}/></div>
+                <div><p className="text-xs font-black text-slate-400 uppercase tracking-widest">Active Services</p><p className="text-3xl font-black text-slate-900">{dailyStats.serviceCount}</p></div>
               </div>
-            </div>
-          </>
-        ) : (
-          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden min-h-[600px] animate-in slide-in-from-bottom-6 duration-500">
-            {activeTab === 'inventory' && <InventoryTab products={products} searchTerm={searchTerm} onEdit={(p:any) => {setEditingItem(p); setIsModalOpen(true);}} onDelete={deleteProduct}/>}
-            {activeTab === 'sales' && <SalesTab sales={sales} searchTerm={searchTerm} onUpdateStatus={updateSaleStatus}/>}
-            {activeTab === 'customers' && <CustomersTab users={registeredUsers} searchTerm={searchTerm}/>}
-            {activeTab === 'dues' && <DuesTab customers={customers} searchTerm={searchTerm} updateDue={updateCustomerDue}/>}
-            {activeTab === 'blogs' && <BlogsTab blogs={blogs} searchTerm={searchTerm} onDelete={deleteBlog}/>}
-            {activeTab === 'settings' && <SettingsTab form={settingsForm} setForm={setSettingsForm} onSave={handleSettingsUpdate}/>}
-          </div>
+           </div>
         )}
+
+        <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100 min-h-[600px]">
+          {activeTab === 'services' && (
+            <ServicesPanel 
+              requests={serviceRequests} 
+              ads={serviceAds} 
+              onUpdateStatus={updateServiceStatus}
+              onAddAd={(ad: any) => addServiceAd({...ad, id: 'SAD-'+Date.now()})}
+              onDeleteAd={deleteServiceAd}
+            />
+          )}
+          {activeTab === 'inventory' && <InventoryTab products={products} searchTerm={searchTerm} onEdit={(p:any) => {setEditingItem(p); setIsModalOpen(true);}} onDelete={deleteProduct}/>}
+          {activeTab === 'sales' && <SalesTab sales={sales} searchTerm={searchTerm} onUpdateStatus={updateSaleStatus}/>}
+          {activeTab === 'customers' && <CustomersTab users={registeredUsers} searchTerm={searchTerm}/>}
+          {activeTab === 'dues' && <DuesTab customers={customers} searchTerm={searchTerm} updateDue={updateCustomerDue}/>}
+          {activeTab === 'settings' && <SettingsTab form={settingsForm} setForm={setSettingsForm} onSave={(e:any) => { e.preventDefault(); updateSettings(settingsForm); alert('Updated!'); }}/>}
+        </div>
       </main>
 
       {isModalOpen && (
         <AdminModal 
-          type={activeTab === 'inventory' ? 'inventory' : 'blogs'} 
+          type="inventory" 
           item={editingItem} 
           onClose={() => setIsModalOpen(false)}
           onSubmit={async (data:any) => {
-            if (activeTab === 'inventory') {
-              editingItem ? await updateProduct(editingItem.id, data) : await addProduct({...data, id: 'GE-'+Math.floor(1000+Math.random()*9000)});
-            } else if (activeTab === 'blogs') {
-              await addBlog({...data, id: 'BLOG-'+Date.now()});
-            }
+            editingItem ? await updateProduct(editingItem.id, data) : await addProduct({...data, id: 'GE-'+Math.floor(1000+Math.random()*9000)});
             setIsModalOpen(false);
           }}
         />
       )}
+    </div>
+  );
+};
+
+const ServicesPanel = ({ requests, ads, onUpdateStatus, onAddAd, onDeleteAd }: any) => {
+  const [subTab, setSubTab] = useState<'requests' | 'ads'>('requests');
+  const [isAdModalOpen, setIsAdModalOpen] = useState(false);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
+        <div className="flex gap-4">
+          <button onClick={() => setSubTab('requests')} className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${subTab === 'requests' ? 'bg-blue-900 text-white shadow-xl' : 'bg-white text-slate-400 hover:bg-slate-100'}`}>Requests ({requests.length})</button>
+          <button onClick={() => setSubTab('ads')} className={`px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all ${subTab === 'ads' ? 'bg-blue-900 text-white shadow-xl' : 'bg-white text-slate-400 hover:bg-slate-100'}`}>Manage Ads</button>
+        </div>
+        {subTab === 'ads' && (
+          <button onClick={() => setIsAdModalOpen(true)} className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 transition">
+            <Plus size={16}/> New Service
+          </button>
+        )}
+      </div>
+
+      <div className="flex-1">
+        {subTab === 'requests' ? (
+          <div className="overflow-x-auto">
+             <table className="w-full">
+               <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                 <tr>
+                   <th className="px-8 py-5 text-left">Request ID</th>
+                   <th className="px-6 py-5 text-left">Customer</th>
+                   <th className="px-6 py-5 text-left">Service Type</th>
+                   <th className="px-6 py-5 text-left">Status</th>
+                   <th className="px-8 py-5 text-right">Action</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-slate-50">
+                 {requests.map((sr: any) => (
+                   <tr key={sr.id} className="hover:bg-slate-50 transition">
+                     <td className="px-8 py-4 font-mono text-xs text-blue-600">#{sr.id}</td>
+                     <td className="px-6 py-4">
+                       <p className="font-bold text-slate-800 text-sm">{sr.customerName}</p>
+                       <p className="text-xs text-slate-400 font-mono">{sr.customerPhone}</p>
+                     </td>
+                     <td className="px-6 py-4 font-bold text-slate-600 text-xs uppercase">{sr.serviceType}</td>
+                     <td className="px-6 py-4">
+                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                         sr.status === 'Pending' ? 'bg-amber-100 text-amber-600' : 
+                         sr.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' : 
+                         'bg-blue-100 text-blue-600'
+                       }`}>{sr.status}</span>
+                     </td>
+                     <td className="px-8 py-4 text-right">
+                       <select 
+                         value={sr.status} 
+                         onChange={(e) => onUpdateStatus(sr.id, e.target.value as ServiceStatus)}
+                         className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none"
+                       >
+                         {['Pending', 'Assigned', 'In Progress', 'Completed', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                       </select>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+          </div>
+        ) : (
+          <div className="p-8 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ads.map((ad: any) => (
+              <div key={ad.id} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 relative group">
+                <button onClick={() => onDeleteAd(ad.id)} className="absolute top-4 right-4 p-2 bg-red-50 text-red-500 rounded-xl opacity-0 group-hover:opacity-100 transition"><Trash2 size={16}/></button>
+                <img src={ad.image} className="w-16 h-16 rounded-2xl object-cover mb-4" />
+                <h4 className="font-black text-slate-800">{ad.titleBn}</h4>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black mt-1">{ad.category}</p>
+                <div className="mt-4 flex justify-between items-center border-t border-slate-200 pt-4">
+                  <span className="text-blue-600 font-black text-xs">৳ {ad.priceLabel}</span>
+                  <span className="text-[10px] text-emerald-600 font-black uppercase">{ad.responseTime}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {isAdModalOpen && (
+        <ServiceAdModal onClose={() => setIsAdModalOpen(false)} onSubmit={(data: any) => { onAddAd(data); setIsAdModalOpen(false); }} />
+      )}
+    </div>
+  );
+};
+
+const ServiceAdModal = ({ onClose, onSubmit }: any) => {
+  const [form, setForm] = useState({
+    title: '', titleBn: '', category: 'IPS Service', descriptionBn: '', priceLabel: 'Call for price', areaCoverage: 'Dhaka', responseTime: '30-60 Mins', image: '', isEmergency: false, hasOffer: false
+  });
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in">
+        <div className="p-10 bg-slate-50 border-b flex justify-between items-center">
+          <h3 className="text-xl font-black uppercase">Create Service Ad</h3>
+          <button onClick={onClose} className="p-2 hover:bg-red-50 text-red-500 rounded-xl">✕</button>
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} className="p-10 space-y-4 max-h-[70vh] overflow-y-auto">
+          <div className="grid grid-cols-2 gap-4">
+            <InputField label="Title (English)" value={form.title} onChange={(v:any) => setForm({...form, title: v})} />
+            <InputField label="Title (Bangla)" value={form.titleBn} onChange={(v:any) => setForm({...form, titleBn: v})} />
+          </div>
+          <InputField label="Category" value={form.category} onChange={(v:any) => setForm({...form, category: v})} />
+          <InputField label="Starting Price Label" value={form.priceLabel} onChange={(v:any) => setForm({...form, priceLabel: v})} />
+          <InputField label="Response Time Label" value={form.responseTime} onChange={(v:any) => setForm({...form, responseTime: v})} />
+          <InputField label="Image URL" value={form.image} onChange={(v:any) => setForm({...form, image: v})} />
+          <textarea placeholder="Description (Bangla)" className="w-full bg-slate-50 p-4 rounded-2xl outline-none font-bold text-sm" rows={3} value={form.descriptionBn} onChange={e => setForm({...form, descriptionBn: e.target.value})} />
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-[10px] font-black uppercase"><input type="checkbox" checked={form.isEmergency} onChange={e => setForm({...form, isEmergency: e.target.checked})} /> Emergency</label>
+            <label className="flex items-center gap-2 text-[10px] font-black uppercase"><input type="checkbox" checked={form.hasOffer} onChange={e => setForm({...form, hasOffer: e.target.checked})} /> Offer</label>
+          </div>
+          <button type="submit" className="w-full bg-emerald-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest mt-4">Publish Ad</button>
+        </form>
+      </div>
     </div>
   );
 };
@@ -367,15 +430,6 @@ const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
                 </td>
                 <td className="px-8 py-4 text-right font-black">৳{s.total}</td>
                 <td className="px-8 py-4 text-right flex justify-end gap-2">
-                  {s.status !== 'Delivered' && (
-                    <button 
-                      onClick={() => onUpdateStatus(s.id, 'Delivered')}
-                      title="Deliver Order"
-                      className="p-2 text-emerald-600 hover:bg-emerald-50 transition bg-slate-100 rounded-lg flex items-center gap-1 text-[10px] font-black uppercase"
-                    >
-                      <CheckCircle2 size={16}/> Deliver
-                    </button>
-                  )}
                   <button onClick={() => setSelectedOrder(s)} className="p-2 text-slate-400 hover:text-blue-600 transition bg-slate-100 rounded-lg"><Eye size={16}/></button>
                 </td>
               </tr>
@@ -477,34 +531,6 @@ const DuesTab = ({ customers, searchTerm, updateDue }: any) => {
   );
 };
 
-const BlogsTab = ({ blogs, onDelete }: any) => (
-  <div className="overflow-x-auto">
-    <table className="w-full">
-      <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-        <tr>
-          <th className="px-8 py-5 text-left">Title</th>
-          <th className="px-6 py-5 text-left">Date</th>
-          <th className="px-8 py-5 text-right">Action</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-50 font-bold text-sm">
-        {blogs.map((b:any) => (
-          <tr key={b.id}>
-            <td className="px-8 py-4 flex items-center gap-4">
-              <img src={b.image} className="w-10 h-10 rounded-lg object-cover" />
-              <span>{b.titleBn}</span>
-            </td>
-            <td className="px-6 py-4 text-slate-500">{new Date(b.date).toLocaleDateString()}</td>
-            <td className="px-8 py-4 text-right">
-              <button onClick={() => onDelete(b.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
 const SettingsTab = ({ form, setForm, onSave }: any) => (
   <form onSubmit={onSave} className="p-10 space-y-8 max-h-[70vh] overflow-y-auto">
     <div className="grid md:grid-cols-2 gap-8">
@@ -580,38 +606,25 @@ const AdminModal = ({ type, item, onClose, onSubmit }: any) => {
         </div>
         
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="p-10 space-y-4 max-h-[70vh] overflow-y-auto">
-          {type === 'inventory' ? (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <InputField label="English Name" value={formData.name} onChange={(v:any) => setFormData({...formData, name: v})} />
-                <InputField label="Bangla Name" value={formData.nameBn} onChange={(v:any) => setFormData({...formData, nameBn: v})} />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <InputField type="number" label="Price" value={formData.price} onChange={(v:any) => setFormData({...formData, price: Number(v)})} />
-                <InputField type="number" label="Stock" value={formData.stock} onChange={(v:any) => setFormData({...formData, stock: Number(v)})} />
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
-                  <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-xs font-bold outline-none">
-                    {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              <InputField label="Image URL" value={formData.image} onChange={(v:any) => setFormData({...formData, image: v})} />
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description (Bangla)</label>
-                <textarea value={formData.descriptionBn} onChange={(e) => setFormData({...formData, descriptionBn: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold outline-none" rows={3} />
-              </div>
-            </>
-          ) : (
-            <>
-              <InputField label="Blog Title (Bangla)" value={formData.titleBn} onChange={(v:any) => setFormData({...formData, titleBn: v, title: v})} />
-              <InputField label="Image URL" value={formData.image} onChange={(v:any) => setFormData({...formData, image: v})} />
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Content (Bangla)</label>
-                <textarea value={formData.contentBn} onChange={(e) => setFormData({...formData, contentBn: e.target.value, excerptBn: e.target.value.slice(0, 100)})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold outline-none" rows={5} />
-              </div>
-            </>
-          )}
+          <div className="grid grid-cols-2 gap-4">
+            <InputField label="English Name" value={formData.name} onChange={(v:any) => setFormData({...formData, name: v})} />
+            <InputField label="Bangla Name" value={formData.nameBn} onChange={(v:any) => setFormData({...formData, nameBn: v})} />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <InputField type="number" label="Price" value={formData.price} onChange={(v:any) => setFormData({...formData, price: Number(v)})} />
+            <InputField type="number" label="Stock" value={formData.stock} onChange={(v:any) => setFormData({...formData, stock: Number(v)})} />
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+              <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-xs font-bold outline-none">
+                {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <InputField label="Image URL" value={formData.image} onChange={(v:any) => setFormData({...formData, image: v})} />
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description (Bangla)</label>
+            <textarea value={formData.descriptionBn} onChange={(e) => setFormData({...formData, descriptionBn: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold outline-none" rows={3} />
+          </div>
           
           <button type="submit" className="w-full bg-blue-900 text-white py-5 rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-blue-800 transition flex items-center justify-center gap-2 mt-6">
             <Save size={20}/> Save Changes

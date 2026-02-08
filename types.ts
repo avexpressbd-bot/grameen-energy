@@ -60,6 +60,37 @@ export interface BlogPost {
   image: string;
 }
 
+export interface ServiceAd {
+  id: string;
+  title: string;
+  titleBn: string;
+  category: string;
+  descriptionBn: string;
+  priceLabel: string; // e.g., "Starting at 500"
+  areaCoverage: string;
+  responseTime: string;
+  image: string;
+  isEmergency?: boolean;
+  hasOffer?: boolean;
+}
+
+export type ServiceStatus = 'Pending' | 'Assigned' | 'In Progress' | 'Completed' | 'Cancelled';
+
+export interface ServiceRequest {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  serviceType: string;
+  problemDescription: string;
+  preferredDate: string;
+  preferredTime: string;
+  photoUrl?: string;
+  status: ServiceStatus;
+  assignedTechnician?: string;
+  createdAt: string;
+}
+
 export interface SaleItem {
   productId: string;
   name: string;

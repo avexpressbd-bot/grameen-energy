@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser } from '../types';
+import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus } from '../types';
 import { db } from '../services/firebase';
 import { 
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment 
@@ -9,9 +9,11 @@ import {
 interface ProductContextType {
   products: Product[];
   sales: Sale[];
-  customers: Customer[]; // This refers to 'customers' collection (Dues)
-  registeredUsers: CustomerUser[]; // This refers to 'users' collection (Accounts)
+  customers: Customer[];
+  registeredUsers: CustomerUser[];
   blogs: BlogPost[];
+  serviceRequests: ServiceRequest[];
+  serviceAds: ServiceAd[];
   settings: SiteSettings | null;
   loading: boolean;
   addProduct: (product: Product) => Promise<void>;
@@ -23,6 +25,10 @@ interface ProductContextType {
   updateSettings: (newSettings: SiteSettings) => Promise<void>;
   addBlog: (blog: BlogPost) => Promise<void>;
   deleteBlog: (id: string) => Promise<void>;
+  addServiceRequest: (request: Omit<ServiceRequest, 'id' | 'createdAt' | 'status'>) => Promise<string>;
+  updateServiceStatus: (id: string, status: ServiceStatus, technician?: string) => Promise<void>;
+  addServiceAd: (ad: ServiceAd) => Promise<void>;
+  deleteServiceAd: (id: string) => Promise<void>;
   syncWithFirebase: () => Promise<void>;
 }
 
@@ -34,6 +40,8 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<CustomerUser[]>([]);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
+  const [serviceAds, setServiceAds] = useState<ServiceAd[]>([]);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,13 +53,42 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]));
     const unsubUsers = onSnapshot(collection(db, "users"), (s) => setRegisteredUsers(s.docs.map(d => ({...d.data(), uid: d.id})) as CustomerUser[]));
     const unsubBlogs = onSnapshot(query(collection(db, "blogs"), orderBy("date", "desc")), (s) => setBlogs(s.docs.map(d => ({...d.data(), id: d.id})) as BlogPost[]));
+    const unsubServiceRequests = onSnapshot(query(collection(db, "serviceRequests"), orderBy("createdAt", "desc")), (s) => setServiceRequests(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceRequest[]));
+    const unsubServiceAds = onSnapshot(collection(db, "serviceAds"), (s) => setServiceAds(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceAd[]));
     const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => d.exists() && setSettings(d.data() as SiteSettings));
 
     setLoading(false);
     return () => { 
-      unsubProducts(); unsubSales(); unsubCustomers(); unsubUsers(); unsubBlogs(); unsubSettings(); 
+      unsubProducts(); unsubSales(); unsubCustomers(); unsubUsers(); unsubBlogs(); 
+      unsubServiceRequests(); unsubServiceAds(); unsubSettings(); 
     };
   }, []);
+
+  const addServiceRequest = async (request: Omit<ServiceRequest, 'id' | 'createdAt' | 'status'>) => {
+    const id = 'SR-' + Date.now();
+    const newRequest: ServiceRequest = {
+      ...request,
+      id,
+      status: 'Pending',
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, "serviceRequests", id), newRequest);
+    return id;
+  };
+
+  const updateServiceStatus = async (id: string, status: ServiceStatus, technician?: string) => {
+    const updateData: any = { status };
+    if (technician) updateData.assignedTechnician = technician;
+    await updateDoc(doc(db, "serviceRequests", id), updateData);
+  };
+
+  const addServiceAd = async (ad: ServiceAd) => {
+    await setDoc(doc(db, "serviceAds", ad.id), ad);
+  };
+
+  const deleteServiceAd = async (id: string) => {
+    await deleteDoc(doc(db, "serviceAds", id));
+  };
 
   const updateSettings = async (newSettings: SiteSettings) => {
     await setDoc(doc(db, "site", "config"), newSettings);
@@ -83,7 +120,6 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const { id, ...data } = sale;
     await setDoc(doc(db, "sales", id), data);
     
-    // Auto Stock Reduce Logic
     for (const item of sale.items) {
       const pRef = doc(db, "products", item.productId);
       await updateDoc(pRef, { stock: increment(-item.quantity) });
@@ -113,8 +149,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   return (
     <ProductContext.Provider value={{ 
       products, sales, customers, registeredUsers, blogs, settings, loading, 
+      serviceRequests, serviceAds,
       addProduct, updateProduct, deleteProduct, recordSale, 
-      updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog, syncWithFirebase 
+      updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog,
+      addServiceRequest, updateServiceStatus, addServiceAd, deleteServiceAd,
+      syncWithFirebase 
     }}>
       {children}
     </ProductContext.Provider>
