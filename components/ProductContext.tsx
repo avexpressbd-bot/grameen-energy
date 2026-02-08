@@ -29,6 +29,7 @@ interface ProductContextType {
   deleteBlog: (id: string) => Promise<void>;
   addServiceRequest: (request: Omit<ServiceRequest, 'id' | 'createdAt' | 'status'>) => Promise<string>;
   updateServiceStatus: (id: string, status: ServiceStatus, staffId?: string, staffName?: string) => Promise<void>;
+  updateServiceRequest: (id: string, data: Partial<ServiceRequest>) => Promise<void>; // New generic update
   addServiceAd: (ad: ServiceAd) => Promise<void>;
   deleteServiceAd: (id: string) => Promise<void>;
   addStaff: (s: Staff) => Promise<void>;
@@ -93,6 +94,10 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     await updateDoc(doc(db, "serviceRequests", id), updateData);
   };
 
+  const updateServiceRequest = async (id: string, data: Partial<ServiceRequest>) => {
+    await updateDoc(doc(db, "serviceRequests", id), data as any);
+  };
+
   const addStaff = async (s: Staff) => {
     await setDoc(doc(db, "staff", s.id), s);
   };
@@ -107,7 +112,6 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const addReview = async (review: StaffReview) => {
     await setDoc(doc(db, "staffReviews", review.id), review);
-    // Update staff rating average logic would go here
   };
 
   const addServiceAd = async (ad: ServiceAd) => {
@@ -180,7 +184,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       serviceRequests, serviceAds, staff, reviews,
       addProduct, updateProduct, deleteProduct, recordSale, 
       updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog,
-      addServiceRequest, updateServiceStatus, addServiceAd, deleteServiceAd,
+      addServiceRequest, updateServiceStatus, updateServiceRequest, addServiceAd, deleteServiceAd,
       addStaff, updateStaff, deleteStaff, addReview,
       syncWithFirebase 
     }}>

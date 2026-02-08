@@ -19,7 +19,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const { 
     products, sales, customers, registeredUsers, blogs, settings, serviceRequests, serviceAds, staff,
     addProduct, updateProduct, deleteProduct, updateSaleStatus, updateCustomerDue, updateSettings, 
-    updateServiceStatus, addServiceAd, deleteServiceAd, addStaff, updateStaff, deleteStaff
+    updateServiceStatus, updateServiceRequest, addServiceAd, deleteServiceAd, addStaff, updateStaff, deleteStaff
   } = useProducts();
   const { t } = useLanguage();
   
@@ -127,6 +127,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
               ads={serviceAds} 
               staff={staff}
               onUpdateStatus={updateServiceStatus}
+              onUpdatePrice={(id: string, price: number) => updateServiceRequest(id, { manualPrice: price })}
               onAddAd={(ad: any) => addServiceAd({...ad, id: 'SAD-'+Date.now()})}
               onDeleteAd={deleteServiceAd}
             />
@@ -314,7 +315,7 @@ const StaffModal = ({ staff, onClose, onSubmit }: any) => {
   );
 };
 
-const ServicesPanel = ({ requests, ads, staff, onUpdateStatus, onAddAd, onDeleteAd }: any) => {
+const ServicesPanel = ({ requests, ads, staff, onUpdateStatus, onUpdatePrice, onAddAd, onDeleteAd }: any) => {
   const [subTab, setSubTab] = useState<'requests' | 'ads'>('requests');
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
   const [assigningTask, setAssigningTask] = useState<ServiceRequest | null>(null);
@@ -344,7 +345,7 @@ const ServicesPanel = ({ requests, ads, staff, onUpdateStatus, onAddAd, onDelete
                </thead>
                <tbody className="divide-y divide-slate-50">
                  {requests.map((sr: ServiceRequest) => (
-                   <tr key={sr.id} className="hover:bg-slate-50 transition">
+                   <tr key={sr.id} className="hover:bg-slate-50 transition group">
                      <td className="px-8 py-4">
                        <p className="font-black text-slate-800 text-sm">{sr.serviceType}</p>
                        <p className="text-[10px] text-slate-400 font-mono">#{sr.id}</p>
@@ -354,7 +355,18 @@ const ServicesPanel = ({ requests, ads, staff, onUpdateStatus, onAddAd, onDelete
                         {sr.problemDescription}
                      </td>
                      <td className="px-6 py-4">
-                        <p className="font-black text-slate-900 text-sm">{sr.manualPrice ? `৳${sr.manualPrice}` : 'N/A'}</p>
+                        <div className="flex items-center gap-2 group/price">
+                          <p className="font-black text-slate-900 text-sm">{sr.manualPrice ? `৳${sr.manualPrice}` : '0'}</p>
+                          <button 
+                            onClick={() => {
+                              const p = prompt('Set Final Price (TK):', sr.manualPrice?.toString() || '0');
+                              if (p !== null) onUpdatePrice(sr.id, Number(p));
+                            }} 
+                            className="p-1.5 bg-blue-50 text-blue-600 rounded-lg opacity-0 group-hover/price:opacity-100 transition"
+                          >
+                            <Edit2 size={12}/>
+                          </button>
+                        </div>
                      </td>
                      <td className="px-6 py-4">
                        <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase ${
@@ -365,9 +377,16 @@ const ServicesPanel = ({ requests, ads, staff, onUpdateStatus, onAddAd, onDelete
                      </td>
                      <td className="px-6 py-4">
                         {sr.assignedStaffName ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 group/tech">
                              <Wrench size={12} className="text-emerald-500" />
                              <span className="text-xs font-black text-slate-800">{sr.assignedStaffName}</span>
+                             <button 
+                                onClick={() => setAssigningTask(sr)} 
+                                className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg opacity-0 group-hover/tech:opacity-100 transition ml-1"
+                                title="Change Technician"
+                              >
+                                <RefreshCw size={12}/>
+                             </button>
                           </div>
                         ) : (
                           <button onClick={() => setAssigningTask(sr)} className="text-[10px] font-black text-blue-600 uppercase border-b border-blue-600 border-dashed">Assign Staff</button>
