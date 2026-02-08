@@ -68,13 +68,10 @@ const POS: React.FC = () => {
     const code = searchTerm.trim();
     if (!code) return;
 
-    // Search by Barcode first, then SKU, then Name
     const product = products.find(p => p.barcode === code || p.sku === code || p.id === code);
     if (product) {
       addToSale(product);
       setSearchTerm('');
-    } else {
-      // If no exact match, we keep the term for search results
     }
   };
 
@@ -92,12 +89,17 @@ const POS: React.FC = () => {
 
   const subtotal = currentSale.reduce((acc, item) => acc + item.totalPrice, 0);
   const total = Math.max(0, subtotal - discount);
+
+  // Sync paidAmount with total when total changes, unless user manually edited it
+  useEffect(() => {
+    setPaidAmount(total);
+  }, [total]);
+
   const dueAmount = Math.max(0, total - paidAmount);
 
   const finalizeSale = async () => {
     if (currentSale.length === 0) return;
-    const actualPaid = (paymentMethod !== 'Cash') ? total : paidAmount;
-
+    
     const newSale: Sale = {
       id: 'POS-' + Date.now().toString().slice(-8),
       customerName: customerName || t('Walk-in Customer', 'সাধারণ কাস্টমার'), 
@@ -108,8 +110,8 @@ const POS: React.FC = () => {
       subtotal, 
       discount, 
       total, 
-      paidAmount: actualPaid, 
-      dueAmount: Math.max(0, total - actualPaid), 
+      paidAmount: paidAmount, 
+      dueAmount: dueAmount, 
       paymentMethod, 
       status: 'Delivered',
       date: new Date().toISOString()
@@ -155,7 +157,7 @@ const POS: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.barcode.includes(searchTerm)).map(product => (
+          {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.barcode && p.barcode.includes(searchTerm))).map(product => (
             <button 
               key={product.id} 
               onClick={() => addToSale(product)}
@@ -213,7 +215,7 @@ const POS: React.FC = () => {
           ))}
         </div>
 
-        <div className="p-8 bg-slate-950 space-y-6 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]">
+        <div className="p-8 bg-slate-950 space-y-4 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]">
            <div className="space-y-3">
               <div className="flex justify-between text-xs font-black text-slate-400 uppercase tracking-widest">
                 <span>Subtotal</span>
@@ -226,9 +228,20 @@ const POS: React.FC = () => {
                     <input type="number" value={discount} onChange={e => setDiscount(Number(e.target.value))} className="bg-transparent text-right font-black text-lg w-24 outline-none border-b border-dashed border-red-400/30" />
                  </div>
               </div>
-              <div className="flex justify-between items-center pt-4">
-                <span className="text-xl font-black uppercase text-emerald-400 tracking-tighter">Grand Total</span>
-                <span className="text-4xl font-black">৳ {total}</span>
+              <div className="flex justify-between items-center bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Paid Amount</span>
+                 <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-blue-400">৳</span>
+                    <input type="number" value={paidAmount} onChange={e => setPaidAmount(Number(e.target.value))} className="bg-transparent text-right font-black text-lg w-24 outline-none border-b border-dashed border-blue-400/30" />
+                 </div>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-xl font-black uppercase text-emerald-400 tracking-tighter">Due Balance</span>
+                <span className={`text-3xl font-black ${dueAmount > 0 ? 'text-red-500' : 'text-emerald-400'}`}>৳ {dueAmount}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                <span className="text-sm font-black uppercase text-slate-400">Grand Total</span>
+                <span className="text-xl font-black">৳ {total}</span>
               </div>
            </div>
 

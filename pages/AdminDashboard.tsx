@@ -2,18 +2,19 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
-import { Category, Product, Sale, OrderStatus, StockLog } from '../types';
+import { Category, Product, Sale, OrderStatus, StockLog, Customer } from '../types';
 import { 
   Plus, Edit2, Trash2, Box, X, Save, Search, DollarSign, RefreshCw, BarChart3, Tag, Users,
-  Wallet, CheckCircle, Settings, LayoutDashboard, ShoppingCart, Printer, AlertTriangle, TrendingUp, Award, ChevronRight, Hash, Activity
+  Wallet, CheckCircle, Settings, LayoutDashboard, ShoppingCart, Printer, AlertTriangle, TrendingUp, Award, ChevronRight, Hash, Activity,
+  UserPlus, UserMinus, CreditCard, Banknote
 } from 'lucide-react';
 import BarcodeLabel from '../components/BarcodeLabel';
 
-type AdminTab = 'overview' | 'inventory' | 'stock-logs' | 'sales' | 'reports' | 'settings';
+type AdminTab = 'overview' | 'inventory' | 'stock-logs' | 'sales' | 'customers' | 'reports' | 'settings';
 
 const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const { 
-    products, sales, stockLogs, addProduct, updateProduct, deleteProduct, adjustStock, updateSaleStatus, updateSettings, settings
+    products, sales, stockLogs, customers, addProduct, updateProduct, deleteProduct, adjustStock, updateSaleStatus, updateCustomerDue, updateSettings, settings
   } = useProducts();
   const { t } = useLanguage();
   
@@ -22,15 +23,18 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [printingBarcode, setPrintingBarcode] = useState<Product | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [collectionAmount, setCollectionAmount] = useState<number>(0);
 
   const lowStockItems = useMemo(() => products.filter(p => p.stock <= p.minStockLevel), [products]);
 
   const stats = useMemo(() => ({
     totalValue: products.reduce((acc, p) => acc + (p.stock * p.purchasePrice), 0),
     potentialProfit: products.reduce((acc, p) => acc + (p.stock * (p.price - p.purchasePrice)), 0),
+    totalReceivables: customers.reduce((acc, c) => acc + c.totalDue, 0),
     salesToday: sales.filter(s => new Date(s.date).toDateString() === new Date().toDateString()).length,
     revenueToday: sales.filter(s => new Date(s.date).toDateString() === new Date().toDateString()).reduce((acc, s) => acc + s.total, 0)
-  }), [products, sales]);
+  }), [products, sales, customers]);
 
   const handleProductSubmit = async (p: Product) => {
     if (editingProduct) {
@@ -39,6 +43,14 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       await addProduct(p);
     }
     setIsModalOpen(false);
+  };
+
+  const handleDueCollection = async () => {
+    if (!selectedCustomer || collectionAmount <= 0) return;
+    await updateCustomerDue(selectedCustomer.id, selectedCustomer.name, collectionAmount);
+    setSelectedCustomer(null);
+    setCollectionAmount(0);
+    alert('Payment recorded successfully!');
   };
 
   return (
@@ -55,6 +67,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
             { id: 'inventory', icon: Box, label: 'Stock Master' },
             { id: 'stock-logs', icon: Activity, label: 'Movement Logs' },
             { id: 'sales', icon: ShoppingCart, label: 'Sales Records' },
+            { id: 'customers', icon: Users, label: 'Due Ledger' },
             { id: 'reports', icon: BarChart3, label: 'Profit & Loss' },
             { id: 'settings', icon: Settings, label: 'Configuration' },
           ].map(tab => (
@@ -89,18 +102,19 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
            {activeTab === 'overview' && (
              <div className="space-y-8">
-                <div className="grid md:grid-cols-4 gap-6">
+                <div className="grid md:grid-cols-4 lg:grid-cols-5 gap-6">
                    {[
                      { label: 'Stock Value (Cost)', val: `৳${stats.totalValue}`, icon: Wallet, color: 'blue' },
                      { label: 'Projected Profit', val: `৳${stats.potentialProfit}`, icon: TrendingUp, color: 'emerald' },
+                     { label: 'Total Due', val: `৳${stats.totalReceivables}`, icon: UserMinus, color: 'red' },
                      { label: 'Revenue Today', val: `৳${stats.revenueToday}`, icon: DollarSign, color: 'purple' },
                      { label: 'Daily Sales', val: stats.salesToday, icon: ShoppingCart, color: 'amber' },
                    ].map(s => (
-                     <div key={s.label} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex items-center gap-6">
-                        <div className={`w-14 h-14 bg-${s.color}-50 text-${s.color}-600 rounded-2xl flex items-center justify-center`}><s.icon size={28}/></div>
+                     <div key={s.label} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex items-center gap-4">
+                        <div className={`w-12 h-12 bg-${s.color}-50 text-${s.color}-600 rounded-2xl flex items-center justify-center shrink-0`}><s.icon size={24}/></div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
-                          <p className="text-2xl font-black text-slate-900">{s.val}</p>
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{s.label}</p>
+                          <p className="text-lg font-black text-slate-900">{s.val}</p>
                         </div>
                      </div>
                    ))}
@@ -151,6 +165,61 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
+           {activeTab === 'customers' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b flex items-center gap-4">
+                   <div className="relative flex-1">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                      <input 
+                        type="text" 
+                        placeholder="Search Customer by Phone or Name..." 
+                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl font-bold outline-none" 
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                      />
+                   </div>
+                </div>
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Customer</th>
+                         <th className="px-6 py-5 text-left">Contact</th>
+                         <th className="px-6 py-5 text-left">Total Due</th>
+                         <th className="px-6 py-5 text-left">Last Update</th>
+                         <th className="px-8 py-5 text-right">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.id.includes(searchTerm)).map(c => (
+                        <tr key={c.id} className={`hover:bg-slate-50 transition ${c.totalDue > 0 ? 'bg-red-50/10' : ''}`}>
+                           <td className="px-8 py-4">
+                              <p className="text-sm font-black text-slate-800">{c.name}</p>
+                           </td>
+                           <td className="px-6 py-4">
+                              <p className="text-[10px] font-mono font-black text-blue-600">{c.id}</p>
+                           </td>
+                           <td className="px-6 py-4">
+                              <p className={`text-xs font-black ${c.totalDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>৳{c.totalDue}</p>
+                           </td>
+                           <td className="px-6 py-4 text-[10px] font-bold text-slate-400">
+                              {new Date(c.lastUpdate).toLocaleString()}
+                           </td>
+                           <td className="px-8 py-4 text-right">
+                              <button 
+                                onClick={() => setSelectedCustomer(c)} 
+                                className="px-4 py-2 bg-blue-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-800"
+                              >
+                                Record Payment
+                              </button>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Other tabs like inventory... */}
            {activeTab === 'inventory' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
                 <div className="p-8 border-b flex items-center gap-4">
@@ -176,7 +245,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
-                      {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.barcode.includes(searchTerm)).map(p => (
+                      {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.barcode && p.barcode.includes(searchTerm))).map(p => (
                         <tr key={p.id} className="hover:bg-slate-50 transition">
                            <td className="px-8 py-4">
                               <div className="flex items-center gap-4">
@@ -219,8 +288,84 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                 </table>
              </div>
            )}
+
+           {activeTab === 'sales' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Invoice</th>
+                         <th className="px-6 py-5 text-left">Customer</th>
+                         <th className="px-6 py-5 text-left">Payment</th>
+                         <th className="px-6 py-5 text-left">Total</th>
+                         <th className="px-8 py-5 text-right">Status</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {sales.map(s => (
+                        <tr key={s.id} className="hover:bg-slate-50 transition text-xs">
+                           <td className="px-8 py-4 font-mono font-black">#{s.id}</td>
+                           <td className="px-6 py-4">
+                              <p className="font-black text-slate-800">{s.customerName}</p>
+                              <p className="text-[10px] text-slate-400">{s.customerPhone}</p>
+                           </td>
+                           <td className="px-6 py-4">
+                              <p className="font-bold text-slate-600">{s.paymentMethod}</p>
+                              <p className={`text-[10px] font-black ${s.dueAmount > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                 {s.dueAmount > 0 ? `Due: ৳${s.dueAmount}` : 'Fully Paid'}
+                              </p>
+                           </td>
+                           <td className="px-6 py-4 font-black">৳{s.total}</td>
+                           <td className="px-8 py-4 text-right">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s.status === 'Delivered' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>{s.status}</span>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
         </div>
       </main>
+
+      {/* Due Collection Modal */}
+      {selectedCustomer && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+           <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-6">
+              <div className="flex justify-between items-center border-b pb-4">
+                 <h2 className="text-xl font-black uppercase tracking-tight">Record Payment</h2>
+                 <button onClick={() => setSelectedCustomer(null)} className="p-2 hover:bg-red-50 text-red-500 rounded-xl">✕</button>
+              </div>
+              <div className="space-y-4">
+                 <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer</p>
+                    <p className="text-lg font-black text-slate-800">{selectedCustomer.name}</p>
+                    <p className="text-xs font-bold text-slate-500">{selectedCustomer.id}</p>
+                 </div>
+                 <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                    <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Total Outstanding</p>
+                    <p className="text-2xl font-black text-red-600">৳{selectedCustomer.totalDue}</p>
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Collect Amount</label>
+                    <input 
+                      type="number" 
+                      max={selectedCustomer.totalDue}
+                      value={collectionAmount}
+                      onChange={e => setCollectionAmount(Number(e.target.value))}
+                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 font-black text-xl outline-none focus:ring-4 focus:ring-blue-50 transition" 
+                    />
+                 </div>
+                 <button 
+                   onClick={handleDueCollection}
+                   className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-emerald-500 transition"
+                 >
+                   Confirm Collection
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
 
       {/* Product Editor Modal */}
       {isModalOpen && (
