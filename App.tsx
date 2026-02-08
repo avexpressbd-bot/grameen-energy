@@ -5,6 +5,8 @@ import Footer from './components/Footer.tsx';
 import Home from './pages/Home.tsx';
 import Shop from './pages/Shop.tsx';
 import Services from './pages/Services.tsx';
+import StaffList from './pages/StaffList.tsx';
+import TechnicianPortal from './pages/TechnicianPortal.tsx';
 import ProductDetail from './pages/ProductDetail.tsx';
 import Cart from './pages/Cart.tsx';
 import Checkout from './pages/Checkout.tsx';
@@ -61,6 +63,10 @@ const AppContent: React.FC = () => {
         return <Shop onProductClick={showProduct} />;
       case 'services':
         return <Services />;
+      case 'staff':
+        return <StaffList />;
+      case 'technician-portal':
+        return <TechnicianPortal />;
       case 'product-detail':
         const product = products.find(p => p.id === selectedProductId);
         return product ? <ProductDetail product={product} onNavigate={navigateTo} /> : <Home onProductClick={showProduct} onNavigate={navigateTo} />;
@@ -73,6 +79,7 @@ const AppContent: React.FC = () => {
       case 'customer-auth':
         return <CustomerAuth onNavigate={navigateTo} />;
       case 'profile':
+        if (user?.role === 'technician') return <TechnicianPortal />;
         return <Profile onNavigate={navigateTo} onTrackOrder={handleTrackOrder} />;
       case 'admin':
         return staffRole === 'admin' 
@@ -93,10 +100,10 @@ const AppContent: React.FC = () => {
       <main className="flex-1">
         {renderPage()}
       </main>
-      {currentPage !== 'pos' && (
+      {currentPage !== 'pos' && currentPage !== 'technician-portal' && (
         <Footer 
           onNavigate={navigateTo} 
-          isAuthenticated={!!staffRole} 
+          isAuthenticated={!!staffRole || !!user} 
           onLogout={logout} 
         />
       )}

@@ -66,12 +66,40 @@ export interface ServiceAd {
   titleBn: string;
   category: string;
   descriptionBn: string;
-  priceLabel: string; // e.g., "Starting at 500"
+  priceLabel: string;
   areaCoverage: string;
   responseTime: string;
   image: string;
   isEmergency?: boolean;
   hasOffer?: boolean;
+}
+
+export type StaffSkill = 'IPS' | 'Solar' | 'Wiring' | 'Repair' | 'Installation';
+export type StaffStatus = 'Available' | 'Busy' | 'Offline';
+
+export interface Staff {
+  id: string; // Phone number or ID
+  name: string;
+  photo: string;
+  phone: string;
+  whatsapp: string;
+  skills: StaffSkill[];
+  area: string;
+  experience: number;
+  status: StaffStatus;
+  isEmergencyStaff: boolean;
+  rating: number;
+  totalJobs: number;
+  joinedAt: string;
+}
+
+export interface StaffReview {
+  id: string;
+  staffId: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  date: string;
 }
 
 export type ServiceStatus = 'Pending' | 'Assigned' | 'In Progress' | 'Completed' | 'Cancelled';
@@ -87,7 +115,9 @@ export interface ServiceRequest {
   preferredTime: string;
   photoUrl?: string;
   status: ServiceStatus;
-  assignedTechnician?: string;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
+  rating?: number;
   createdAt: string;
 }
 
@@ -135,6 +165,7 @@ export interface CustomerUser {
   email?: string;
   address?: string;
   city?: string;
+  role?: 'customer' | 'technician';
   createdAt: string;
 }
 

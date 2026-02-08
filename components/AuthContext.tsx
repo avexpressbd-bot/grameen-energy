@@ -7,8 +7,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 interface AuthContextType {
   user: CustomerUser | null;
   staffRole: 'admin' | 'pos' | null;
-  login: (id: string, password: string) => Promise<'admin' | 'pos' | 'customer' | false>;
-  register: (userData: Omit<CustomerUser, 'uid' | 'createdAt' | 'accountId'>, password: string) => Promise<boolean>;
+  login: (id: string, password: string) => Promise<'admin' | 'pos' | 'customer' | 'technician' | false>;
+  register: (userData: Omit<CustomerUser, 'uid' | 'createdAt' | 'accountId'>, password: string, role?: 'customer' | 'technician') => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<CustomerUser>) => Promise<void>;
   loading: boolean;
@@ -31,8 +31,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(false);
   }, []);
 
-  const login = async (id: string, password: string): Promise<'admin' | 'pos' | 'customer' | false> => {
-    // 1. Check Hardcoded Staff Credentials
+  const login = async (id: string, password: string): Promise<'admin' | 'pos' | 'customer' | 'technician' | false> => {
     if (id === 'admin' && password === 'admin123') {
       setStaffRole('admin');
       localStorage.setItem('ge_staff_role', 'admin');
@@ -45,7 +44,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return 'pos';
     }
 
-    // 2. Check Customer Credentials in Firestore
     const userDoc = await getDoc(doc(db, 'users', id));
     if (userDoc.exists()) {
       const data = userDoc.data();
@@ -58,17 +56,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           email: data.email,
           address: data.address,
           city: data.city,
+          role: data.role || 'customer',
           createdAt: data.createdAt
         };
         setUser(customer);
         localStorage.setItem('ge_customer_user', JSON.stringify(customer));
-        return 'customer';
+        return customer.role === 'technician' ? 'technician' : 'customer';
       }
     }
     return false;
   };
 
-  const register = async (userData: Omit<CustomerUser, 'uid' | 'createdAt' | 'accountId'>, password: string) => {
+  const register = async (userData: Omit<CustomerUser, 'uid' | 'createdAt' | 'accountId'>, password: string, role: 'customer' | 'technician' = 'customer') => {
     const userRef = doc(db, 'users', userData.phone);
     const userSnap = await getDoc(userRef);
     
@@ -77,12 +76,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-    const accountId = `GE-C-${randomSuffix}`;
+    const accountId = role === 'technician' ? `GE-T-${randomSuffix}` : `GE-C-${randomSuffix}`;
 
     const newUser = {
       ...userData,
       accountId,
       password,
+      role,
       createdAt: new Date().toISOString()
     };
 
@@ -92,6 +92,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       uid: userData.phone,
       accountId,
       ...userData,
+      role,
       createdAt: newUser.createdAt
     };
     

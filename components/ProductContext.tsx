@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus } from '../types';
+import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus, Staff, StaffReview } from '../types';
 import { db } from '../services/firebase';
 import { 
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment 
@@ -14,6 +14,8 @@ interface ProductContextType {
   blogs: BlogPost[];
   serviceRequests: ServiceRequest[];
   serviceAds: ServiceAd[];
+  staff: Staff[];
+  reviews: StaffReview[];
   settings: SiteSettings | null;
   loading: boolean;
   addProduct: (product: Product) => Promise<void>;
@@ -26,9 +28,13 @@ interface ProductContextType {
   addBlog: (blog: BlogPost) => Promise<void>;
   deleteBlog: (id: string) => Promise<void>;
   addServiceRequest: (request: Omit<ServiceRequest, 'id' | 'createdAt' | 'status'>) => Promise<string>;
-  updateServiceStatus: (id: string, status: ServiceStatus, technician?: string) => Promise<void>;
+  updateServiceStatus: (id: string, status: ServiceStatus, staffId?: string, staffName?: string) => Promise<void>;
   addServiceAd: (ad: ServiceAd) => Promise<void>;
   deleteServiceAd: (id: string) => Promise<void>;
+  addStaff: (s: Staff) => Promise<void>;
+  updateStaff: (id: string, data: Partial<Staff>) => Promise<void>;
+  deleteStaff: (id: string) => Promise<void>;
+  addReview: (review: StaffReview) => Promise<void>;
   syncWithFirebase: () => Promise<void>;
 }
 
@@ -42,6 +48,8 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [serviceAds, setServiceAds] = useState<ServiceAd[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [reviews, setReviews] = useState<StaffReview[]>([]);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,12 +63,14 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const unsubBlogs = onSnapshot(query(collection(db, "blogs"), orderBy("date", "desc")), (s) => setBlogs(s.docs.map(d => ({...d.data(), id: d.id})) as BlogPost[]));
     const unsubServiceRequests = onSnapshot(query(collection(db, "serviceRequests"), orderBy("createdAt", "desc")), (s) => setServiceRequests(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceRequest[]));
     const unsubServiceAds = onSnapshot(collection(db, "serviceAds"), (s) => setServiceAds(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceAd[]));
+    const unsubStaff = onSnapshot(collection(db, "staff"), (s) => setStaff(s.docs.map(d => ({...d.data(), id: d.id})) as Staff[]));
+    const unsubReviews = onSnapshot(collection(db, "staffReviews"), (s) => setReviews(s.docs.map(d => ({...d.data(), id: d.id})) as StaffReview[]));
     const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => d.exists() && setSettings(d.data() as SiteSettings));
 
     setLoading(false);
     return () => { 
       unsubProducts(); unsubSales(); unsubCustomers(); unsubUsers(); unsubBlogs(); 
-      unsubServiceRequests(); unsubServiceAds(); unsubSettings(); 
+      unsubServiceRequests(); unsubServiceAds(); unsubStaff(); unsubReviews(); unsubSettings(); 
     };
   }, []);
 
@@ -76,10 +86,28 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     return id;
   };
 
-  const updateServiceStatus = async (id: string, status: ServiceStatus, technician?: string) => {
+  const updateServiceStatus = async (id: string, status: ServiceStatus, staffId?: string, staffName?: string) => {
     const updateData: any = { status };
-    if (technician) updateData.assignedTechnician = technician;
+    if (staffId) updateData.assignedStaffId = staffId;
+    if (staffName) updateData.assignedStaffName = staffName;
     await updateDoc(doc(db, "serviceRequests", id), updateData);
+  };
+
+  const addStaff = async (s: Staff) => {
+    await setDoc(doc(db, "staff", s.id), s);
+  };
+
+  const updateStaff = async (id: string, data: Partial<Staff>) => {
+    await updateDoc(doc(db, "staff", id), data);
+  };
+
+  const deleteStaff = async (id: string) => {
+    await deleteDoc(doc(db, "staff", id));
+  };
+
+  const addReview = async (review: StaffReview) => {
+    await setDoc(doc(db, "staffReviews", review.id), review);
+    // Update staff rating average logic would go here
   };
 
   const addServiceAd = async (ad: ServiceAd) => {
@@ -149,10 +177,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   return (
     <ProductContext.Provider value={{ 
       products, sales, customers, registeredUsers, blogs, settings, loading, 
-      serviceRequests, serviceAds,
+      serviceRequests, serviceAds, staff, reviews,
       addProduct, updateProduct, deleteProduct, recordSale, 
       updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog,
       addServiceRequest, updateServiceStatus, addServiceAd, deleteServiceAd,
+      addStaff, updateStaff, deleteStaff, addReview,
       syncWithFirebase 
     }}>
       {children}
