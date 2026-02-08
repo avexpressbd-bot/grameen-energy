@@ -59,7 +59,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     if (!db) return;
 
-    const unsubProducts = onSnapshot(collection(db, "products"), (s) => setProducts(s.docs.map(d => ({...d.data(), id: d.id})) as Product[]));
+    const unsubProducts = onSnapshot(collection(db, "products"), (s) => {
+      const pList = s.docs.map(d => ({...d.data(), id: d.id})) as Product[];
+      setProducts(pList);
+    });
+    
     const unsubSales = onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (s) => setSales(s.docs.map(d => ({...d.data(), id: d.id})) as Sale[]));
     const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]));
     const unsubUsers = onSnapshot(collection(db, "users"), (s) => setRegisteredUsers(s.docs.map(d => ({...d.data(), uid: d.id})) as CustomerUser[]));
@@ -79,24 +83,37 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   const adjustStock = async (productId: string, change: number, reason: StockLog['reason']) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
-    await updateDoc(doc(db, "products", productId), { stock: increment(change) });
-    await addDoc(collection(db, "stockLogs"), {
-      productId,
-      productName: product.name,
-      change,
-      reason,
-      date: new Date().toISOString(),
-      user: "System Admin"
-    });
+    // Note: In Firestore, we use increment. Locally, it will update via onSnapshot eventually.
+    try {
+      await updateDoc(doc(db, "products", productId), { stock: increment(change) });
+      
+      const product = products.find(p => p.id === productId);
+      await addDoc(collection(db, "stockLogs"), {
+        productId,
+        productName: product?.name || 'Unknown',
+        change,
+        reason,
+        date: new Date().toISOString(),
+        user: "System Admin"
+      });
+    } catch (e) {
+      console.error("Adjust stock error:", e);
+    }
   };
 
   const addProduct = async (p: Product) => {
-    const { id, ...data } = p;
-    await setDoc(doc(db, "products", id), data);
-    await adjustStock(id, p.stock, 'Purchase');
+    const id = p.id || 'GE-' + Math.floor(Math.random() * 900000 + 100000);
+    const { id: _, ...data } = p;
+    await setDoc(doc(db, "products", id), { ...data, id }); // Keeping id in fields too for safety
+    // For initial stock, we don't need adjustStock because setDoc already saved the stock
+    await addDoc(collection(db, "stockLogs"), {
+      productId: id,
+      productName: p.name,
+      change: p.stock,
+      reason: 'Purchase',
+      date: new Date().toISOString(),
+      user: "System Admin"
+    });
   };
 
   const updateProduct = async (id: string, p: Product) => {
@@ -120,14 +137,20 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       const cRef = doc(db, "customers", sale.customerPhone);
       const cSnap = await getDocs(query(collection(db, "customers")));
       if (!cSnap.docs.some(d => d.id === sale.customerPhone)) {
-        await setDoc(cRef, { name: sale.customerName || "Walking", totalDue: sale.dueAmount, lastUpdate: new Date().toISOString() });
+        await setDoc(cRef, { 
+          name: sale.customerName || "Walking", 
+          totalDue: sale.dueAmount, 
+          lastUpdate: new Date().toISOString() 
+        });
       } else {
-        await updateDoc(cRef, { totalDue: increment(sale.dueAmount), lastUpdate: new Date().toISOString() });
+        await updateDoc(cRef, { 
+          totalDue: increment(sale.dueAmount), 
+          lastUpdate: new Date().toISOString() 
+        });
       }
     }
   };
 
-  // Remaining Service/Staff/Settings logic...
   const addServiceRequest = async (request: Omit<ServiceRequest, 'id' | 'createdAt' | 'status'>) => {
     const id = 'SR-' + Date.now();
     const newRequest: ServiceRequest = { ...request, id, status: 'Pending', createdAt: new Date().toISOString() };
