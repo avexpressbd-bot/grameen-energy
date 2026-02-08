@@ -39,6 +39,9 @@ export interface SiteSettings {
   address: string;
   addressBn: string;
   whatsappNumber: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
   heroTitleEn: string;
   heroTitleBn: string;
   heroSubtitleEn: string;
@@ -70,7 +73,7 @@ export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | '
 
 export interface Sale {
   id: string;
-  userId?: string; // Link to customer account
+  userId?: string; 
   customerName: string;
   customerPhone: string;
   customerAddress: string;
@@ -95,7 +98,7 @@ export interface Customer {
 
 export interface CustomerUser {
   uid: string;
-  accountId: string; // Unique human-readable ID like GE-C-1234
+  accountId: string; 
   name: string;
   phone: string;
   email?: string;

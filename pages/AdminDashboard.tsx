@@ -8,7 +8,7 @@ import {
   Wallet, CheckCircle, Settings, LayoutDashboard, FileText, ShoppingCart, Info, 
   Image as ImageIcon, MapPin, Phone, Eye, ArrowRight, Loader2, Bell, Volume2, 
   Download, Filter, CheckCircle2, Truck, XCircle, Clock, Printer, AlertTriangle, TrendingUp, Hash, Activity, BarChart3,
-  CreditCard, Banknote
+  CreditCard, Banknote, Facebook, Instagram, Youtube
 } from 'lucide-react';
 
 type AdminTab = 'overview' | 'inventory' | 'dues' | 'sales' | 'customers' | 'blogs' | 'settings';
@@ -62,13 +62,21 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const [settingsForm, setSettingsForm] = useState<SiteSettings>(settings || {
     siteName: 'Grameen Energy', siteNameBn: 'গ্রামিন এনার্জি',
     contactPhone: '', contactEmail: '', address: '', addressBn: '', whatsappNumber: '',
+    facebookUrl: '', instagramUrl: '', youtubeUrl: '',
     heroTitleEn: '', heroTitleBn: '', heroSubtitleEn: '', heroSubtitleBn: ''
   });
+
+  // Re-sync local form when settings change in Firestore
+  useEffect(() => {
+    if (settings) {
+      setSettingsForm(prev => ({ ...prev, ...settings }));
+    }
+  }, [settings]);
 
   const handleSettingsUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     await updateSettings(settingsForm);
-    alert('Settings Updated!');
+    alert('সেটিংস সফলভাবে আপডেট হয়েছে!');
   };
 
   return (
@@ -126,39 +134,37 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       </aside>
 
       <main className="flex-1 p-6 lg:p-12 overflow-y-auto bg-[#f8fafc]">
-        <section className="mb-12 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl border border-white/5">
-          <div className="relative z-10 flex flex-col xl:flex-row justify-between items-center gap-10">
-             <div className="space-y-4 text-center xl:text-left">
-               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full font-black uppercase text-[10px] tracking-widest border border-emerald-500/20">
-                 <TrendingUp size={14}/> Today's Sales Pulse
-               </div>
-               <div>
-                 <p className="text-6xl font-black tracking-tighter mb-1">৳{dailyStats.revenue.toLocaleString()}</p>
-                 <p className="text-slate-400 font-bold text-sm">{dailyStats.count} Total Transactions Finalized Today</p>
-               </div>
-             </div>
-             
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full xl:w-auto">
-               {[
-                 { label: 'Web Orders', val: dailyStats.web, icon: ShoppingCart, color: 'blue' },
-                 { label: 'POS Sales', val: dailyStats.pos, icon: Activity, color: 'emerald' },
-                 { label: 'Digital Pay', val: dailyStats.digital, icon: CreditCard, color: 'purple' },
-                 { label: 'Cash Sales', val: dailyStats.cash, icon: Banknote, color: 'amber' },
-               ].map((stat, i) => (
-                 <div key={i} className="bg-white/5 p-5 rounded-[2rem] border border-white/10 text-center flex flex-col items-center gap-2 hover:bg-white/10 transition">
-                   <stat.icon size={20} className={`text-${stat.color}-400`} />
-                   <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{stat.label}</p>
-                   <p className="text-2xl font-black">{stat.val}</p>
-                 </div>
-               ))}
-             </div>
-          </div>
-          <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none"></div>
-        </section>
+        {activeTab === 'overview' ? (
+          <>
+            <section className="mb-12 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl border border-white/5">
+              <div className="relative z-10 flex flex-col xl:flex-row justify-between items-center gap-10">
+                <div className="space-y-4 text-center xl:text-left">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-full font-black uppercase text-[10px] tracking-widest border border-emerald-500/20">
+                    <TrendingUp size={14}/> Today's Sales Pulse
+                  </div>
+                  <div>
+                    <p className="text-6xl font-black tracking-tighter mb-1">৳{dailyStats.revenue.toLocaleString()}</p>
+                    <p className="text-slate-400 font-bold text-sm">{dailyStats.count} Total Transactions Finalized Today</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full xl:w-auto">
+                  {[
+                    { label: 'Web Orders', val: dailyStats.web, icon: ShoppingCart, color: 'blue' },
+                    { label: 'POS Sales', val: dailyStats.pos, icon: Activity, color: 'emerald' },
+                    { label: 'Digital Pay', val: dailyStats.digital, icon: CreditCard, color: 'purple' },
+                    { label: 'Cash Sales', val: dailyStats.cash, icon: Banknote, color: 'amber' },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-white/5 p-5 rounded-[2rem] border border-white/10 text-center flex flex-col items-center gap-2 hover:bg-white/10 transition">
+                      <stat.icon size={20} className={`text-${stat.color}-400`} />
+                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{stat.label}</p>
+                      <p className="text-2xl font-black">{stat.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
 
-        <div className="space-y-10">
-          {activeTab === 'overview' && (
             <div className="grid lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-8">
                 <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
@@ -166,65 +172,46 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                     <BarChart3 size={20} className="text-blue-600"/> Recent Sales Activities
                   </h3>
                   <SalesTab sales={sales.slice(0, 10)} searchTerm="" onUpdateStatus={updateSaleStatus} />
-                  <button onClick={() => setActiveTab('sales')} className="w-full mt-6 py-4 bg-slate-50 rounded-2xl text-slate-400 font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 hover:text-blue-600 transition">
-                    View Full Sales History
-                  </button>
                 </div>
               </div>
               <div className="space-y-8">
                 <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                   <div className="flex justify-between items-center mb-6">
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                        <AlertTriangle size={14} className="text-amber-500" /> Critical Stock
-                      </h4>
-                      <div className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">{lowStockProducts.length} Items</div>
-                   </div>
-                   <div className="space-y-4">
-                      {lowStockProducts.length === 0 ? (
-                        <div className="py-10 flex flex-col items-center justify-center text-slate-300 gap-4">
-                          <CheckCircle size={40} className="text-emerald-500 opacity-20" />
-                          <p className="text-[10px] font-black uppercase tracking-widest">Inventory Healthy</p>
+                  <div className="flex justify-between items-center mb-6">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <AlertTriangle size={14} className="text-amber-500" /> Critical Stock
+                    </h4>
+                    <div className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">{lowStockProducts.length} Items</div>
+                  </div>
+                  <div className="space-y-4">
+                    {lowStockProducts.length === 0 ? (
+                      <div className="py-10 flex flex-col items-center justify-center text-slate-300 gap-4">
+                        <CheckCircle size={40} className="text-emerald-500 opacity-20" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">Inventory Healthy</p>
+                      </div>
+                    ) : lowStockProducts.slice(0, 5).map(p => (
+                      <div key={p.id} className="flex justify-between items-center bg-red-50 p-4 rounded-2xl border border-red-100 group hover:bg-red-100 transition">
+                        <div className="flex items-center gap-3">
+                          <img src={p.image} className="w-10 h-10 rounded-xl object-cover" />
+                          <span className="text-[11px] font-black text-slate-700 truncate w-32">{p.nameBn}</span>
                         </div>
-                      ) : lowStockProducts.slice(0, 5).map(p => (
-                        <div key={p.id} className="flex justify-between items-center bg-red-50 p-4 rounded-2xl border border-red-100 group hover:bg-red-100 transition">
-                          <div className="flex items-center gap-3">
-                            <img src={p.image} className="w-10 h-10 rounded-xl object-cover" />
-                            <span className="text-[11px] font-black text-slate-700 truncate w-32">{p.nameBn}</span>
-                          </div>
-                          <span className="bg-red-600 text-white px-3 py-1 rounded-lg text-[10px] font-black">{p.stock}</span>
-                        </div>
-                      ))}
-                   </div>
-                </div>
-
-                <div className="bg-blue-900 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden">
-                  <h4 className="text-[10px] font-black text-blue-300 uppercase tracking-widest mb-6">Quick Tools</h4>
-                  <div className="grid grid-cols-1 gap-3 relative z-10">
-                    <button onClick={() => { setActiveTab('inventory'); setEditingItem(null); setIsModalOpen(true); }} className="w-full flex items-center gap-4 bg-white/10 p-4 rounded-2xl hover:bg-white/20 transition">
-                      <Plus size={20} className="text-emerald-400"/>
-                      <span className="text-xs font-black uppercase tracking-widest">Add New Product</span>
-                    </button>
-                    <button onClick={() => { setActiveTab('blogs'); setEditingItem(null); setIsModalOpen(true); }} className="w-full flex items-center gap-4 bg-white/10 p-4 rounded-2xl hover:bg-white/20 transition">
-                      <FileText size={20} className="text-blue-400"/>
-                      <span className="text-xs font-black uppercase tracking-widest">Post Blog Update</span>
-                    </button>
+                        <span className="bg-red-600 text-white px-3 py-1 rounded-lg text-[10px] font-black">{p.stock}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
-          )}
-
-          {activeTab !== 'overview' && (
-            <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden min-h-[600px] animate-in slide-in-from-bottom-6 duration-500">
-              {activeTab === 'inventory' && <InventoryTab products={products} searchTerm={searchTerm} onEdit={(p:any) => {setEditingItem(p); setIsModalOpen(true);}} onDelete={deleteProduct}/>}
-              {activeTab === 'sales' && <SalesTab sales={sales} searchTerm={searchTerm} onUpdateStatus={updateSaleStatus}/>}
-              {activeTab === 'customers' && <CustomersTab users={registeredUsers} searchTerm={searchTerm}/>}
-              {activeTab === 'dues' && <DuesTab customers={customers} searchTerm={searchTerm} updateDue={updateCustomerDue}/>}
-              {activeTab === 'blogs' && <BlogsTab blogs={blogs} searchTerm={searchTerm} onDelete={deleteBlog}/>}
-              {activeTab === 'settings' && <SettingsTab form={settingsForm} setForm={setSettingsForm} onSave={handleSettingsUpdate}/>}
-            </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden min-h-[600px] animate-in slide-in-from-bottom-6 duration-500">
+            {activeTab === 'inventory' && <InventoryTab products={products} searchTerm={searchTerm} onEdit={(p:any) => {setEditingItem(p); setIsModalOpen(true);}} onDelete={deleteProduct}/>}
+            {activeTab === 'sales' && <SalesTab sales={sales} searchTerm={searchTerm} onUpdateStatus={updateSaleStatus}/>}
+            {activeTab === 'customers' && <CustomersTab users={registeredUsers} searchTerm={searchTerm}/>}
+            {activeTab === 'dues' && <DuesTab customers={customers} searchTerm={searchTerm} updateDue={updateCustomerDue}/>}
+            {activeTab === 'blogs' && <BlogsTab blogs={blogs} searchTerm={searchTerm} onDelete={deleteBlog}/>}
+            {activeTab === 'settings' && <SettingsTab form={settingsForm} setForm={setSettingsForm} onSave={handleSettingsUpdate}/>}
+          </div>
+        )}
       </main>
 
       {isModalOpen && (
@@ -519,7 +506,7 @@ const BlogsTab = ({ blogs, onDelete }: any) => (
 );
 
 const SettingsTab = ({ form, setForm, onSave }: any) => (
-  <form onSubmit={onSave} className="p-10 space-y-8">
+  <form onSubmit={onSave} className="p-10 space-y-8 max-h-[70vh] overflow-y-auto">
     <div className="grid md:grid-cols-2 gap-8">
       <div className="space-y-6">
         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">ব্র্যান্ডিং ও কন্টাক্ট</h4>
@@ -527,14 +514,43 @@ const SettingsTab = ({ form, setForm, onSave }: any) => (
         <InputField label="সাইটের নাম (বাংলা)" value={form.siteNameBn} onChange={(v:any) => setForm({...form, siteNameBn: v})} />
         <InputField label="কন্টাক্ট ইমেইল" value={form.contactEmail} onChange={(v:any) => setForm({...form, contactEmail: v})} />
         <InputField label="কন্টাক্ট ফোন" value={form.contactPhone} onChange={(v:any) => setForm({...form, contactPhone: v})} />
-      </div>
-      <div className="space-y-6">
-        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">ঠিকানা ও সোশ্যাল</h4>
-        <InputField label="ঠিকানা (English)" value={form.address} onChange={(v:any) => setForm({...form, address: v})} />
-        <InputField label="ঠিকানা (বাংলা)" value={form.addressBn} onChange={(v:any) => setForm({...form, addressBn: v})} />
         <InputField label="হোয়াটসঅ্যাপ নম্বর" value={form.whatsappNumber} onChange={(v:any) => setForm({...form, whatsappNumber: v})} />
       </div>
+      <div className="space-y-6">
+        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-2">ঠিকানা ও সোশ্যাল লিঙ্ক</h4>
+        <InputField label="ঠিকানা (English)" value={form.address} onChange={(v:any) => setForm({...form, address: v})} />
+        <InputField label="ঠিকানা (বাংলা)" value={form.addressBn} onChange={(v:any) => setForm({...form, addressBn: v})} />
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center gap-3">
+             <Facebook className="text-blue-600" size={20} />
+             <input type="text" placeholder="Facebook URL" value={form.facebookUrl} onChange={(e) => setForm({...form, facebookUrl: e.target.value})} className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold outline-none" />
+          </div>
+          <div className="flex items-center gap-3">
+             <Instagram className="text-pink-600" size={20} />
+             <input type="text" placeholder="Instagram URL" value={form.instagramUrl} onChange={(e) => setForm({...form, instagramUrl: e.target.value})} className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold outline-none" />
+          </div>
+          <div className="flex items-center gap-3">
+             <Youtube className="text-red-600" size={20} />
+             <input type="text" placeholder="Youtube URL" value={form.youtubeUrl} onChange={(e) => setForm({...form, youtubeUrl: e.target.value})} className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold outline-none" />
+          </div>
+        </div>
+      </div>
     </div>
+    
+    <div className="pt-6 border-t">
+       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">হোমপেজ ব্যানার কন্টেন্ট</h4>
+       <div className="grid md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+             <InputField label="Hero Title (English)" value={form.heroTitleEn} onChange={(v:any) => setForm({...form, heroTitleEn: v})} />
+             <InputField label="Hero Subtitle (English)" value={form.heroSubtitleEn} onChange={(v:any) => setForm({...form, heroSubtitleEn: v})} />
+          </div>
+          <div className="space-y-4">
+             <InputField label="Hero Title (বাংলা)" value={form.heroTitleBn} onChange={(v:any) => setForm({...form, heroTitleBn: v})} />
+             <InputField label="Hero Subtitle (বাংলা)" value={form.heroSubtitleBn} onChange={(v:any) => setForm({...form, heroSubtitleBn: v})} />
+          </div>
+       </div>
+    </div>
+
     <div className="pt-6">
       <button type="submit" className="bg-blue-900 text-white px-10 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-800 transition">
         সেটিংস সেভ করুন
