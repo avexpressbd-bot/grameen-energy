@@ -15,104 +15,91 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
   return (
     <div className="pb-12">
       {/* Hero Banner */}
-      <section className="relative bg-blue-900 text-white py-12 md:py-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 relative z-10 grid md:grid-cols-2 gap-8 items-center">
-          <div className="space-y-6">
-            <span className="inline-block px-4 py-1 bg-emerald-500 text-white rounded-full text-sm font-bold uppercase tracking-widest">
+      <section className="relative bg-blue-900 text-white py-20 md:py-32 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 relative z-10">
+          <div className="max-w-3xl space-y-8">
+            <span className="inline-block px-4 py-1.5 bg-emerald-500 text-white rounded-full text-xs font-black uppercase tracking-[0.2em] shadow-lg">
               {t('Welcome to Grameen Energy', 'গ্রামিন এনার্জি-তে স্বাগতম')}
             </span>
-            <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-              {t('Reliable Power Solutions', 'বিশ্বস্ত বিদ্যুৎ সমাধান')} — <span className="text-emerald-400">গ্রামিন এনার্জি</span>
+            <h1 className="text-5xl md:text-7xl font-black leading-[1.1] tracking-tight">
+              {t('Reliable Power Solutions', 'বিশ্বস্ত বিদ্যুৎ সমাধান')} — <br/>
+              <span className="text-emerald-400">{t('Grameen Energy', 'গ্রামিন এনার্জি')}</span>
             </h1>
-            <p className="text-lg text-blue-100 max-w-lg">
+            <p className="text-xl text-blue-100/80 font-medium leading-relaxed max-w-2xl">
               {t('High-quality electrical and energy products for rural and urban homes. Sustainable, efficient, and affordable.', 'গ্রাম ও শহরের বাসাবাড়ির জন্য উচ্চমানের ইলেকট্রিক্যাল এবং এনার্জি প্রোডাক্ট। টেকসই, দক্ষ এবং সাশ্রয়ী।')}
             </p>
-            <div className="flex flex-wrap gap-4">
-              <button onClick={() => onNavigate('shop')} className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-bold text-lg transition shadow-lg flex items-center gap-2">
+            <div className="flex flex-wrap gap-5 pt-4">
+              <button 
+                onClick={() => onNavigate('shop')} 
+                className="px-10 py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-2xl shadow-emerald-500/20 flex items-center gap-3 active:scale-95"
+              >
                 {t('Shop Now', 'শপ করুন')} <ArrowRight size={20}/>
               </button>
-              <a href="https://wa.me/880123456789" className="px-8 py-3 bg-white text-blue-900 hover:bg-gray-100 rounded-lg font-bold text-lg transition flex items-center gap-2">
+              <a 
+                href="https://wa.me/880123456789" 
+                className="px-10 py-5 bg-white text-blue-900 hover:bg-slate-50 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center gap-3 active:scale-95"
+              >
                 {t('WhatsApp Order', 'হোয়াটসঅ্যাপ অর্ডার')}
               </a>
             </div>
           </div>
-          <div className="hidden md:block relative">
-            <img 
-              src="https://images.unsplash.com/photo-1592833159155-c62df1b356ee?auto=format&fit=crop&q=80&w=800" 
-              alt="Solar Panels" 
-              className="rounded-2xl shadow-2xl border-4 border-blue-800 rotate-2"
-            />
-          </div>
         </div>
-        {/* Background blobs */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-y-1/2 translate-x-1/2"></div>
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 translate-y-1/2 -translate-x-1/2"></div>
+        
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-400/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2"></div>
       </section>
 
       {/* Categories */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
-        <div className="flex justify-between items-end mb-8">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-blue-900">{t('Product Categories', 'পণ্য ক্যাটাগরি')}</h2>
-            <p className="text-gray-500 mt-1">{t('Find what you need by category', 'আপনার প্রয়োজনীয় বিভাগ অনুযায়ী খুঁজুন')}</p>
+      <section className="max-w-7xl mx-auto px-4 py-20">
+        <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-12">
+          <div className="space-y-2">
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 uppercase tracking-tight">{t('Product Categories', 'পণ্য ক্যাটাগরি')}</h2>
+            <p className="text-slate-400 font-bold">{t('Find what you need by category', 'আপনার প্রয়োজনীয় বিভাগ অনুযায়ী খুঁজুন')}</p>
           </div>
-          <button onClick={() => onNavigate('shop')} className="text-emerald-600 font-bold hover:underline">{t('View All', 'সব দেখুন')}</button>
+          <button onClick={() => onNavigate('shop')} className="text-emerald-600 font-black uppercase text-xs tracking-widest hover:text-emerald-700 transition border-b-2 border-emerald-100 pb-1">{t('View All', 'সব দেখুন')}</button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6">
           {categories.map((cat, i) => (
-            <button key={i} onClick={() => onNavigate('shop')} className="flex flex-col items-center gap-3 p-4 rounded-xl bg-white shadow-sm border border-gray-100 hover:border-emerald-500 hover:shadow-md transition group text-center">
-              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition">
-                <Zap size={24}/>
+            <button key={i} onClick={() => onNavigate('shop')} className="flex flex-col items-center gap-4 p-6 rounded-[2.5rem] bg-white shadow-sm border border-slate-50 hover:border-emerald-500 hover:shadow-2xl hover:-translate-y-2 transition-all group text-center">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                <Zap size={28}/>
               </div>
-              <span className="text-xs font-bold text-gray-700">{cat}</span>
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-tight">{cat}</span>
             </button>
           ))}
         </div>
       </section>
 
       {/* Trust Badges */}
-      <section className="bg-gray-100 border-y py-12">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 lg:grid-cols-4 gap-8">
-          <div className="flex items-center gap-4">
-            <ShieldCheck className="text-emerald-600" size={40}/>
-            <div>
-              <h4 className="font-bold">{t('Genuine Product', 'আসল পণ্য')}</h4>
-              <p className="text-xs text-gray-500">{t('100% original quality', '১০০% আসল মানের গ্যারান্টি')}</p>
+      <section className="bg-slate-50 border-y border-slate-100 py-16">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 lg:grid-cols-4 gap-12">
+          {[
+            { icon: ShieldCheck, title: t('Genuine Product', 'আসল পণ্য'), desc: t('100% original quality', '১০০% আসল মানের গ্যারান্টি') },
+            { icon: Truck, title: t('Fast Delivery', 'দ্রুত ডেলিভারি'), desc: t('Inside Dhaka 24h', 'ঢাকার ভেতরে ২৪ ঘণ্টা') },
+            { icon: RefreshCcw, title: t('Easy Warranty', 'সহজ ওয়ারেন্টি'), desc: t('Prompt claim support', 'দ্রুত সাপোর্ট সুবিধা') },
+            { icon: Zap, title: t('Expert Install', 'দক্ষ সেটআপ'), desc: t('Free technician consult', 'ফ্রি টেকনিশিয়ান পরামর্শ') }
+          ].map((badge, i) => (
+            <div key={i} className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+              <div className="w-14 h-14 bg-white rounded-2xl shadow-md flex items-center justify-center text-emerald-600">
+                <badge.icon size={32}/>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-800 uppercase text-xs tracking-widest">{badge.title}</h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">{badge.desc}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Truck className="text-emerald-600" size={40}/>
-            <div>
-              <h4 className="font-bold">{t('Fast Delivery', 'দ্রুত ডেলিভারি')}</h4>
-              <p className="text-xs text-gray-500">{t('Inside Dhaka 24h', 'ঢাকার ভেতরে ২৪ ঘণ্টা')}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <RefreshCcw className="text-emerald-600" size={40}/>
-            <div>
-              <h4 className="font-bold">{t('Easy Warranty', 'সহজ ওয়ারেন্টি')}</h4>
-              <p className="text-xs text-gray-500">{t('Prompt claim support', 'দ্রুত সাপোর্ট সুবিধা')}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Zap className="text-emerald-600" size={40}/>
-            <div>
-              <h4 className="font-bold">{t('Expert Install', 'দক্ষ সেটআপ')}</h4>
-              <p className="text-xs text-gray-500">{t('Free technician consult', 'ফ্রি টেকনিশিয়ান পরামর্শ')}</p>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
       {/* Best Sellers */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
-        <div className="flex justify-between items-end mb-8">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-blue-900">{t('Best Selling Items', 'সেরা বিক্রিত পণ্য')}</h2>
-            <p className="text-gray-500 mt-1">{t('Customer favorites', 'গ্রাহকদের পছন্দের তালিকা')}</p>
-          </div>
+      <section className="max-w-7xl mx-auto px-4 py-24">
+        <div className="mb-12 space-y-2">
+          <h2 className="text-3xl md:text-4xl font-black text-slate-900 uppercase tracking-tight">{t('Best Selling Items', 'সেরা বিক্রিত পণ্য')}</h2>
+          <p className="text-slate-400 font-bold">{t('Customer favorites', 'গ্রাহকদের পছন্দের তালিকা')}</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {bestSellers.map(product => (
             <ProductCard key={product.id} product={product} onClick={() => onProductClick(product.id)} />
           ))}
@@ -121,8 +108,9 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
 
       {/* Why Choose Us Section */}
       <section className="max-w-7xl mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-blue-900">{t('Why Choose Us?', 'কেন আমাদের বেছে নেবেন?')}</h2>
+        <div className="text-center mb-16 space-y-4">
+          <h2 className="text-3xl md:text-5xl font-black text-slate-900 uppercase tracking-tight">{t('Why Choose Us?', 'কেন আমাদের বেছে নেবেন?')}</h2>
+          <div className="w-24 h-1.5 bg-emerald-500 mx-auto rounded-full"></div>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
           {[
@@ -142,12 +130,12 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
               icon: <RefreshCcw size={32}/> 
             }
           ].map((feature, i) => (
-            <div key={i} className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm text-center space-y-4 hover:-translate-y-1 transition duration-300">
-              <div className="mx-auto w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+            <div key={i} className="p-10 bg-white rounded-[3rem] border border-slate-50 shadow-sm text-center space-y-6 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500">
+              <div className="mx-auto w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600">
                 {feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-blue-900">{feature.title}</h3>
-              <p className="text-gray-600">{feature.desc}</p>
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{feature.title}</h3>
+              <p className="text-slate-500 font-medium leading-relaxed">{feature.desc}</p>
             </div>
           ))}
         </div>
