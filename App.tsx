@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
+import BottomNav from './components/BottomNav.tsx';
+import FloatingActions from './components/FloatingActions.tsx';
 import Home from './pages/Home.tsx';
 import Shop from './pages/Shop.tsx';
 import Services from './pages/Services.tsx';
@@ -94,18 +96,27 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // Check if we should hide global nav/footer elements
+  const isMinimalLayout = currentPage === 'pos' || currentPage === 'technician-portal';
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 lg:pb-0">
       <Header onNavigate={navigateTo} onScanResult={handleScanResult} currentStaffRole={staffRole} />
+      
       <main className="flex-1">
         {renderPage()}
       </main>
-      {currentPage !== 'pos' && currentPage !== 'technician-portal' && (
-        <Footer 
-          onNavigate={navigateTo} 
-          isAuthenticated={!!staffRole || !!user} 
-          onLogout={logout} 
-        />
+
+      {!isMinimalLayout && (
+        <>
+          <Footer 
+            onNavigate={navigateTo} 
+            isAuthenticated={!!staffRole || !!user} 
+            onLogout={logout} 
+          />
+          <BottomNav currentPage={currentPage} onNavigate={navigateTo} />
+          <FloatingActions />
+        </>
       )}
     </div>
   );
