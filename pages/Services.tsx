@@ -25,7 +25,6 @@ const Services: React.FC = () => {
     time: '',
     address: user?.address || '',
     phone: user?.phone || '',
-    manualPrice: ''
   });
 
   // Standard services that are always available
@@ -52,7 +51,7 @@ const Services: React.FC = () => {
         problemDescription: formData.problem,
         preferredDate: formData.date,
         preferredTime: formData.time,
-        manualPrice: formData.manualPrice ? Number(formData.manualPrice) : undefined
+        // Removed manualPrice from customer booking as per request
       });
       setBookingSuccess(id);
       setSelectedServiceType(null);
@@ -63,7 +62,6 @@ const Services: React.FC = () => {
         time: '',
         address: user?.address || '',
         phone: user?.phone || '',
-        manualPrice: ''
       });
     } catch (err) {
       alert("Something went wrong!");
@@ -224,18 +222,9 @@ const Services: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Address', 'ঠিকানা')}</label>
-                  <input required type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="House, Road, Area..." className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3.5 font-bold outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Your Budget / Est. TK', 'বাজেট / আনুমানিক টাকা')}</label>
-                  <div className="relative">
-                    <Banknote className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-                    <input type="number" value={formData.manualPrice} onChange={e => setFormData({...formData, manualPrice: e.target.value})} placeholder="500" className="w-full bg-slate-50 border-none rounded-2xl pl-12 pr-5 py-3.5 font-bold outline-none" />
-                  </div>
-                </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Address', 'ঠিকানা')}</label>
+                <input required type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="House, Road, Area..." className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3.5 font-bold outline-none" />
               </div>
 
               <div className="space-y-1">
@@ -246,7 +235,7 @@ const Services: React.FC = () => {
               <button 
                 type="submit" 
                 disabled={isBooking}
-                className="w-full bg-blue-900 text-white py-5 rounded-3xl font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-blue-800 transition disabled:opacity-50 flex items-center justify-center gap-3"
+                className="w-full bg-blue-900 text-white py-5 rounded-3xl font-black uppercase tracking-[0.2em] shadow-xl hover:bg-blue-800 transition disabled:opacity-50 flex items-center justify-center gap-3"
               >
                 {isBooking && <Loader2 className="animate-spin" size={20} />}
                 {isBooking ? t('Processing...', 'অপেক্ষা করুন...') : t('Submit Request', 'রিকোয়েস্ট পাঠান')}
