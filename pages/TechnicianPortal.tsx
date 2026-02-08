@@ -6,7 +6,7 @@ import { useLanguage } from '../components/LanguageContext';
 import { ServiceRequest, ServiceStatus } from '../types';
 import { 
   Wrench, MapPin, Phone, Clock, CheckCircle2, 
-  ArrowRight, Loader2, AlertCircle, Calendar, MessageSquare, LogOut
+  ArrowRight, Loader2, AlertCircle, Calendar, MessageSquare, LogOut, Banknote
 } from 'lucide-react';
 
 const TechnicianPortal: React.FC = () => {
@@ -106,8 +106,11 @@ const TechnicianPortal: React.FC = () => {
                         <p className="text-[10px] font-mono text-slate-400 uppercase">Request ID: #{task.id}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('Customer', 'কাস্টমার')}</p>
-                        <p className="font-black text-slate-800">{task.customerName}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('Customer Budget', 'কাস্টমার বাজেট')}</p>
+                        <p className="font-black text-emerald-600 text-xl flex items-center gap-2 justify-end">
+                           <Banknote size={18} />
+                           ৳{task.manualPrice || 'N/A'}
+                        </p>
                       </div>
                     </div>
 

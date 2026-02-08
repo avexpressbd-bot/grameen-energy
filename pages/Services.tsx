@@ -7,7 +7,7 @@ import { ServiceAd, ServiceStatus } from '../types';
 import { 
   Zap, Phone, MessageSquare, Calendar, Clock, MapPin, 
   Info, Camera, ChevronRight, CheckCircle2, AlertTriangle, 
-  Wrench, ShieldCheck, HeartPulse, Hammer, Lightbulb, Settings, PlusCircle
+  Wrench, ShieldCheck, HeartPulse, Hammer, Lightbulb, Settings, PlusCircle, Banknote
 } from 'lucide-react';
 
 const Services: React.FC = () => {
@@ -24,7 +24,8 @@ const Services: React.FC = () => {
     date: '',
     time: '',
     address: user?.address || '',
-    phone: user?.phone || ''
+    phone: user?.phone || '',
+    manualPrice: ''
   });
 
   // Standard services that are always available
@@ -51,6 +52,7 @@ const Services: React.FC = () => {
         problemDescription: formData.problem,
         preferredDate: formData.date,
         preferredTime: formData.time,
+        manualPrice: formData.manualPrice ? Number(formData.manualPrice) : undefined
       });
       setBookingSuccess(id);
       setSelectedServiceType(null);
@@ -60,7 +62,8 @@ const Services: React.FC = () => {
         date: '',
         time: '',
         address: user?.address || '',
-        phone: user?.phone || ''
+        phone: user?.phone || '',
+        manualPrice: ''
       });
     } catch (err) {
       alert("Something went wrong!");
@@ -111,7 +114,7 @@ const Services: React.FC = () => {
         </div>
       </section>
 
-      {/* Customized Ads Section - Only shows if admin has added them */}
+      {/* Customized Ads Section */}
       {serviceAds.length > 0 && (
         <section className="space-y-10">
           <div className="flex flex-col md:flex-row justify-between items-end gap-4">
@@ -221,9 +224,18 @@ const Services: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Address', 'ঠিকানা')}</label>
-                <input required type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="House, Road, Area..." className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3.5 font-bold outline-none" />
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Address', 'ঠিকানা')}</label>
+                  <input required type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="House, Road, Area..." className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3.5 font-bold outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Your Budget / Est. TK', 'বাজেট / আনুমানিক টাকা')}</label>
+                  <div className="relative">
+                    <Banknote className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                    <input type="number" value={formData.manualPrice} onChange={e => setFormData({...formData, manualPrice: e.target.value})} placeholder="500" className="w-full bg-slate-50 border-none rounded-2xl pl-12 pr-5 py-3.5 font-bold outline-none" />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">

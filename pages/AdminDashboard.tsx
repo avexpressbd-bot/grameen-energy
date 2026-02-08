@@ -10,6 +10,8 @@ import {
   Download, Filter, CheckCircle2, Truck, XCircle, Clock, Printer, AlertTriangle, TrendingUp, Hash, Activity, BarChart3,
   CreditCard, Banknote, Facebook, Instagram, Youtube, Wrench, HeartPulse, Sparkles, Award, ChevronRight
 } from 'lucide-react';
+import { db } from '../services/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 type AdminTab = 'overview' | 'inventory' | 'dues' | 'sales' | 'customers' | 'services' | 'staff' | 'settings';
 
@@ -166,6 +168,45 @@ const StaffManagement = ({ staff, onAddStaff, onUpdateStaff, onDeleteStaff }: an
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
 
+  const handleStaffSubmit = async (data: any) => {
+    try {
+      if (editingStaff) {
+        await onUpdateStaff(editingStaff.id, data);
+        // Also update user record if phone changed (simplified)
+        await setDoc(doc(db, "users", data.phone), {
+          name: data.name,
+          phone: data.phone,
+          role: 'technician'
+        }, { merge: true });
+      } else {
+        // Create Staff Record
+        const staffData = {
+          ...data,
+          id: data.phone,
+          joinedAt: new Date().toISOString(),
+          rating: 5,
+          totalJobs: 0
+        };
+        await onAddStaff(staffData);
+
+        // Create Corresponding Login Account
+        const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+        await setDoc(doc(db, "users", data.phone), {
+          uid: data.phone,
+          accountId: `GE-T-${randomSuffix}`,
+          name: data.name,
+          phone: data.phone,
+          password: data.password || '123456', // Default password if none provided
+          role: 'technician',
+          createdAt: new Date().toISOString()
+        });
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      alert("Error saving staff: " + error);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
@@ -222,10 +263,7 @@ const StaffManagement = ({ staff, onAddStaff, onUpdateStaff, onDeleteStaff }: an
         <StaffModal 
           staff={editingStaff} 
           onClose={() => setIsModalOpen(false)} 
-          onSubmit={async (data: any) => {
-            editingStaff ? await onUpdateStaff(editingStaff.id, data) : await onAddStaff({...data, id: data.phone, joinedAt: new Date().toISOString(), rating: 5, totalJobs: 0});
-            setIsModalOpen(false);
-          }}
+          onSubmit={handleStaffSubmit}
         />
       )}
     </div>
@@ -233,7 +271,7 @@ const StaffManagement = ({ staff, onAddStaff, onUpdateStaff, onDeleteStaff }: an
 };
 
 const StaffModal = ({ staff, onClose, onSubmit }: any) => {
-  const [form, setForm] = useState<any>(staff || { name: '', phone: '', photo: '', whatsapp: '', area: '', experience: 1, status: 'Available', skills: [], isEmergencyStaff: false });
+  const [form, setForm] = useState<any>(staff || { name: '', phone: '', password: '', photo: '', whatsapp: '', area: '', experience: 1, status: 'Available', skills: [], isEmergencyStaff: false });
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4">
@@ -247,7 +285,10 @@ const StaffModal = ({ staff, onClose, onSubmit }: any) => {
                 <InputField label="Full Name" value={form.name} onChange={(v:any) => setForm({...form, name: v})} />
                 <InputField label="Phone (Login ID)" value={form.phone} onChange={(v:any) => setForm({...form, phone: v})} />
              </div>
-             <InputField label="Photo URL" value={form.photo} onChange={(v:any) => setForm({...form, photo: v})} />
+             <div className="grid grid-cols-2 gap-4">
+                <InputField label="Login Password" type="password" value={form.password} onChange={(v:any) => setForm({...form, password: v})} />
+                <InputField label="Photo URL" value={form.photo} onChange={(v:any) => setForm({...form, photo: v})} />
+             </div>
              <div className="grid grid-cols-2 gap-4">
                 <InputField label="WhatsApp" value={form.whatsapp} onChange={(v:any) => setForm({...form, whatsapp: v})} />
                 <InputField label="Area" value={form.area} onChange={(v:any) => setForm({...form, area: v})} />
@@ -294,7 +335,8 @@ const ServicesPanel = ({ requests, ads, staff, onUpdateStatus, onAddAd, onDelete
                <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
                  <tr>
                    <th className="px-8 py-5 text-left">Request Info</th>
-                   <th className="px-6 py-5 text-left">Problem</th>
+                   <th className="px-6 py-5 text-left">Details</th>
+                   <th className="px-6 py-5 text-left">Price/Budget</th>
                    <th className="px-6 py-5 text-left">Status</th>
                    <th className="px-6 py-5 text-left">Technician</th>
                    <th className="px-8 py-5 text-right">Action</th>
@@ -308,8 +350,11 @@ const ServicesPanel = ({ requests, ads, staff, onUpdateStatus, onAddAd, onDelete
                        <p className="text-[10px] text-slate-400 font-mono">#{sr.id}</p>
                        <p className="text-xs font-bold text-blue-600">{sr.customerName}</p>
                      </td>
-                     <td className="px-6 py-4 truncate max-w-[200px] text-xs font-bold text-slate-500">
+                     <td className="px-6 py-4 truncate max-w-[150px] text-xs font-bold text-slate-500">
                         {sr.problemDescription}
+                     </td>
+                     <td className="px-6 py-4">
+                        <p className="font-black text-slate-900 text-sm">{sr.manualPrice ? `৳${sr.manualPrice}` : 'N/A'}</p>
                      </td>
                      <td className="px-6 py-4">
                        <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase ${
@@ -401,7 +446,6 @@ const AssignmentModal = ({ task, staff, onClose, onAssign }: any) => {
   );
 };
 
-// Added comment above fix: Defining InputField helper component.
 const InputField = ({ label, value, onChange, type = "text" }: any) => (
   <div className="space-y-1">
     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
@@ -409,7 +453,6 @@ const InputField = ({ label, value, onChange, type = "text" }: any) => (
   </div>
 );
 
-// Added comment above fix: Defining InventoryTab component for managing products.
 const InventoryTab = ({ products, searchTerm, onEdit, onDelete }: any) => {
   const filtered = products.filter((p: any) => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
@@ -447,7 +490,6 @@ const InventoryTab = ({ products, searchTerm, onEdit, onDelete }: any) => {
   );
 };
 
-// Added comment above fix: Defining SalesTab component for viewing and updating orders.
 const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
   const filtered = sales.filter((s: any) => s.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || s.id.includes(searchTerm));
   return (
@@ -492,7 +534,6 @@ const SalesTab = ({ sales, searchTerm, onUpdateStatus }: any) => {
   );
 };
 
-// Added comment above fix: Defining CustomersTab component to list registered users.
 const CustomersTab = ({ users, searchTerm }: any) => {
   const filtered = users.filter((u: any) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
@@ -526,7 +567,6 @@ const CustomersTab = ({ users, searchTerm }: any) => {
   );
 };
 
-// Added comment above fix: Defining DuesTab component for tracking customer balances.
 const DuesTab = ({ customers, searchTerm, updateDue }: any) => {
   const filtered = customers.filter((c: any) => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
@@ -568,7 +608,6 @@ const DuesTab = ({ customers, searchTerm, updateDue }: any) => {
   );
 };
 
-// Added comment above fix: Defining SettingsTab component for site configuration.
 const SettingsTab = ({ form, onSave }: any) => {
   const [data, setData] = useState(form);
   return (

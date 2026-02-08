@@ -113,6 +113,7 @@ export interface ServiceRequest {
   problemDescription: string;
   preferredDate: string;
   preferredTime: string;
+  manualPrice?: number; // New field for user budget/price
   photoUrl?: string;
   status: ServiceStatus;
   assignedStaffId?: string;

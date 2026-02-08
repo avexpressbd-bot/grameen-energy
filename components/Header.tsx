@@ -37,9 +37,6 @@ const Header: React.FC<{
             <button onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')} className="hover:text-emerald-400 font-bold">
               {language === 'en' ? 'বাংলা' : 'English'}
             </button>
-            <button onClick={() => onNavigate('technician-portal')} className="text-emerald-400 font-black uppercase text-[10px] tracking-widest flex items-center gap-1">
-              <Wrench size={12}/> Technician Login
-            </button>
           </div>
         </div>
 

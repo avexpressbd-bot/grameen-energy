@@ -6,7 +6,7 @@ import { useProducts } from '../components/ProductContext';
 import { 
   User, Package, MapPin, Phone, Mail, 
   LogOut, ShoppingBag, Clock, ChevronRight,
-  ShieldCheck, ArrowRight, Hash, Wrench, MessageSquare, Star, CheckCircle2, AlertCircle
+  ShieldCheck, ArrowRight, Hash, Wrench, MessageSquare, Star, CheckCircle2, AlertCircle, Banknote
 } from 'lucide-react';
 
 interface ProfileProps {
@@ -185,15 +185,27 @@ const Profile: React.FC<ProfileProps> = ({ onNavigate, onTrackOrder }) => {
                             <p className="text-xs font-mono text-slate-400 mt-1">REQ ID: #{service.id}</p>
                           </div>
                           <div className="text-left md:text-right">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('Preferred Time', 'নির্ধারিত সময়')}</p>
-                            <p className="text-sm font-bold text-slate-800">{service.preferredDate} at {service.preferredTime}</p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('Budget / Price', 'বাজেট / মূল্য')}</p>
+                            <div className="flex items-center gap-2 text-blue-900 font-black text-xl">
+                              <Banknote size={18} className="text-emerald-500" />
+                              ৳{service.manualPrice || 'N/A'}
+                            </div>
                           </div>
                         </div>
 
                         {/* Problem Summary */}
-                        <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('Issue Description', 'সমস্যার বিবরণ')}</p>
-                          <p className="text-sm font-bold text-slate-600 italic">"{service.problemDescription}"</p>
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('Issue Description', 'সমস্যার বিবরণ')}</p>
+                            <p className="text-sm font-bold text-slate-600 italic">"{service.problemDescription}"</p>
+                          </div>
+                          <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('Preferred Time', 'নির্ধারিত সময়')}</p>
+                            <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                              <Clock size={14} className="text-blue-500" />
+                              {service.preferredDate} at {service.preferredTime}
+                            </div>
+                          </div>
                         </div>
 
                         {/* Assigned Technician View */}
