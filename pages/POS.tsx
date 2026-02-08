@@ -6,7 +6,7 @@ import { Product, Sale, SaleItem, Category } from '../types';
 import { 
   Search, Plus, Minus, Trash2, Printer, Zap, 
   ScanLine, ShoppingCart, Calculator, CreditCard, 
-  Smartphone, Banknote, User, Phone, Tag, Box, AlertTriangle
+  Smartphone, Banknote, User, Phone, Tag, Box, AlertTriangle, Filter
 } from 'lucide-react';
 import Invoice from '../components/Invoice';
 
@@ -15,6 +15,7 @@ const POS: React.FC = () => {
   const { t } = useLanguage();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [currentSale, setCurrentSale] = useState<SaleItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -35,6 +36,22 @@ const POS: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const filteredCatalog = useMemo(() => {
+    const lowerSearch = searchTerm.toLowerCase().trim();
+    return products.filter(p => {
+      const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+      const matchesSearch = 
+        !lowerSearch ||
+        p.name.toLowerCase().includes(lowerSearch) || 
+        (p.nameBn && p.nameBn.includes(searchTerm)) ||
+        (p.barcode && p.barcode.includes(searchTerm)) ||
+        (p.sku && p.sku.toLowerCase().includes(lowerSearch)) ||
+        p.id.toLowerCase().includes(lowerSearch);
+      
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, searchTerm, selectedCategory]);
+
   const addToSale = (product: Product) => {
     if (product.stock <= 0) {
       alert(`${product.name}: ${t('Out of stock!', 'স্টকে নেই!')}`);
@@ -54,7 +71,7 @@ const POS: React.FC = () => {
       }
       return [...prev, {
         productId: product.id,
-        name: product.nameBn,
+        name: product.nameBn || product.name,
         quantity: 1,
         unitPrice: product.discountPrice || product.price,
         totalPrice: product.discountPrice || product.price,
@@ -68,6 +85,7 @@ const POS: React.FC = () => {
     const code = searchTerm.trim();
     if (!code) return;
 
+    // Direct match search
     const product = products.find(p => p.barcode === code || p.sku === code || p.id === code);
     if (product) {
       addToSale(product);
@@ -90,7 +108,7 @@ const POS: React.FC = () => {
   const subtotal = currentSale.reduce((acc, item) => acc + item.totalPrice, 0);
   const total = Math.max(0, subtotal - discount);
 
-  // Sync paidAmount with total when total changes, unless user manually edited it
+  // Sync paidAmount with total when total changes
   useEffect(() => {
     setPaidAmount(total);
   }, [total]);
@@ -137,45 +155,86 @@ const POS: React.FC = () => {
       {/* Main Catalog Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-white shadow-inner">
         <div className="p-6 bg-white border-b sticky top-0 z-10 space-y-4">
-          <form onSubmit={handleBarcodeSubmit} className="flex items-center gap-4">
-            <div className="relative flex-1 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              <input 
-                ref={barcodeInputRef}
-                type="text" 
-                placeholder={t('SCAN BARCODE OR SEARCH...', 'বারকোড স্ক্যান অথবা সার্চ...')}
-                className="w-full pl-12 pr-4 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-black text-lg placeholder:text-slate-300"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+          <div className="flex items-center gap-4">
+            <form onSubmit={handleBarcodeSubmit} className="flex-1">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input 
+                  ref={barcodeInputRef}
+                  type="text" 
+                  placeholder={t('SCAN BARCODE OR SEARCH...', 'বারকোড স্ক্যান অথবা সার্চ...')}
+                  className="w-full pl-12 pr-4 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-black text-lg placeholder:text-slate-300"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </form>
             <div className="hidden lg:flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100">
                <ScanLine size={18} className="text-blue-600 animate-pulse" />
                <span className="text-[10px] font-black uppercase text-blue-900 tracking-widest">Scanner Ready</span>
             </div>
-          </form>
+          </div>
+
+          {/* Quick Category Tabs */}
+          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+            <button 
+              onClick={() => setSelectedCategory('All')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${selectedCategory === 'All' ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+            >
+              {t('All Items', 'সব পণ্য')}
+            </button>
+            {Object.values(Category).map(cat => (
+              <button 
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${selectedCategory === cat ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              >
+                {t(cat, cat)}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.barcode && p.barcode.includes(searchTerm))).map(product => (
-            <button 
-              key={product.id} 
-              onClick={() => addToSale(product)}
-              className={`group bg-white rounded-3xl border border-slate-100 p-4 hover:shadow-2xl transition-all relative text-left ${product.stock <= 0 ? 'opacity-30' : ''}`}
-            >
-              <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden mb-3">
-                 <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
-              </div>
-              <p className="text-[9px] font-black text-blue-600 uppercase mb-1">{product.category}</p>
-              <h4 className="text-xs font-bold text-slate-800 line-clamp-2 h-8 leading-tight">{t(product.name, product.nameBn)}</h4>
-              <div className="mt-3 flex justify-between items-baseline">
-                <span className="font-black text-slate-900">৳{product.price}</span>
-                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${product.stock < product.minStockLevel ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
-                  Qty: {product.stock}
-                </span>
-              </div>
-            </button>
-          ))}
+        <div className="flex-1 overflow-y-auto p-6">
+          {filteredCatalog.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {filteredCatalog.map(product => (
+                <button 
+                  key={product.id} 
+                  onClick={() => addToSale(product)}
+                  className={`group bg-white rounded-3xl border border-slate-100 p-4 hover:shadow-2xl transition-all relative text-left ${product.stock <= 0 ? 'opacity-30 grayscale' : 'hover:border-blue-500/30'}`}
+                >
+                  <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden mb-3">
+                     <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
+                  </div>
+                  <p className="text-[8px] font-black text-blue-600 uppercase mb-1 tracking-tighter truncate">{product.category}</p>
+                  <h4 className="text-xs font-bold text-slate-800 line-clamp-2 h-8 leading-tight">{t(product.name, product.nameBn)}</h4>
+                  <div className="mt-3 flex justify-between items-baseline">
+                    <span className="font-black text-slate-900">৳{product.discountPrice || product.price}</span>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${product.stock < product.minStockLevel ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
+                      Qty: {product.stock}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4">
+               <div className="p-8 bg-slate-50 rounded-full">
+                 <Box size={64} strokeWidth={1} />
+               </div>
+               <div className="text-center">
+                 <p className="text-lg font-black uppercase tracking-widest text-slate-400">{t('No Products Found', 'কোনো পণ্য পাওয়া যায়নি')}</p>
+                 <p className="text-sm font-bold text-slate-300 mt-1">{t('Try changing keywords or category', 'শব্দ বা ক্যাটাগরি পরিবর্তন করে দেখুন')}</p>
+                 <button 
+                    onClick={() => {setSearchTerm(''); setSelectedCategory('All');}} 
+                    className="mt-6 text-blue-500 font-black uppercase text-xs tracking-widest hover:underline"
+                  >
+                    {t('Clear Filters', 'ফিল্টার মুছুন')}
+                  </button>
+               </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -199,20 +258,27 @@ const POS: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-2">
-          {currentSale.map(item => (
-            <div key={item.productId} className="flex items-center gap-4 py-4 border-b border-white/5 group">
-              <div className="flex-1 min-w-0">
-                <p className="font-black text-xs truncate">{item.name}</p>
-                <p className="text-[10px] text-slate-500 mt-1">৳{item.unitPrice} x {item.quantity}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                 <button onClick={() => updateQuantity(item.productId, -1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-red-500 transition"><Minus size={14}/></button>
-                 <span className="w-6 text-center font-black text-xs">{item.quantity}</span>
-                 <button onClick={() => updateQuantity(item.productId, 1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-emerald-500 transition"><Plus size={14}/></button>
-              </div>
-              <button onClick={() => setCurrentSale(prev => prev.filter(i => i.productId !== item.productId))} className="p-2 text-slate-600 hover:text-red-400"><Trash2 size={16}/></button>
+          {currentSale.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center opacity-20 space-y-4">
+               <ShoppingCart size={48} />
+               <p className="font-black uppercase tracking-[0.2em] text-xs">Empty Cart</p>
             </div>
-          ))}
+          ) : (
+            currentSale.map(item => (
+              <div key={item.productId} className="flex items-center gap-4 py-4 border-b border-white/5 group">
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-xs truncate">{item.name}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">৳{item.unitPrice} x {item.quantity}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                   <button onClick={() => updateQuantity(item.productId, -1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-red-500 transition"><Minus size={14}/></button>
+                   <span className="w-6 text-center font-black text-xs">{item.quantity}</span>
+                   <button onClick={() => updateQuantity(item.productId, 1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-emerald-500 transition"><Plus size={14}/></button>
+                </div>
+                <button onClick={() => setCurrentSale(prev => prev.filter(i => i.productId !== item.productId))} className="p-2 text-slate-600 hover:text-red-400"><Trash2 size={16}/></button>
+              </div>
+            ))
+          )}
         </div>
 
         <div className="p-8 bg-slate-950 space-y-4 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]">
