@@ -1,50 +1,52 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
 import { Product, Sale, SaleItem, Category } from '../types';
 import { 
   Search, Plus, Minus, Trash2, Printer, Zap, 
   ScanLine, ShoppingCart, Calculator, CreditCard, 
-  Smartphone, Banknote, User, Phone, Tag
+  Smartphone, Banknote, User, Phone, Tag, Box, AlertTriangle
 } from 'lucide-react';
 import Invoice from '../components/Invoice';
-import BarcodeScanner from '../components/BarcodeScanner';
 
 const POS: React.FC = () => {
   const { products, recordSale } = useProducts();
   const { t } = useLanguage();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [currentSale, setCurrentSale] = useState<SaleItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [discount, setDiscount] = useState(0);
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'POS Machine' | 'Mobile Banking'>('Cash');
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           p.nameBn.includes(searchTerm) || 
-                           p.id.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
-  }, [products, searchTerm, selectedCategory]);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus barcode input every 2 seconds if not already focused
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        barcodeInputRef.current?.focus();
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const addToSale = (product: Product) => {
     if (product.stock <= 0) {
-      alert(t('Out of stock!', 'এই পণ্যটি স্টকে নেই!'));
+      alert(`${product.name}: ${t('Out of stock!', 'স্টকে নেই!')}`);
       return;
     }
     setCurrentSale(prev => {
       const existing = prev.find(item => item.productId === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) return prev;
+        if (existing.quantity >= product.stock) {
+          alert(t('Cannot exceed available stock', 'স্টকের বেশি বিক্রয় সম্ভব নয়'));
+          return prev;
+        }
         return prev.map(item => item.productId === product.id ? 
           { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.unitPrice } : 
           item
@@ -59,6 +61,21 @@ const POS: React.FC = () => {
         warranty: product.warranty
       }];
     });
+  };
+
+  const handleBarcodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = searchTerm.trim();
+    if (!code) return;
+
+    // Search by Barcode first, then SKU, then Name
+    const product = products.find(p => p.barcode === code || p.sku === code || p.id === code);
+    if (product) {
+      addToSale(product);
+      setSearchTerm('');
+    } else {
+      // If no exact match, we keep the term for search results
+    }
   };
 
   const updateQuantity = (id: string, delta: number) => {
@@ -79,8 +96,6 @@ const POS: React.FC = () => {
 
   const finalizeSale = async () => {
     if (currentSale.length === 0) return;
-    
-    // Auto-fill paid amount if fully paid or using non-cash methods
     const actualPaid = (paymentMethod !== 'Cash') ? total : paidAmount;
 
     const newSale: Sale = {
@@ -100,12 +115,8 @@ const POS: React.FC = () => {
       date: new Date().toISOString()
     };
     
-    try {
-      await recordSale(newSale);
-      setCompletedSale(newSale);
-    } catch (e) {
-      alert(t("Failed to save sale.", "বিক্রয় তথ্য সংরক্ষণ করা সম্ভব হয়নি।"));
-    }
+    await recordSale(newSale);
+    setCompletedSale(newSale);
   };
 
   const resetPOS = () => {
@@ -118,240 +129,129 @@ const POS: React.FC = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-80px)] bg-[#f1f5f9] flex overflow-hidden">
-      {isScannerOpen && <BarcodeScanner onScan={(code) => { 
-        const p = products.find(prod => prod.id === code); 
-        if (p) addToSale(p); 
-        setIsScannerOpen(false); 
-      }} onClose={() => setIsScannerOpen(false)} />}
-      
+    <div className="h-screen bg-slate-100 flex overflow-hidden">
       {completedSale && <Invoice sale={completedSale} onClose={resetPOS} />}
 
-      {/* Product Selection Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white">
-        <div className="p-6 bg-white border-b space-y-4 shadow-sm z-10">
-          <div className="flex items-center justify-between gap-4">
+      {/* Main Catalog Area */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white shadow-inner">
+        <div className="p-6 bg-white border-b sticky top-0 z-10 space-y-4">
+          <form onSubmit={handleBarcodeSubmit} className="flex items-center gap-4">
             <div className="relative flex-1 group">
-              <Search className="absolute left-4 top-3.5 text-slate-400" size={20} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <input 
+                ref={barcodeInputRef}
                 type="text" 
-                placeholder={t('Search products by name or scan barcode...', 'নাম দিয়ে পণ্য খুঁজুন অথবা বারকোড স্ক্যান করুন...')}
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 transition-all font-bold text-slate-700"
+                placeholder={t('SCAN BARCODE OR SEARCH...', 'বারকোড স্ক্যান অথবা সার্চ...')}
+                className="w-full pl-12 pr-4 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-black text-lg placeholder:text-slate-300"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <button 
-              onClick={() => setIsScannerOpen(true)} 
-              className="flex items-center gap-3 px-8 py-4 bg-blue-900 text-white rounded-2xl hover:bg-blue-800 transition-all font-black uppercase text-xs tracking-[0.2em] shadow-lg shadow-blue-900/10"
-            >
-              <ScanLine size={20} />
-              <span className="hidden lg:inline">{t('Scan Code', 'বারকোড স্ক্যান')}</span>
-            </button>
-          </div>
-          
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            <button onClick={() => setSelectedCategory('All')} className={`px-6 py-2.5 rounded-xl whitespace-nowrap text-[10px] font-black uppercase tracking-widest border-2 transition ${selectedCategory === 'All' ? 'bg-slate-900 border-slate-900 text-white shadow-xl' : 'bg-white border-slate-100 text-slate-400'}`}>
-              {t('All Items', 'সব পণ্য')}
-            </button>
-            {Object.values(Category).map(cat => (
-              <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-6 py-2.5 rounded-xl whitespace-nowrap text-[10px] font-black uppercase tracking-widest border-2 transition ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white shadow-xl' : 'bg-white border-slate-100 text-slate-400'}`}>
-                {cat}
-              </button>
-            ))}
-          </div>
+            <div className="hidden lg:flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100">
+               <ScanLine size={18} className="text-blue-600 animate-pulse" />
+               <span className="text-[10px] font-black uppercase text-blue-900 tracking-widest">Scanner Ready</span>
+            </div>
+          </form>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 bg-[#f8fafc]">
-          {filteredProducts.map(product => (
-            <div 
+        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.barcode.includes(searchTerm)).map(product => (
+            <button 
               key={product.id} 
-              onClick={() => addToSale(product)} 
-              className={`group bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden p-3 relative ${product.stock <= 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+              onClick={() => addToSale(product)}
+              className={`group bg-white rounded-3xl border border-slate-100 p-4 hover:shadow-2xl transition-all relative text-left ${product.stock <= 0 ? 'opacity-30' : ''}`}
             >
-              <div className="relative aspect-square rounded-2xl overflow-hidden bg-slate-50 mb-4">
-                <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
-                <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${product.stock <= 5 ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
-                  {product.stock} {t('Stock', 'স্টক')}
-                </div>
+              <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden mb-3">
+                 <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
               </div>
-              <div className="px-2">
-                <h4 className="font-black text-slate-800 text-xs leading-snug line-clamp-2 min-h-[32px] mb-2">{t(product.name, product.nameBn)}</h4>
-                <p className="text-blue-900 font-black text-lg">৳{product.discountPrice || product.price}</p>
+              <p className="text-[9px] font-black text-blue-600 uppercase mb-1">{product.category}</p>
+              <h4 className="text-xs font-bold text-slate-800 line-clamp-2 h-8 leading-tight">{t(product.name, product.nameBn)}</h4>
+              <div className="mt-3 flex justify-between items-baseline">
+                <span className="font-black text-slate-900">৳{product.price}</span>
+                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${product.stock < product.minStockLevel ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
+                  Qty: {product.stock}
+                </span>
               </div>
-              <div className="absolute inset-0 bg-blue-900/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Sales Sidebar (Terminal) */}
-      <div className="w-[500px] flex flex-col bg-white border-l shadow-2xl relative z-20">
-        {/* Terminal Header */}
-        <div className="p-8 bg-slate-900 text-white shrink-0">
-          <div className="flex items-center justify-between mb-6">
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center">
-                 <ShoppingCart size={20} className="text-white" />
-               </div>
-               <div>
-                 <h2 className="text-sm font-black uppercase tracking-[0.2em]">{t('Order Items', 'বর্তমান অর্ডার')}</h2>
-                 <p className="text-[10px] text-slate-400 font-bold uppercase">{currentSale.length} Products Added</p>
-               </div>
+      {/* POS Terminal Sidebar */}
+      <div className="w-[450px] bg-slate-900 flex flex-col text-white">
+        <div className="p-8 border-b border-white/5 shrink-0">
+          <h2 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
+            <ShoppingCart size={24} className="text-emerald-400" /> 
+            {t('Terminal 01', 'টার্মিনাল ০১')}
+          </h2>
+          <div className="mt-6 grid grid-cols-2 gap-4">
+             <div className="space-y-1">
+                <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Customer</p>
+                <input value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:bg-white/10" placeholder="Walk-in" />
              </div>
-             <button onClick={() => setCurrentSale([])} className="px-3 py-1.5 bg-red-500/20 text-red-400 text-[10px] font-black rounded-lg hover:bg-red-500 hover:text-white transition uppercase tracking-widest">{t('Clear', 'ক্লিয়ার')}</button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 bg-white/5 p-5 rounded-3xl border border-white/10">
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                <User size={10} /> {t('Customer', 'ক্রেতার নাম')}
-              </div>
-              <input 
-                type="text" 
-                className="w-full bg-transparent border-none text-sm font-bold placeholder:text-slate-600 outline-none" 
-                value={customerName} 
-                onChange={(e) => setCustomerName(e.target.value)} 
-                placeholder={t('Optional Name...', 'নাম (ঐচ্ছিক)...')} 
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                <Phone size={10} /> {t('Phone', 'ফোন নম্বর')}
-              </div>
-              <input 
-                type="tel" 
-                className="w-full bg-transparent border-none text-sm font-bold placeholder:text-slate-600 outline-none font-mono" 
-                value={customerPhone} 
-                onChange={(e) => setCustomerPhone(e.target.value)} 
-                placeholder="01XXXXXXXXX" 
-              />
-            </div>
+             <div className="space-y-1">
+                <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Phone</p>
+                <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:bg-white/10 font-mono" placeholder="01XXX" />
+             </div>
           </div>
         </div>
 
-        {/* Cart Item List */}
-        <div className="flex-1 overflow-y-auto bg-slate-50/30 custom-scrollbar">
-          {currentSale.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4 opacity-30">
-              <div className="w-32 h-32 bg-slate-100 rounded-[3rem] flex items-center justify-center">
-                <ShoppingCart size={64} strokeWidth={1.5} />
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-2">
+          {currentSale.map(item => (
+            <div key={item.productId} className="flex items-center gap-4 py-4 border-b border-white/5 group">
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-xs truncate">{item.name}</p>
+                <p className="text-[10px] text-slate-500 mt-1">৳{item.unitPrice} x {item.quantity}</p>
               </div>
-              <p className="text-xs font-black uppercase tracking-[0.3em]">{t('No Items Selected', 'কোনো আইটেম নেই')}</p>
+              <div className="flex items-center gap-2">
+                 <button onClick={() => updateQuantity(item.productId, -1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-red-500 transition"><Minus size={14}/></button>
+                 <span className="w-6 text-center font-black text-xs">{item.quantity}</span>
+                 <button onClick={() => updateQuantity(item.productId, 1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-emerald-500 transition"><Plus size={14}/></button>
+              </div>
+              <button onClick={() => setCurrentSale(prev => prev.filter(i => i.productId !== item.productId))} className="p-2 text-slate-600 hover:text-red-400"><Trash2 size={16}/></button>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {currentSale.map((item) => (
-                <div key={item.productId} className="flex items-center gap-4 bg-white p-5 hover:bg-blue-50/30 transition group">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-xs text-slate-800 truncate mb-1">{item.name}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-blue-600 font-black">৳{item.unitPrice}</span>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total: ৳{item.totalPrice}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center bg-slate-100 rounded-2xl p-1 gap-1">
-                    <button onClick={() => updateQuantity(item.productId, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-xl hover:bg-red-50 text-red-500 shadow-sm transition"><Minus size={14}/></button>
-                    <span className="w-10 text-center font-black text-sm text-slate-900">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.productId, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-xl hover:bg-emerald-50 text-emerald-500 shadow-sm transition"><Plus size={14}/></button>
-                  </div>
-                  <button onClick={() => setCurrentSale(prev => prev.filter(i => i.productId !== item.productId))} className="p-2 text-slate-200 hover:text-red-500 transition-colors">
-                    <Trash2 size={16}/>
-                  </button>
-                </div>
+          ))}
+        </div>
+
+        <div className="p-8 bg-slate-950 space-y-6 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]">
+           <div className="space-y-3">
+              <div className="flex justify-between text-xs font-black text-slate-400 uppercase tracking-widest">
+                <span>Subtotal</span>
+                <span>৳ {subtotal}</span>
+              </div>
+              <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5">
+                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Discount</span>
+                 <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-red-400">৳</span>
+                    <input type="number" value={discount} onChange={e => setDiscount(Number(e.target.value))} className="bg-transparent text-right font-black text-lg w-24 outline-none border-b border-dashed border-red-400/30" />
+                 </div>
+              </div>
+              <div className="flex justify-between items-center pt-4">
+                <span className="text-xl font-black uppercase text-emerald-400 tracking-tighter">Grand Total</span>
+                <span className="text-4xl font-black">৳ {total}</span>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'Cash', icon: Banknote },
+                { id: 'POS Machine', icon: CreditCard },
+                { id: 'Mobile Banking', icon: Smartphone }
+              ].map(m => (
+                <button key={m.id} onClick={() => setPaymentMethod(m.id as any)} className={`py-4 rounded-2xl flex flex-col items-center gap-2 transition ${paymentMethod === m.id ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-500'}`}>
+                  <m.icon size={18}/>
+                  <span className="text-[7px] font-black uppercase tracking-widest">{m.id}</span>
+                </button>
               ))}
-            </div>
-          )}
-        </div>
+           </div>
 
-        {/* Checkout Controls */}
-        <div className="p-8 bg-white border-t border-slate-100 space-y-6 shrink-0 shadow-[0_-20px_60px_rgba(0,0,0,0.05)]">
-          {/* Discount & Calculation */}
-          <div className="grid grid-cols-2 gap-4">
-             <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 group">
-                <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                  <Tag size={12} className="text-red-400" /> {t('Discount', 'ডিসকাউন্ট')}
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-xl font-black text-slate-300">৳</span>
-                  <input 
-                    type="number" 
-                    className="w-full bg-transparent font-black text-2xl text-red-600 outline-none" 
-                    value={discount} 
-                    onChange={(e) => setDiscount(Number(e.target.value))} 
-                  />
-                </div>
-             </div>
-             <div className="bg-blue-900 p-5 rounded-3xl text-white shadow-xl shadow-blue-900/10">
-                <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">{t('Total Payable', 'মোট বিল')}</p>
-                <div className="text-2xl font-black">৳ {total}</div>
-             </div>
-          </div>
-
-          {/* Payment Method Selector */}
-          <div className="space-y-3">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Select Payment Method', 'পেমেন্ট মেথড')}</p>
-             <div className="grid grid-cols-3 gap-3">
-               {[
-                 { id: 'Cash', label: 'Cash', labelBn: 'নগদ', icon: Banknote, color: 'emerald' },
-                 { id: 'POS Machine', label: 'Card/POS', labelBn: 'পিওএস', icon: CreditCard, color: 'blue' },
-                 { id: 'Mobile Banking', label: 'Mobile', labelBn: 'মোবাইল', icon: Smartphone, color: 'purple' },
-               ].map((method) => (
-                 <button 
-                   key={method.id}
-                   onClick={() => setPaymentMethod(method.id as any)}
-                   className={`p-4 rounded-2xl flex flex-col items-center gap-2 border-2 transition-all ${paymentMethod === method.id ? 'bg-slate-900 border-slate-900 text-white scale-105' : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'}`}
-                 >
-                   <method.icon size={20} className={paymentMethod === method.id ? 'text-emerald-400' : ''} />
-                   <span className="text-[8px] font-black uppercase tracking-widest text-center">{t(method.label, method.labelBn)}</span>
-                 </button>
-               ))}
-             </div>
-          </div>
-
-          {/* Paid Amount Input (Only for Cash) */}
-          {paymentMethod === 'Cash' && (
-            <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-3xl focus-within:ring-4 focus-within:ring-emerald-50 transition-all">
-               <div className="flex items-center gap-3">
-                 <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shrink-0">
-                   <Calculator size={24} />
-                 </div>
-                 <div className="flex-1">
-                   <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest mb-1">{t('Customer Paid', 'জমা দিয়েছে')}</p>
-                   <div className="flex items-baseline gap-1">
-                     <span className="text-xl font-black text-emerald-300">৳</span>
-                     <input 
-                        type="number" 
-                        className="w-full bg-transparent text-3xl font-black text-emerald-900 outline-none"
-                        value={paidAmount}
-                        onChange={(e) => setPaidAmount(Number(e.target.value))}
-                        placeholder="0.00"
-                     />
-                   </div>
-                 </div>
-               </div>
-            </div>
-          )}
-
-          {/* Balance Indicator */}
-          {paymentMethod === 'Cash' && (
-            <div className={`p-5 rounded-3xl flex justify-between items-center ${dueAmount > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
-               <span className={`text-[10px] font-black uppercase tracking-widest ${dueAmount > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                 {dueAmount > 0 ? t('Remaining Due', 'বাকি') : t('Balance Settled', 'সম্পূর্ণ')}
-               </span>
-               <span className={`text-xl font-black ${dueAmount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>৳ {dueAmount}</span>
-            </div>
-          )}
-
-          {/* Finalize Button */}
-          <button 
-            disabled={currentSale.length === 0} 
-            onClick={finalizeSale} 
-            className="w-full bg-blue-900 py-6 rounded-[2.5rem] font-black text-sm text-white uppercase tracking-[0.3em] shadow-2xl hover:bg-blue-800 transition-all transform active:scale-95 disabled:opacity-30 flex items-center justify-center gap-4"
-          >
-            <Printer size={20} />
-            {t('Print & Complete', 'প্রিন্ট ও সম্পন্ন')}
-          </button>
+           <button 
+             disabled={currentSale.length === 0}
+             onClick={finalizeSale}
+             className="w-full bg-white text-slate-900 py-6 rounded-3xl font-black uppercase tracking-[0.3em] text-sm hover:bg-emerald-400 transition transform active:scale-95 disabled:opacity-20 shadow-2xl"
+           >
+             COMPLETE & PRINT
+           </button>
         </div>
       </div>
     </div>

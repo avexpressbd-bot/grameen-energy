@@ -1,9 +1,9 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus, Staff, StaffReview } from '../types';
+import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus, Staff, StaffReview, StockLog } from '../types';
 import { db } from '../services/firebase';
 import { 
-  collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment 
+  collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment, addDoc 
 } from "firebase/firestore";
 
 interface ProductContextType {
@@ -16,11 +16,13 @@ interface ProductContextType {
   serviceAds: ServiceAd[];
   staff: Staff[];
   reviews: StaffReview[];
+  stockLogs: StockLog[];
   settings: SiteSettings | null;
   loading: boolean;
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (id: string, product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  adjustStock: (productId: string, change: number, reason: StockLog['reason']) => Promise<void>;
   recordSale: (sale: Sale) => Promise<void>;
   updateSaleStatus: (id: string, status: OrderStatus) => Promise<void>;
   updateCustomerDue: (phone: string, name: string, amountPaid: number) => Promise<void>;
@@ -29,14 +31,13 @@ interface ProductContextType {
   deleteBlog: (id: string) => Promise<void>;
   addServiceRequest: (request: Omit<ServiceRequest, 'id' | 'createdAt' | 'status'>) => Promise<string>;
   updateServiceStatus: (id: string, status: ServiceStatus, staffId?: string, staffName?: string) => Promise<void>;
-  updateServiceRequest: (id: string, data: Partial<ServiceRequest>) => Promise<void>; // New generic update
+  updateServiceRequest: (id: string, data: Partial<ServiceRequest>) => Promise<void>; 
   addServiceAd: (ad: ServiceAd) => Promise<void>;
   deleteServiceAd: (id: string) => Promise<void>;
   addStaff: (s: Staff) => Promise<void>;
   updateStaff: (id: string, data: Partial<Staff>) => Promise<void>;
   deleteStaff: (id: string) => Promise<void>;
   addReview: (review: StaffReview) => Promise<void>;
-  syncWithFirebase: () => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -51,6 +52,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [serviceAds, setServiceAds] = useState<ServiceAd[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [reviews, setReviews] = useState<StaffReview[]>([]);
+  const [stockLogs, setStockLogs] = useState<StockLog[]>([]);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,23 +68,69 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const unsubServiceAds = onSnapshot(collection(db, "serviceAds"), (s) => setServiceAds(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceAd[]));
     const unsubStaff = onSnapshot(collection(db, "staff"), (s) => setStaff(s.docs.map(d => ({...d.data(), id: d.id})) as Staff[]));
     const unsubReviews = onSnapshot(collection(db, "staffReviews"), (s) => setReviews(s.docs.map(d => ({...d.data(), id: d.id})) as StaffReview[]));
+    const unsubLogs = onSnapshot(query(collection(db, "stockLogs"), orderBy("date", "desc")), (s) => setStockLogs(s.docs.map(d => ({...d.data(), id: d.id})) as StockLog[]));
     const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => d.exists() && setSettings(d.data() as SiteSettings));
 
     setLoading(false);
     return () => { 
       unsubProducts(); unsubSales(); unsubCustomers(); unsubUsers(); unsubBlogs(); 
-      unsubServiceRequests(); unsubServiceAds(); unsubStaff(); unsubReviews(); unsubSettings(); 
+      unsubServiceRequests(); unsubServiceAds(); unsubStaff(); unsubReviews(); unsubSettings(); unsubLogs();
     };
   }, []);
 
+  const adjustStock = async (productId: string, change: number, reason: StockLog['reason']) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    await updateDoc(doc(db, "products", productId), { stock: increment(change) });
+    await addDoc(collection(db, "stockLogs"), {
+      productId,
+      productName: product.name,
+      change,
+      reason,
+      date: new Date().toISOString(),
+      user: "System Admin"
+    });
+  };
+
+  const addProduct = async (p: Product) => {
+    const { id, ...data } = p;
+    await setDoc(doc(db, "products", id), data);
+    await adjustStock(id, p.stock, 'Purchase');
+  };
+
+  const updateProduct = async (id: string, p: Product) => {
+    const { id: _, ...data } = p;
+    await updateDoc(doc(db, "products", id), data as any);
+  };
+
+  const deleteProduct = async (id: string) => {
+    if(confirm('Delete Product?')) await deleteDoc(doc(db, "products", id));
+  };
+
+  const recordSale = async (sale: Sale) => {
+    const { id, ...data } = sale;
+    await setDoc(doc(db, "sales", id), data);
+    
+    for (const item of sale.items) {
+      await adjustStock(item.productId, -item.quantity, 'Sale');
+    }
+
+    if (sale.customerPhone) {
+      const cRef = doc(db, "customers", sale.customerPhone);
+      const cSnap = await getDocs(query(collection(db, "customers")));
+      if (!cSnap.docs.some(d => d.id === sale.customerPhone)) {
+        await setDoc(cRef, { name: sale.customerName || "Walking", totalDue: sale.dueAmount, lastUpdate: new Date().toISOString() });
+      } else {
+        await updateDoc(cRef, { totalDue: increment(sale.dueAmount), lastUpdate: new Date().toISOString() });
+      }
+    }
+  };
+
+  // Remaining Service/Staff/Settings logic...
   const addServiceRequest = async (request: Omit<ServiceRequest, 'id' | 'createdAt' | 'status'>) => {
     const id = 'SR-' + Date.now();
-    const newRequest: ServiceRequest = {
-      ...request,
-      id,
-      status: 'Pending',
-      createdAt: new Date().toISOString()
-    };
+    const newRequest: ServiceRequest = { ...request, id, status: 'Pending', createdAt: new Date().toISOString() };
     await setDoc(doc(db, "serviceRequests", id), newRequest);
     return id;
   };
@@ -98,95 +146,26 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     await updateDoc(doc(db, "serviceRequests", id), data as any);
   };
 
-  const addStaff = async (s: Staff) => {
-    await setDoc(doc(db, "staff", s.id), s);
-  };
-
-  const updateStaff = async (id: string, data: Partial<Staff>) => {
-    await updateDoc(doc(db, "staff", id), data);
-  };
-
-  const deleteStaff = async (id: string) => {
-    await deleteDoc(doc(db, "staff", id));
-  };
-
-  const addReview = async (review: StaffReview) => {
-    await setDoc(doc(db, "staffReviews", review.id), review);
-  };
-
-  const addServiceAd = async (ad: ServiceAd) => {
-    await setDoc(doc(db, "serviceAds", ad.id), ad);
-  };
-
-  const deleteServiceAd = async (id: string) => {
-    await deleteDoc(doc(db, "serviceAds", id));
-  };
-
-  const updateSettings = async (newSettings: SiteSettings) => {
-    await setDoc(doc(db, "site", "config"), newSettings);
-  };
-
-  const addProduct = async (p: Product) => {
-    const { id, ...data } = p;
-    await setDoc(doc(db, "products", id), data);
-  };
-
-  const updateProduct = async (id: string, p: Product) => {
-    const { id: _, ...data } = p;
-    await updateDoc(doc(db, "products", id), data as any);
-  };
-
-  const deleteProduct = async (id: string) => {
-    if(confirm('ডিলিট?')) await deleteDoc(doc(db, "products", id));
-  };
-
-  const addBlog = async (b: BlogPost) => {
-    await setDoc(doc(db, "blogs", b.id), b);
-  };
-
-  const deleteBlog = async (id: string) => {
-    await deleteDoc(doc(db, "blogs", id));
-  };
-
-  const recordSale = async (sale: Sale) => {
-    const { id, ...data } = sale;
-    await setDoc(doc(db, "sales", id), data);
-    
-    for (const item of sale.items) {
-      const pRef = doc(db, "products", item.productId);
-      await updateDoc(pRef, { stock: increment(-item.quantity) });
-    }
-
-    if (sale.customerPhone) {
-      const cRef = doc(db, "customers", sale.customerPhone);
-      const cSnap = await getDocs(query(collection(db, "customers")));
-      if (!cSnap.docs.some(d => d.id === sale.customerPhone)) {
-        await setDoc(cRef, { name: sale.customerName || "Walking", totalDue: sale.dueAmount, lastUpdate: new Date().toISOString() });
-      } else {
-        await updateDoc(cRef, { totalDue: increment(sale.dueAmount), lastUpdate: new Date().toISOString() });
-      }
-    }
-  };
-
-  const updateSaleStatus = async (id: string, status: OrderStatus) => {
-    await updateDoc(doc(db, "sales", id), { status });
-  };
-
-  const updateCustomerDue = async (phone: string, name: string, amount: number) => {
-    await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
-  };
-
-  const syncWithFirebase = async () => {};
+  const addStaff = async (s: Staff) => await setDoc(doc(db, "staff", s.id), s);
+  const updateStaff = async (id: string, data: Partial<Staff>) => await updateDoc(doc(db, "staff", id), data);
+  const deleteStaff = async (id: string) => await deleteDoc(doc(db, "staff", id));
+  const addReview = async (review: StaffReview) => await setDoc(doc(db, "staffReviews", review.id), review);
+  const addServiceAd = async (ad: ServiceAd) => await setDoc(doc(db, "serviceAds", ad.id), ad);
+  const deleteServiceAd = async (id: string) => await deleteDoc(doc(db, "serviceAds", id));
+  const updateSettings = async (newSettings: SiteSettings) => await setDoc(doc(db, "site", "config"), newSettings);
+  const addBlog = async (b: BlogPost) => await setDoc(doc(db, "blogs", b.id), b);
+  const deleteBlog = async (id: string) => await deleteDoc(doc(db, "blogs", id));
+  const updateSaleStatus = async (id: string, status: OrderStatus) => await updateDoc(doc(db, "sales", id), { status });
+  const updateCustomerDue = async (phone: string, name: string, amount: number) => await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
 
   return (
     <ProductContext.Provider value={{ 
       products, sales, customers, registeredUsers, blogs, settings, loading, 
-      serviceRequests, serviceAds, staff, reviews,
-      addProduct, updateProduct, deleteProduct, recordSale, 
+      serviceRequests, serviceAds, staff, reviews, stockLogs,
+      addProduct, updateProduct, deleteProduct, adjustStock, recordSale, 
       updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog,
       addServiceRequest, updateServiceStatus, updateServiceRequest, addServiceAd, deleteServiceAd,
-      addStaff, updateStaff, deleteStaff, addReview,
-      syncWithFirebase 
+      addStaff, updateStaff, deleteStaff, addReview
     }}>
       {children}
     </ProductContext.Provider>

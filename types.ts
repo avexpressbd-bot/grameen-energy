@@ -11,11 +11,15 @@ export enum Category {
 }
 
 export interface Product {
-  id: string;
+  id: string; // Internal Doc ID
+  barcode: string; // For Scanner support
+  sku: string; // Stock Keeping Unit
   name: string;
   nameBn: string;
   category: Category;
-  price: number;
+  brand?: string;
+  price: number; // Selling Price
+  purchasePrice: number; // For Profit Calculation
   image: string;
   description: string;
   descriptionBn: string;
@@ -25,6 +29,17 @@ export interface Product {
   specs: Record<string, string>;
   warranty?: string;
   stock: number;
+  minStockLevel: number; // For low-stock alerts
+}
+
+export interface StockLog {
+  id: string;
+  productId: string;
+  productName: string;
+  change: number; // + or -
+  reason: 'Sale' | 'Purchase' | 'Adjustment' | 'Damage';
+  date: string;
+  user: string;
 }
 
 export interface CartItem extends Product {
@@ -78,7 +93,7 @@ export type StaffSkill = 'IPS' | 'Solar' | 'Wiring' | 'Repair' | 'Installation';
 export type StaffStatus = 'Available' | 'Busy' | 'Offline';
 
 export interface Staff {
-  id: string; // Phone number or ID
+  id: string; 
   name: string;
   photo: string;
   phone: string;
@@ -113,7 +128,7 @@ export interface ServiceRequest {
   problemDescription: string;
   preferredDate: string;
   preferredTime: string;
-  manualPrice?: number; // New field for user budget/price
+  manualPrice?: number; 
   photoUrl?: string;
   status: ServiceStatus;
   assignedStaffId?: string;
@@ -166,7 +181,7 @@ export interface CustomerUser {
   email?: string;
   address?: string;
   city?: string;
-  role?: 'customer' | 'technician';
+  role?: 'customer' | 'technician' | 'admin' | 'pos';
   createdAt: string;
 }
 

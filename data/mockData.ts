@@ -4,6 +4,11 @@ import { Category, Product, BlogPost } from '../types';
 export const products: Product[] = [
   {
     id: '1',
+    // Added missing required properties
+    barcode: '8801001',
+    sku: 'SOL-100W-M',
+    purchasePrice: 6500,
+    minStockLevel: 5,
     name: '100W Monocrystalline Solar Panel',
     nameBn: '১০০ ওয়াট মনোক্রিস্টালাইন সোলার প্যানেল',
     category: Category.Solar,
@@ -20,6 +25,11 @@ export const products: Product[] = [
   },
   {
     id: '2',
+    // Added missing required properties
+    barcode: '8801002',
+    sku: 'IPS-1000-RAH',
+    purchasePrice: 12500,
+    minStockLevel: 2,
     name: 'Rahimafrooz 1000VA IPS',
     nameBn: 'রহিমাফরোজ ১০০০ভিএ আইপিএস',
     category: Category.IPS,
@@ -34,6 +44,11 @@ export const products: Product[] = [
   },
   {
     id: '3',
+    // Added missing required properties
+    barcode: '8801003',
+    sku: 'LED-12W-SS',
+    purchasePrice: 210,
+    minStockLevel: 20,
     name: 'Super Star 12W LED Bulb',
     nameBn: 'সুপার স্টার ১২ ওয়াট এলইডি বাল্ব',
     category: Category.LED,
@@ -49,6 +64,11 @@ export const products: Product[] = [
   },
   {
     id: '4',
+    // Added missing required properties
+    barcode: '8801004',
+    sku: 'BAT-150-HAM',
+    purchasePrice: 14500,
+    minStockLevel: 3,
     name: 'Hamko 150Ah Solar Battery',
     nameBn: 'হামকো ১৫০এএইচ সোলার ব্যাটারি',
     category: Category.Battery,
