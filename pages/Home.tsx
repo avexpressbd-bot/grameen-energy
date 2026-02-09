@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import React from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';

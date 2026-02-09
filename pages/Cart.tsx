@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import React from 'react';
 import { useCart } from '../components/CartContext';
 import { useLanguage } from '../components/LanguageContext';

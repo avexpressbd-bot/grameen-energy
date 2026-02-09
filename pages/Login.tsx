@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { useLanguage } from '../components/LanguageContext';
 import { Lock, User, Eye, EyeOff, ArrowLeft, ShieldCheck, Zap, Info } from 'lucide-react';

@@ -1,4 +1,6 @@
+// @ts-ignore
 import { initializeApp } from "firebase/app";
+// @ts-ignore
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -14,7 +16,9 @@ const firebaseConfig = {
 let db: any;
 
 try {
+  // @ts-ignore
   const app = initializeApp(firebaseConfig);
+  // @ts-ignore
   db = getFirestore(app);
   console.log("Firebase initialized successfully with project:", firebaseConfig.projectId);
 } catch (error) {

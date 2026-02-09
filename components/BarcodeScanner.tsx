@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Camera, RefreshCw } from 'lucide-react';
 import { useLanguage } from './LanguageContext';

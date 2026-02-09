@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CustomerUser } from '../types';
 import { db } from '../services/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 interface AuthContextType {
   user: CustomerUser | null;
@@ -32,6 +32,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (id: string, password: string): Promise<'admin' | 'pos' | 'customer' | 'technician' | false> => {
+    // 1. Check Hardcoded Staff Roles
     if (id === 'admin' && password === 'admin123') {
       setStaffRole('admin');
       localStorage.setItem('ge_staff_role', 'admin');
@@ -44,26 +45,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return 'pos';
     }
 
-    const userDoc = await getDoc(doc(db, 'users', id));
-    if (userDoc.exists()) {
-      const data = userDoc.data();
-      if (data.password === password) {
-        const customer: CustomerUser = {
-          uid: id,
-          accountId: data.accountId,
-          name: data.name,
-          phone: data.phone,
-          email: data.email,
-          address: data.address,
-          city: data.city,
-          role: data.role || 'customer',
-          createdAt: data.createdAt
-        };
-        setUser(customer);
-        localStorage.setItem('ge_customer_user', JSON.stringify(customer));
-        return customer.role === 'technician' ? 'technician' : 'customer';
+    // 2. Try to find user by Phone (Document ID)
+    let userDoc = await getDoc(doc(db, 'users', id));
+    let userData = userDoc.exists() ? userDoc.data() : null;
+
+    // 3. If not found by phone, try to find by Account ID
+    if (!userData) {
+      const q = query(collection(db, 'users'), where('accountId', '==', id));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        userData = querySnapshot.docs[0].data();
+        id = querySnapshot.docs[0].id; // The phone is the doc ID
       }
     }
+
+    if (userData && userData.password === password) {
+      const customer: CustomerUser = {
+        uid: id,
+        accountId: userData.accountId,
+        name: userData.name,
+        phone: userData.phone,
+        email: userData.email,
+        address: userData.address,
+        city: userData.city,
+        role: userData.role || 'customer',
+        createdAt: userData.createdAt
+      };
+      setUser(customer);
+      localStorage.setItem('ge_customer_user', JSON.stringify(customer));
+      return customer.role === 'technician' ? 'technician' : 'customer';
+    }
+    
     return false;
   };
 
@@ -72,13 +84,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const userSnap = await getDoc(userRef);
     
     if (userSnap.exists()) {
-      throw new Error('User already exists');
+      throw new Error('This phone number is already registered.');
     }
 
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
     const accountId = role === 'technician' ? `GE-T-${randomSuffix}` : `GE-C-${randomSuffix}`;
 
-    const newUser = {
+    const newUserDoc = {
       ...userData,
       accountId,
       password,
@@ -86,14 +98,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       createdAt: new Date().toISOString()
     };
 
-    await setDoc(userRef, newUser);
+    await setDoc(userRef, newUserDoc);
     
     const customer: CustomerUser = {
       uid: userData.phone,
       accountId,
       ...userData,
       role,
-      createdAt: newUser.createdAt
+      createdAt: newUserDoc.createdAt
     };
     
     setUser(customer);
