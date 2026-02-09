@@ -8,7 +8,6 @@ import {
   Wallet, CheckCircle, Settings, LayoutDashboard, ShoppingCart, Printer, AlertTriangle, TrendingUp, Award, ChevronRight, Hash, Activity,
   UserPlus, UserMinus, CreditCard, Banknote, Wrench, Clock, MapPin, Calendar, FileText, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, ShieldOff, Coins, UserCog
 } from 'lucide-react';
-import BarcodeLabel from '../components/BarcodeLabel';
 
 type AdminTab = 'overview' | 'inventory' | 'service-requests' | 'technicians' | 'shop-staff' | 'staff-salary' | 'stock-logs' | 'sales' | 'customers' | 'reports';
 
@@ -47,7 +46,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     totalReceivables: (customers || []).reduce((acc, c) => acc + c.totalDue, 0),
     salesToday: (sales || []).filter(s => new Date(s.date).toDateString() === new Date().toDateString()).length,
     revenueToday: (sales || []).filter(s => new Date(s.date).toDateString() === new Date().toDateString()).reduce((acc, s) => acc + s.total, 0),
-    pendingServices: (serviceRequests || []).filter(sr => sr.status === 'Pending').length
+    pendingServices: (serviceRequests || []).filter(sr => sr.status === 'Pending').length,
+    totalRevenue: (sales || []).reduce((acc, s) => acc + s.total, 0)
   }), [products, sales, customers, serviceRequests]);
 
   const technicians = useMemo(() => staff.filter(s => s.role === 'Technician'), [staff]);
@@ -78,7 +78,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       joinedAt: formData.get('joinedAt') || editingStaff?.joinedAt || new Date().toISOString()
     };
 
-    if (editingStaff) {
+    if (editingStaff?.id) {
       await updateStaff(editingStaff.id, s);
     } else {
       await addStaff(s);
@@ -130,208 +130,86 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-20 bg-white border-b px-8 flex justify-between items-center shrink-0">
            <h1 className="text-xl font-black uppercase tracking-tight text-slate-800">{activeTab.replace('-', ' ')}</h1>
-           <div className="flex items-center gap-4">
-              {activeTab === 'technicians' && (
-                <button onClick={() => openAddStaffModal('Technician')} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
-                   <Plus size={16}/> Add Technician
-                </button>
-              )}
-              {activeTab === 'shop-staff' && (
-                <button onClick={() => openAddStaffModal('Cashier')} className="bg-blue-900 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
-                   <Plus size={16}/> Add Shop Staff
-                </button>
-              )}
-              {activeTab === 'inventory' && (
-                <button onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
-                   <Plus size={16}/> New Product
-                </button>
-              )}
-           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
            
-           {/* Tab: TECHNICIANS */}
-           {activeTab === 'technicians' && (
-             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Field Experts & Technicians</h3>
-                </div>
-                <table className="w-full">
-                   <thead className="bg-slate-50 border-b">
-                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                         <th className="px-8 py-5 text-left">Technician</th>
-                         <th className="px-6 py-5 text-left">Expertise</th>
-                         <th className="px-6 py-5 text-left">Area</th>
-                         <th className="px-6 py-5 text-left">Status</th>
-                         <th className="px-8 py-5 text-right">Actions</th>
-                      </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {technicians.length > 0 ? technicians.map(s => (
-                        <tr key={s.id} className="hover:bg-slate-50">
-                           <td className="px-8 py-4">
-                             <div className="flex items-center gap-3">
-                               <img src={s.photo} className="w-10 h-10 rounded-xl object-cover border" />
-                               <div>
-                                 <p className="text-sm font-black">{s.name}</p>
-                                 <p className="text-[10px] font-mono text-blue-600">{s.phone}</p>
-                               </div>
-                             </div>
-                           </td>
-                           <td className="px-6 py-4">
-                              <div className="flex flex-wrap gap-1">
-                                 {s.skills.map(sk => <span key={sk} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase">{sk}</span>)}
-                              </div>
-                           </td>
-                           <td className="px-6 py-4 text-xs font-bold text-slate-600">{s.area}</td>
-                           <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.status === 'Available' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{s.status}</span>
-                           </td>
-                           <td className="px-8 py-4 text-right space-x-2">
-                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
-                              <button onClick={() => deleteStaff(s.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
-                           </td>
-                        </tr>
-                      )) : <tr><td colSpan={5} className="p-20 text-center text-slate-300 font-black uppercase">No Technicians Registered</td></tr>}
-                   </tbody>
-                </table>
-             </div>
-           )}
-
-           {/* Tab: SHOP STAFF */}
-           {activeTab === 'shop-staff' && (
-             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Management & POS Staff</h3>
-                </div>
-                <table className="w-full">
-                   <thead className="bg-slate-50 border-b">
-                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                         <th className="px-8 py-5 text-left">Staff Member</th>
-                         <th className="px-6 py-5 text-left">Role</th>
-                         <th className="px-6 py-5 text-left">Join Date</th>
-                         <th className="px-6 py-5 text-left">Status</th>
-                         <th className="px-8 py-5 text-right">Actions</th>
-                      </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {shopStaff.length > 0 ? shopStaff.map(s => (
-                        <tr key={s.id} className="hover:bg-slate-50">
-                           <td className="px-8 py-4">
-                             <div className="flex items-center gap-3">
-                               <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400">{s.name.charAt(0)}</div>
-                               <div>
-                                 <p className="text-sm font-black">{s.name}</p>
-                                 <p className="text-[10px] font-mono text-blue-600">{s.phone}</p>
-                               </div>
-                             </div>
-                           </td>
-                           <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.role === 'Manager' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>{s.role}</span>
-                           </td>
-                           <td className="px-6 py-4 text-xs font-bold text-slate-500">{new Date(s.joinedAt).toLocaleDateString()}</td>
-                           <td className="px-6 py-4">
-                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.isActive ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{s.isActive ? 'Active' : 'Inactive'}</span>
-                           </td>
-                           <td className="px-8 py-4 text-right space-x-2">
-                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
-                              <button onClick={() => deleteStaff(s.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
-                           </td>
-                        </tr>
-                      )) : <tr><td colSpan={5} className="p-20 text-center text-slate-300 font-black uppercase">No Shop Staff Registered</td></tr>}
-                   </tbody>
-                </table>
-             </div>
-           )}
-
-           {/* Other existing tabs (Salary, Overview, etc.) remain fully functional */}
-           {activeTab === 'staff-salary' && (
-             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b flex justify-between items-center">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Staff Compensation & Payroll Records</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                     <thead className="bg-slate-50 border-b">
-                        <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                           <th className="px-8 py-5 text-left">Staff Name</th>
-                           <th className="px-6 py-5 text-left">Role</th>
-                           <th className="px-6 py-5 text-left">Type</th>
-                           <th className="px-6 py-5 text-left">Base Salary</th>
-                           <th className="px-6 py-5 text-left">Commission</th>
-                           <th className="px-6 py-5 text-left">OT Rate</th>
-                           <th className="px-6 py-5 text-left">Status</th>
-                           <th className="px-8 py-5 text-right">Action</th>
-                        </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-50">
-                        {staff.map(s => (
-                          <tr key={s.id} className={`hover:bg-slate-50 transition ${!s.isActive ? 'opacity-40' : ''}`}>
-                             <td className="px-8 py-4">
-                                <div className="flex items-center gap-3">
-                                   <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-black text-xs text-slate-400">{s.name.charAt(0)}</div>
-                                   <div>
-                                      <p className="text-sm font-black text-slate-800">{s.name}</p>
-                                      <p className="text-[9px] font-mono text-slate-400">{s.phone}</p>
-                                   </div>
-                                </div>
-                             </td>
-                             <td className="px-6 py-4">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${s.role === 'Manager' ? 'bg-purple-100 text-purple-600' : s.role === 'Cashier' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>{s.role}</span>
-                             </td>
-                             <td className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">{s.salaryType}</td>
-                             <td className="px-6 py-4 font-black text-sm text-slate-900">৳{s.baseSalary}</td>
-                             <td className="px-6 py-4 font-black text-xs text-emerald-600">৳{s.commissionPerService || 0}</td>
-                             <td className="px-6 py-4 font-black text-xs text-slate-600">৳{s.overtimeRate || 0}</td>
-                             <td className="px-6 py-4">
-                                {s.isActive ? <span className="text-emerald-500 font-black text-[8px] uppercase tracking-widest flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Active</span> : <span className="text-slate-400 font-black text-[8px] uppercase tracking-widest">Inactive</span>}
-                             </td>
-                             <td className="px-8 py-4 text-right">
-                                <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition"><Edit2 size={16}/></button>
-                             </td>
-                          </tr>
-                        ))}
-                     </tbody>
-                  </table>
-                </div>
-             </div>
-           )}
-
            {/* Tab: OVERVIEW */}
            {activeTab === 'overview' && (
              <div className="space-y-8">
-                <div className="grid md:grid-cols-4 lg:grid-cols-5 gap-6">
+                <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6">
                    {[
                      { label: 'Stock Value', val: `৳${stats.totalValue}`, icon: Wallet, color: 'blue' },
-                     { label: 'Profit Projection', val: `৳${stats.potentialProfit}`, icon: TrendingUp, color: 'emerald' },
+                     { label: 'Profit Project.', val: `৳${stats.potentialProfit}`, icon: TrendingUp, color: 'emerald' },
                      { label: 'Total Due', val: `৳${stats.totalReceivables}`, icon: UserMinus, color: 'red' },
                      { label: 'Revenue Today', val: `৳${stats.revenueToday}`, icon: DollarSign, color: 'purple' },
-                     { label: 'Services', val: stats.pendingServices, icon: Wrench, color: 'amber' },
+                     { label: 'Jobs Pending', val: stats.pendingServices, icon: Wrench, color: 'amber' },
                    ].map(s => (
-                     <div key={s.label} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-4">
+                     <div key={s.label} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4">
                         <div className={`w-10 h-10 bg-${s.color}-50 text-${s.color}-600 rounded-xl flex items-center justify-center shrink-0`}><s.icon size={20}/></div>
                         <div>
                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</p>
-                          <p className="text-base font-black text-slate-900">{s.val}</p>
+                          <p className="text-sm font-black text-slate-900">{s.val}</p>
                         </div>
                      </div>
                    ))}
                 </div>
+
+                <div className="grid lg:grid-cols-2 gap-8">
+                  <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                    <h3 className="font-black uppercase tracking-tight mb-6 flex items-center gap-2 text-slate-800">Low Stock Alert</h3>
+                    <div className="space-y-3">
+                      {lowStockItems.length > 0 ? lowStockItems.map(p => (
+                        <div key={p.id} className="flex items-center justify-between p-4 bg-red-50 rounded-2xl border border-red-100">
+                          <span className="text-xs font-black text-slate-700">{p.name}</span>
+                          <span className="text-xs font-black text-red-600">Stock: {p.stock}</span>
+                        </div>
+                      )) : <p className="text-center text-slate-400 text-xs py-4">Inventory is healthy.</p>}
+                    </div>
+                  </div>
+                  <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                    <h3 className="font-black uppercase tracking-tight mb-6 flex items-center gap-2 text-slate-800">Team Activity</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 rounded-2xl">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Techs</p>
+                        <p className="text-xl font-black text-emerald-600">{technicians.filter(t => t.isActive).length}</p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-2xl">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Shop Staff</p>
+                        <p className="text-xl font-black text-blue-600">{shopStaff.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
              </div>
            )}
 
-           {/* Simplified implementation for other tabs */}
+           {/* Tab: STOCK MASTER */}
            {activeTab === 'inventory' && (
-              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b flex justify-between items-center">
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Product Inventory</h3>
+                   <button onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }} className="bg-slate-900 text-white px-6 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
+                     <Plus size={16}/> New Product
+                   </button>
+                </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
-                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]"><th className="px-8 py-5 text-left">Product</th><th className="px-6 py-5 text-left">Category</th><th className="px-6 py-5 text-left">Price</th><th className="px-6 py-5 text-left">Stock</th><th className="px-8 py-5 text-right">Actions</th></tr>
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Product</th>
+                         <th className="px-6 py-5 text-left">Category</th>
+                         <th className="px-6 py-5 text-left">Price</th>
+                         <th className="px-6 py-5 text-left">Stock</th>
+                         <th className="px-8 py-5 text-right">Actions</th>
+                      </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
                       {products.map(p => (
                         <tr key={p.id} className="hover:bg-slate-50">
-                           <td className="px-8 py-4 font-black text-sm">{p.name}</td>
+                           <td className="px-8 py-4">
+                              <p className="text-sm font-black text-slate-800">{p.name}</p>
+                              <p className="text-[10px] text-slate-400 font-mono">{p.sku}</p>
+                           </td>
                            <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{p.category}</td>
                            <td className="px-6 py-4 font-black">৳{p.price}</td>
                            <td className={`px-6 py-4 font-black ${p.stock <= p.minStockLevel ? 'text-red-600' : 'text-emerald-600'}`}>{p.stock}</td>
@@ -343,21 +221,34 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       ))}
                    </tbody>
                 </table>
-              </div>
+             </div>
            )}
 
+           {/* Tab: SERVICE JOBS */}
            {activeTab === 'service-requests' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
-                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]"><th className="px-8 py-5 text-left">Customer</th><th className="px-6 py-5 text-left">Service</th><th className="px-6 py-5 text-left">Assignment</th><th className="px-8 py-5 text-right">Actions</th></tr>
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Customer</th>
+                         <th className="px-6 py-5 text-left">Service Type</th>
+                         <th className="px-6 py-5 text-left">Assignment</th>
+                         <th className="px-6 py-5 text-left">Status</th>
+                         <th className="px-8 py-5 text-right">Action</th>
+                      </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
                       {serviceRequests.map(sr => (
-                        <tr key={sr.id} className="hover:bg-slate-50 transition">
-                           <td className="px-8 py-4"><p className="text-sm font-black">{sr.customerName}</p><p className="text-[10px] font-mono text-blue-600">{sr.customerPhone}</p></td>
-                           <td className="px-6 py-4"><span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase">{sr.serviceType}</span></td>
-                           <td className="px-6 py-4">{sr.assignedStaffName || <span className="text-amber-500 text-[9px] font-black uppercase">Unassigned</span>}</td>
+                        <tr key={sr.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4">
+                              <p className="text-sm font-black text-slate-800">{sr.customerName}</p>
+                              <p className="text-[10px] text-slate-400 font-mono">{sr.customerPhone}</p>
+                           </td>
+                           <td className="px-6 py-4 text-xs font-bold text-blue-600 uppercase">{sr.serviceType}</td>
+                           <td className="px-6 py-4 text-xs font-bold">{sr.assignedStaffName || 'Unassigned'}</td>
+                           <td className="px-6 py-4">
+                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${sr.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{sr.status}</span>
+                           </td>
                            <td className="px-8 py-4 text-right">
                               <button onClick={() => { setSelectedRequest(sr); setAssigningStaffId(sr.assignedStaffId || ''); setManualPrice(sr.manualPrice || 0); }} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase">Manage</button>
                            </td>
@@ -368,113 +259,446 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
+           {/* Tab: TECHNICIANS */}
+           {activeTab === 'technicians' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b flex justify-between items-center">
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Field Expert Technicians</h3>
+                   <button onClick={() => openAddStaffModal('Technician')} className="bg-emerald-600 text-white px-6 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
+                     <Plus size={16}/> Add Technician
+                   </button>
+                </div>
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Member</th>
+                         <th className="px-6 py-5 text-left">Expertise</th>
+                         <th className="px-6 py-5 text-left">Area</th>
+                         <th className="px-6 py-5 text-left">Status</th>
+                         <th className="px-8 py-5 text-right">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {technicians.map(s => (
+                        <tr key={s.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4 flex items-center gap-3">
+                              <img src={s.photo} className="w-10 h-10 rounded-xl object-cover" />
+                              <div>
+                                 <p className="text-sm font-black text-slate-800">{s.name}</p>
+                                 <p className="text-[9px] text-slate-400">{s.phone}</p>
+                              </div>
+                           </td>
+                           <td className="px-6 py-4 flex flex-wrap gap-1">
+                              {s.skills.map(sk => <span key={sk} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase">{sk}</span>)}
+                           </td>
+                           <td className="px-6 py-4 text-xs font-bold text-slate-600">{s.area}</td>
+                           <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.status === 'Available' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{s.status}</span></td>
+                           <td className="px-8 py-4 text-right space-x-2">
+                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Tab: SHOP STAFF */}
+           {activeTab === 'shop-staff' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b flex justify-between items-center">
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Shop & POS Staff</h3>
+                   <button onClick={() => openAddStaffModal('Cashier')} className="bg-blue-900 text-white px-6 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
+                     <Plus size={16}/> Add Shop Staff
+                   </button>
+                </div>
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Staff Name</th>
+                         <th className="px-6 py-5 text-left">Role</th>
+                         <th className="px-6 py-5 text-left">Join Date</th>
+                         <th className="px-6 py-5 text-left">Status</th>
+                         <th className="px-8 py-5 text-right">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {shopStaff.map(s => (
+                        <tr key={s.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4 flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400">{s.name.charAt(0)}</div>
+                              <div>
+                                 <p className="text-sm font-black text-slate-800">{s.name}</p>
+                                 <p className="text-[9px] text-slate-400">{s.phone}</p>
+                              </div>
+                           </td>
+                           <td className="px-6 py-4"><span className="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-[9px] font-black uppercase">{s.role}</span></td>
+                           <td className="px-6 py-4 text-xs font-bold text-slate-500">{new Date(s.joinedAt).toLocaleDateString()}</td>
+                           <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.isActive ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{s.isActive ? 'Active' : 'Inactive'}</span></td>
+                           <td className="px-8 py-4 text-right">
+                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Tab: SALARY PROFILES */}
+           {activeTab === 'staff-salary' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b">
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Staff Compensation & Payroll</h3>
+                </div>
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Name</th>
+                         <th className="px-6 py-5 text-left">Type</th>
+                         <th className="px-6 py-5 text-left">Base Pay</th>
+                         <th className="px-6 py-5 text-left">Commission</th>
+                         <th className="px-6 py-5 text-left">OT Rate</th>
+                         <th className="px-8 py-5 text-right">Action</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {staff.map(s => (
+                        <tr key={s.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4 font-black text-sm text-slate-800">{s.name}</td>
+                           <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{s.salaryType}</td>
+                           <td className="px-6 py-4 font-black">৳{s.baseSalary}</td>
+                           <td className="px-6 py-4 text-emerald-600 font-bold">৳{s.commissionPerService || 0}</td>
+                           <td className="px-6 py-4 text-slate-500 font-bold">৳{s.overtimeRate || 0}</td>
+                           <td className="px-8 py-4 text-right">
+                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition"><Edit2 size={16}/></button>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Tab: MOVEMENT LOGS (STOCK LOGS) */}
+           {activeTab === 'stock-logs' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b">
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Stock Movement History</h3>
+                </div>
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Date</th>
+                         <th className="px-6 py-5 text-left">Product</th>
+                         <th className="px-6 py-5 text-left">Reason</th>
+                         <th className="px-8 py-5 text-right">Change</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {stockLogs.map(log => (
+                        <tr key={log.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4 text-xs font-bold text-slate-500">{new Date(log.date).toLocaleString()}</td>
+                           <td className="px-6 py-4 font-black text-sm text-slate-800">{log.productName}</td>
+                           <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black uppercase text-slate-500">{log.reason}</span></td>
+                           <td className={`px-8 py-4 text-right font-black ${log.change > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                             {log.change > 0 ? `+${log.change}` : log.change}
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Tab: SALES RECORDS */}
+           {activeTab === 'sales' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b">
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Full Sales History</h3>
+                </div>
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Inv ID</th>
+                         <th className="px-6 py-5 text-left">Customer</th>
+                         <th className="px-6 py-5 text-left">Total</th>
+                         <th className="px-6 py-5 text-left">Payment</th>
+                         <th className="px-8 py-5 text-right">Date</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {sales.map(s => (
+                        <tr key={s.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4 font-mono font-black text-xs text-blue-600">#{s.id}</td>
+                           <td className="px-6 py-4">
+                              <p className="text-xs font-black text-slate-800">{s.customerName}</p>
+                              <p className="text-[9px] text-slate-400">{s.customerPhone}</p>
+                           </td>
+                           <td className="px-6 py-4 font-black text-sm">৳{s.total}</td>
+                           <td className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">{s.paymentMethod}</td>
+                           <td className="px-8 py-4 text-right text-[10px] font-bold text-slate-400">{new Date(s.date).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Tab: DUE LEDGER (CUSTOMERS) */}
+           {activeTab === 'customers' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b">
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Outstanding Customer Dues</h3>
+                </div>
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Customer Name</th>
+                         <th className="px-6 py-5 text-left">Total Due</th>
+                         <th className="px-6 py-5 text-left">Last Update</th>
+                         <th className="px-8 py-5 text-right">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {customers.map(c => (
+                        <tr key={c.id} className={`hover:bg-slate-50 ${c.totalDue > 0 ? 'bg-red-50/5' : ''}`}>
+                           <td className="px-8 py-4 font-black text-sm text-slate-800">{c.name}</td>
+                           <td className={`px-6 py-4 font-black ${c.totalDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>৳{c.totalDue}</td>
+                           <td className="px-6 py-4 text-[10px] font-bold text-slate-400">{new Date(c.lastUpdate).toLocaleDateString()}</td>
+                           <td className="px-8 py-4 text-right">
+                              <button onClick={() => setSelectedCustomer(c)} className="px-4 py-2 bg-blue-900 text-white rounded-xl font-black text-[10px] uppercase">Record Payment</button>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Tab: PROFIT & LOSS (REPORTS) */}
+           {activeTab === 'reports' && (
+             <div className="space-y-8">
+               <div className="grid md:grid-cols-3 gap-6">
+                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Sales Revenue</p>
+                   <p className="text-3xl font-black text-blue-900">৳{stats.totalRevenue}</p>
+                 </div>
+                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Inventory Value (Cost)</p>
+                   <p className="text-3xl font-black text-slate-800">৳{stats.totalValue}</p>
+                 </div>
+                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Estimated Net Profit</p>
+                   <p className="text-3xl font-black text-emerald-600">৳{stats.potentialProfit}</p>
+                 </div>
+               </div>
+               <div className="bg-white p-10 rounded-[3.5rem] shadow-sm border border-slate-100">
+                  <h4 className="font-black uppercase tracking-tight text-slate-800 mb-6">Recent Sales Trends</h4>
+                  <div className="h-48 flex items-end gap-2 px-4 border-b border-l">
+                     {sales.slice(0, 7).map((s, i) => (
+                        <div key={i} className="flex-1 bg-blue-100 rounded-t-lg transition-all hover:bg-blue-200" style={{ height: `${(s.total / 100000) * 100}%` }}></div>
+                     ))}
+                  </div>
+                  <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-4">Daily Sales Performance (Simplified Visualization)</p>
+               </div>
+             </div>
+           )}
+
         </div>
       </main>
 
-      {/* Staff Modal (With Category-Specific Support) */}
-      {isStaffModalOpen && (
+      {/* MODALS */}
+
+      {/* Product Modal */}
+      {isProductModalOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
-           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh] shadow-2xl">
+           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-center mb-8 border-b pb-4">
-                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingStaff?.id ? 'Edit Staff Profile' : 'New Staff Registration'}</h2>
-                 <button onClick={() => setIsStaffModalOpen(false)} className="p-2 text-red-500">✕</button>
+                 <h2 className="text-2xl font-black uppercase tracking-tight">Product Details</h2>
+                 <button onClick={() => setIsProductModalOpen(false)} className="p-2 text-red-500">✕</button>
               </div>
-              <form onSubmit={handleStaffSubmit} className="space-y-8">
-                 <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
-                      <input name="name" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="Full Name" defaultValue={editingStaff?.name} />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone</label>
-                      <input name="phone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="01XXX..." defaultValue={editingStaff?.phone} />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Staff Role</label>
-                      <select name="role" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.role || 'Technician'}>
-                         <option value="Technician">Technician (Field Expert)</option>
-                         <option value="Cashier">Cashier (Shop POS)</option>
-                         <option value="Manager">Manager (Office)</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Joining Date</label>
-                      <input name="joinedAt" type="date" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.joinedAt?.split('T')[0]} />
-                    </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const p = {
+                  name: fd.get('name'),
+                  category: fd.get('category'),
+                  price: Number(fd.get('price')),
+                  purchasePrice: Number(fd.get('purchasePrice')),
+                  stock: Number(fd.get('stock')),
+                  minStockLevel: Number(fd.get('minStockLevel') || 5),
+                  sku: fd.get('sku') || 'SKU-'+Date.now(),
+                  barcode: fd.get('barcode') || Date.now().toString()
+                };
+                if(editingProduct) await updateProduct(editingProduct.id, p);
+                else await addProduct(p);
+                setIsProductModalOpen(false);
+              }} className="grid md:grid-cols-2 gap-6">
+                 <div className="md:col-span-2 space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Name</label>
+                   <input name="name" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.name} />
                  </div>
-
-                 {/* Salary Settings */}
-                 <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-6">
-                    <h3 className="text-xs font-black text-blue-900 uppercase tracking-[0.2em] flex items-center gap-2"><Coins size={16}/> Salary & Commissions</h3>
-                    <div className="grid md:grid-cols-2 gap-6">
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pay Cycle</label>
-                         <select name="salaryType" className="w-full p-4 bg-white rounded-xl font-bold border-none outline-none shadow-sm" defaultValue={editingStaff?.salaryType || 'Monthly'}>
-                            <option value="Monthly">Monthly Salary</option>
-                            <option value="Daily">Daily Wages</option>
-                            <option value="Per Job">Per Job Basis</option>
-                            <option value="Commission">Commission Only</option>
-                         </select>
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Pay (৳)</label>
-                         <input name="baseSalary" type="number" required className="w-full p-4 bg-white rounded-xl font-bold border-none outline-none shadow-sm" defaultValue={editingStaff?.baseSalary} />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Service Commission (৳)</label>
-                         <input name="commission" type="number" className="w-full p-4 bg-white rounded-xl font-bold border-none outline-none shadow-sm" defaultValue={editingStaff?.commissionPerService} />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Overtime Rate (৳/hr)</label>
-                         <input name="overtime" type="number" className="w-full p-4 bg-white rounded-xl font-bold border-none outline-none shadow-sm" defaultValue={editingStaff?.overtimeRate} />
-                       </div>
-                    </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+                   <select name="category" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.category}>
+                      {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                   </select>
                  </div>
-
-                 <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Primary Skill (For Techs)</label>
-                      <input name="skills" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="Ex: IPS, Solar" defaultValue={editingStaff?.skills?.join(', ')} />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Work Experience (Yrs)</label>
-                      <input name="experience" type="number" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.experience} />
-                    </div>
-                    <div className="md:col-span-2 space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Photo URL</label>
-                      <input name="photo" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.photo} />
-                    </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock</label>
+                   <input name="stock" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.stock} />
                  </div>
-
-                 <div className="flex flex-wrap gap-8 py-4 border-t">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                       <input name="isActive" type="checkbox" className="w-5 h-5 accent-emerald-500" defaultChecked={editingStaff ? editingStaff.isActive : true} />
-                       <span className="text-xs font-black uppercase text-slate-700 tracking-tight">Active Duty</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                       <input name="isEmergency" type="checkbox" className="w-5 h-5 accent-red-500" defaultChecked={editingStaff?.isEmergencyStaff} />
-                       <span className="text-xs font-black uppercase text-slate-700 tracking-tight">Emergency Support</span>
-                    </label>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sell Price</label>
+                   <input name="price" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.price} />
                  </div>
-
-                 <button className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl">Save Staff Member</button>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Purchase Price</label>
+                   <input name="purchasePrice" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.purchasePrice} />
+                 </div>
+                 <button className="md:col-span-2 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest">Save Product</button>
               </form>
            </div>
         </div>
       )}
 
-      {/* Other Modals (Product, Service Request etc) follow here... */}
-      {isProductModalOpen && (
+      {/* Staff Modal */}
+      {isStaffModalOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-center mb-8 border-b pb-4">
-                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingProduct ? 'Update' : 'New'} Product</h2>
-                 <button onClick={() => setIsProductModalOpen(false)} className="p-2 text-red-500">✕</button>
+                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingStaff?.id ? 'Edit Staff' : 'Add Staff'}</h2>
+                 <button onClick={() => setIsStaffModalOpen(false)} className="p-2 text-red-500">✕</button>
               </div>
-              {/* Form implementation as before... */}
+              <form onSubmit={handleStaffSubmit} className="space-y-6">
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</label>
+                       <input name="name" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.name} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone</label>
+                       <input name="phone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.phone} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Role</label>
+                       <select name="role" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.role}>
+                          <option value="Technician">Technician</option>
+                          <option value="Cashier">Cashier</option>
+                          <option value="Manager">Manager</option>
+                       </select>
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Base Salary</label>
+                       <input name="baseSalary" type="number" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.baseSalary} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Salary Type</label>
+                       <select name="salaryType" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.salaryType || 'Monthly'}>
+                          <option value="Monthly">Monthly</option>
+                          <option value="Daily">Daily</option>
+                          <option value="Per Job">Per Job</option>
+                          <option value="Commission">Commission Based</option>
+                       </select>
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Commission / Service</label>
+                       <input name="commission" type="number" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.commissionPerService} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Overtime Rate</label>
+                       <input name="overtime" type="number" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.overtimeRate} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Area</label>
+                       <input name="area" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.area} />
+                    </div>
+                 </div>
+                 <div className="flex gap-4 items-center pt-4 border-t">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                       <input type="checkbox" name="isActive" className="w-5 h-5" defaultChecked={editingStaff?.isActive ?? true} />
+                       <span className="text-xs font-black uppercase text-slate-700">Currently Active</span>
+                    </label>
+                 </div>
+                 <button className="w-full py-4 bg-blue-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest">Save Staff Profile</button>
+              </form>
            </div>
         </div>
       )}
+
+      {/* Due Collection Modal */}
+      {selectedCustomer && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+           <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-6">
+              <div className="flex justify-between items-center border-b pb-4">
+                 <h2 className="text-xl font-black uppercase tracking-tight">Collect Payment</h2>
+                 <button onClick={() => setSelectedCustomer(null)} className="p-2 text-red-500">✕</button>
+              </div>
+              <div className="space-y-4 text-slate-800">
+                 <p className="font-bold">Collecting from: <span className="font-black">{selectedCustomer.name}</span></p>
+                 <p className="font-bold text-red-600">Total Due: ৳{selectedCustomer.totalDue}</p>
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Receive Amount</label>
+                    <input 
+                      type="number" 
+                      value={collectionAmount}
+                      onChange={e => setCollectionAmount(Number(e.target.value))}
+                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 font-black text-xl" 
+                    />
+                 </div>
+                 <button 
+                   onClick={async () => {
+                     await updateCustomerDue(selectedCustomer.id, selectedCustomer.name, collectionAmount);
+                     setSelectedCustomer(null);
+                     setCollectionAmount(0);
+                     alert('Payment Recorded!');
+                   }}
+                   className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-widest"
+                 >
+                   Confirm Payment
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Manage Service Job Modal */}
+      {selectedRequest && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+           <div className="bg-white w-full max-w-lg rounded-[3rem] p-10">
+              <div className="flex justify-between items-center mb-6">
+                 <h2 className="text-xl font-black uppercase">Manage Service</h2>
+                 <button onClick={() => setSelectedRequest(null)}>✕</button>
+              </div>
+              <div className="space-y-6">
+                 <div>
+                    <label className="text-[10px] font-black uppercase text-slate-400">Assign Technician</label>
+                    <select value={assigningStaffId} onChange={e => setAssigningStaffId(e.target.value)} className="w-full p-4 bg-slate-50 rounded-xl mt-1">
+                       <option value="">Choose Tech</option>
+                       {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                 </div>
+                 <div>
+                    <label className="text-[10px] font-black uppercase text-slate-400">Set Job Price (৳)</label>
+                    <input type="number" value={manualPrice} onChange={e => setManualPrice(Number(e.target.value))} className="w-full p-4 bg-slate-50 rounded-xl mt-1" />
+                 </div>
+                 <button onClick={async () => {
+                   const staffMember = staff.find(s => s.id === assigningStaffId);
+                   await updateServiceRequest(selectedRequest.id, {
+                     assignedStaffId: assigningStaffId,
+                     assignedStaffName: staffMember?.name,
+                     manualPrice: manualPrice,
+                     status: assigningStaffId ? 'Assigned' : selectedRequest.status
+                   });
+                   setSelectedRequest(null);
+                   alert('Job Updated');
+                 }} className="w-full py-4 bg-blue-900 text-white rounded-2xl font-black uppercase">Update Job</button>
+              </div>
+           </div>
+        </div>
+      )}
+
     </div>
   );
 };
