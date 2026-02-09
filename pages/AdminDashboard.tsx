@@ -6,7 +6,7 @@ import { Category, Product, Sale, OrderStatus, Customer, ServiceRequest, StockLo
 import { 
   Plus, Edit2, Trash2, Box, X, Search, DollarSign, BarChart3, Users,
   Wallet, CheckCircle, Settings, LayoutDashboard, ShoppingCart, Printer, AlertTriangle, TrendingUp, Award, ChevronRight, Hash, Activity,
-  UserPlus, UserMinus, CreditCard, Banknote, Wrench, Clock, MapPin, Calendar, FileText, ArrowUpRight, ArrowDownRight, Briefcase
+  UserPlus, UserMinus, CreditCard, Banknote, Wrench, Clock, MapPin, Calendar, FileText, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, ShieldOff
 } from 'lucide-react';
 import BarcodeLabel from '../components/BarcodeLabel';
 
@@ -89,11 +89,17 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       experience: Number(formData.get('experience')),
       photo: formData.get('photo') || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200',
       status: formData.get('status') as any,
+      role: formData.get('role') as any,
+      baseSalary: Number(formData.get('baseSalary') || 0),
+      salaryType: formData.get('salaryType') as any,
+      commissionPerService: Number(formData.get('commission') || 0),
+      overtimeRate: Number(formData.get('overtime') || 0),
+      isActive: formData.get('isActive') === 'on',
       skills: formData.get('skills')?.toString().split(',').map(s => s.trim()) as any[],
       isEmergencyStaff: formData.get('isEmergency') === 'on',
       rating: editingStaff?.rating || 5.0,
       totalJobs: editingStaff?.totalJobs || 0,
-      joinedAt: editingStaff?.joinedAt || new Date().toISOString()
+      joinedAt: formData.get('joinedAt') || editingStaff?.joinedAt || new Date().toISOString()
     };
 
     if (editingStaff) {
@@ -180,7 +186,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
               )}
               {activeTab === 'staff' && (
                 <button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest">
-                   Add Technician
+                   Add Staff Member
                 </button>
               )}
            </div>
@@ -188,7 +194,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
            
-           {/* Tab 1: OVERVIEW */}
+           {/* Tab: OVERVIEW */}
            {activeTab === 'overview' && (
              <div className="space-y-8">
                 <div className="grid md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -229,8 +235,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                         <p className="text-xl font-black">{staff.length}</p>
                       </div>
                       <div className="p-4 bg-slate-50 rounded-2xl">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Now</p>
-                        <p className="text-xl font-black text-emerald-600">{staff.filter(s => s.status === 'Available').length}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Staff</p>
+                        <p className="text-xl font-black text-emerald-600">{staff.filter(s => s.isActive).length}</p>
                       </div>
                     </div>
                   </div>
@@ -238,133 +244,69 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
-           {/* Tab: INVENTORY */}
-           {activeTab === 'inventory' && (
-              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <table className="w-full">
-                   <thead className="bg-slate-50 border-b">
-                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                         <th className="px-8 py-5 text-left">Product</th>
-                         <th className="px-6 py-5 text-left">Category</th>
-                         <th className="px-6 py-5 text-left">Price</th>
-                         <th className="px-6 py-5 text-left">Stock</th>
-                         <th className="px-8 py-5 text-right">Actions</th>
-                      </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {products.map(p => (
-                        <tr key={p.id} className="hover:bg-slate-50">
-                           <td className="px-8 py-4 font-black text-sm">{p.name}</td>
-                           <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{p.category}</td>
-                           <td className="px-6 py-4 font-black">৳{p.price}</td>
-                           <td className={`px-6 py-4 font-black ${p.stock <= p.minStockLevel ? 'text-red-600' : 'text-emerald-600'}`}>{p.stock}</td>
-                           <td className="px-8 py-4 text-right space-x-2">
-                              <button onClick={() => { setEditingProduct(p); setIsProductModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
-                              <button onClick={() => deleteProduct(p.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
-                           </td>
-                        </tr>
-                      ))}
-                   </tbody>
-                </table>
-              </div>
-           )}
-
            {/* Tab: STAFF MASTER */}
            {activeTab === 'staff' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
                 <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Technician Management</h3>
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Staff & Salary Profiles</h3>
                 </div>
-                <table className="w-full">
-                   <thead className="bg-slate-50 border-b">
-                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                         <th className="px-8 py-5 text-left">Technician</th>
-                         <th className="px-6 py-5 text-left">Expertise</th>
-                         <th className="px-6 py-5 text-left">Area</th>
-                         <th className="px-6 py-5 text-left">Status</th>
-                         <th className="px-8 py-5 text-right">Actions</th>
-                      </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {staff && staff.length > 0 ? (
-                        staff.map(s => (
-                          <tr key={s.id} className="hover:bg-slate-50 transition">
-                             <td className="px-8 py-4">
-                                <div className="flex items-center gap-4">
-                                   <img src={s.photo} className="w-10 h-10 rounded-xl object-cover" alt="" />
-                                   <div>
-                                      <p className="text-sm font-black text-slate-800">{s.name}</p>
-                                      <p className="text-[10px] font-mono text-blue-600">{s.phone}</p>
-                                   </div>
-                                </div>
-                             </td>
-                             <td className="px-6 py-4">
-                                <div className="flex flex-wrap gap-1">
-                                   {s.skills.map(sk => <span key={sk} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase">{sk}</span>)}
-                                </div>
-                             </td>
-                             <td className="px-6 py-4 text-xs font-bold text-slate-600">{s.area}</td>
-                             <td className="px-6 py-4">
-                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.status === 'Available' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{s.status}</span>
-                             </td>
-                             <td className="px-8 py-4 text-right space-x-2">
-                                <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
-                                <button onClick={() => deleteStaff(s.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
-                             </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr><td colSpan={5} className="p-20 text-center text-slate-300 font-black uppercase">No Staff Registered</td></tr>
-                      )}
-                   </tbody>
-                </table>
-             </div>
-           )}
-
-           {/* Other tabs follow the same robust pattern... (Movement Logs, Sales, etc.) */}
-           {/* (Summarized remaining tabs for focus on requested feature) */}
-           {activeTab === 'service-requests' && (
-             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <table className="w-full">
-                   <thead className="bg-slate-50 border-b">
-                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                         <th className="px-8 py-5 text-left">Customer</th>
-                         <th className="px-6 py-5 text-left">Problem</th>
-                         <th className="px-6 py-5 text-left">Assignment</th>
-                         <th className="px-6 py-5 text-left">Price</th>
-                         <th className="px-8 py-5 text-right">Actions</th>
-                      </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {serviceRequests.map(sr => (
-                        <tr key={sr.id} className="hover:bg-slate-50 transition">
-                           <td className="px-8 py-4">
-                              <p className="text-sm font-black text-slate-800">{sr.customerName}</p>
-                              <p className="text-[10px] font-mono text-blue-600">{sr.customerPhone}</p>
-                           </td>
-                           <td className="px-6 py-4">
-                              <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase">{sr.serviceType}</span>
-                              <p className="text-[10px] text-slate-400 mt-1 italic truncate max-w-[200px]">{sr.problemDescription}</p>
-                           </td>
-                           <td className="px-6 py-4">
-                              {sr.assignedStaffName ? (
-                                <p className="text-xs font-black text-slate-700">{sr.assignedStaffName}</p>
-                              ) : (
-                                <span className="text-[9px] font-black text-amber-500 uppercase">Unassigned</span>
-                              )}
-                           </td>
-                           <td className="px-6 py-4 font-black text-sm">৳{sr.manualPrice || 0}</td>
-                           <td className="px-8 py-4 text-right">
-                              <button onClick={() => { setSelectedRequest(sr); setAssigningStaffId(sr.assignedStaffId || ''); setManualPrice(sr.manualPrice || 0); }} className="px-4 py-2 bg-blue-900 text-white rounded-xl font-black text-[10px] uppercase">Manage</button>
-                           </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                     <thead className="bg-slate-50 border-b">
+                        <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                           <th className="px-8 py-5 text-left">Member</th>
+                           <th className="px-6 py-5 text-left">Role</th>
+                           <th className="px-6 py-5 text-left">Salary Type</th>
+                           <th className="px-6 py-5 text-left">Base Pay</th>
+                           <th className="px-6 py-5 text-left">Status</th>
+                           <th className="px-8 py-5 text-right">Actions</th>
                         </tr>
-                      ))}
-                   </tbody>
-                </table>
+                     </thead>
+                     <tbody className="divide-y divide-slate-50">
+                        {staff && staff.length > 0 ? (
+                          staff.map(s => (
+                            <tr key={s.id} className={`hover:bg-slate-50 transition ${!s.isActive ? 'opacity-50' : ''}`}>
+                               <td className="px-8 py-4">
+                                  <div className="flex items-center gap-4">
+                                     <img src={s.photo} className="w-10 h-10 rounded-xl object-cover border" alt="" />
+                                     <div>
+                                        <p className="text-sm font-black text-slate-800">{s.name}</p>
+                                        <p className="text-[10px] font-mono text-blue-600">{s.phone}</p>
+                                     </div>
+                                  </div>
+                               </td>
+                               <td className="px-6 py-4">
+                                  <span className={`px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase`}>{s.role || 'Member'}</span>
+                               </td>
+                               <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{s.salaryType}</td>
+                               <td className="px-6 py-4 font-black text-sm">৳{s.baseSalary}</td>
+                               <td className="px-6 py-4">
+                                  {s.isActive ? (
+                                    <span className="flex items-center gap-1 text-emerald-600 text-[9px] font-black uppercase tracking-widest">
+                                      <UserCheck size={12}/> Active
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1 text-slate-400 text-[9px] font-black uppercase tracking-widest">
+                                      <ShieldOff size={12}/> Inactive
+                                    </span>
+                                  )}
+                               </td>
+                               <td className="px-8 py-4 text-right space-x-2">
+                                  <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
+                                  <button onClick={() => deleteStaff(s.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
+                               </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr><td colSpan={6} className="p-20 text-center text-slate-300 font-black uppercase">No Staff Registered</td></tr>
+                        )}
+                     </tbody>
+                  </table>
+                </div>
              </div>
            )}
 
-           {/* Tab: MOVEMENT LOGS */}
+           {/* Tab: STOCK LOGS */}
            {activeTab === 'stock-logs' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
                 <table className="w-full">
@@ -389,60 +331,190 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                 </table>
              </div>
            )}
-           {/* (Other tabs: sales, customers, reports similarly populated) */}
+
+           {/* Tab: SALES RECORDS */}
+           {activeTab === 'sales' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Inv ID</th>
+                         <th className="px-6 py-5 text-left">Customer</th>
+                         <th className="px-6 py-5 text-left">Total</th>
+                         <th className="px-6 py-5 text-left">Status</th>
+                         <th className="px-8 py-5 text-right">Date</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {sales.map(s => (
+                        <tr key={s.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4 font-mono font-black text-xs text-blue-600">#{s.id}</td>
+                           <td className="px-6 py-4">
+                              <p className="text-xs font-black text-slate-800">{s.customerName}</p>
+                              <p className="text-[10px] text-slate-400">{s.customerPhone}</p>
+                           </td>
+                           <td className="px-6 py-4 font-black text-sm">৳{s.total}</td>
+                           <td className="px-6 py-4"><span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase">{s.status}</span></td>
+                           <td className="px-8 py-4 text-right text-[10px] font-bold text-slate-400">{new Date(s.date).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Tab: CUSTOMERS */}
+           {activeTab === 'customers' && (
+             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <table className="w-full">
+                   <thead className="bg-slate-50 border-b">
+                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                         <th className="px-8 py-5 text-left">Name</th>
+                         <th className="px-6 py-5 text-left">Phone</th>
+                         <th className="px-6 py-5 text-left">Balance Due</th>
+                         <th className="px-8 py-5 text-right">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {customers.map(c => (
+                        <tr key={c.id} className={`hover:bg-slate-50 ${c.totalDue > 0 ? 'bg-red-50/10' : ''}`}>
+                           <td className="px-8 py-4 font-black text-sm text-slate-800">{c.name}</td>
+                           <td className="px-6 py-4 font-mono text-xs text-slate-500">{c.id}</td>
+                           <td className={`px-6 py-4 font-black ${c.totalDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>৳{c.totalDue}</td>
+                           <td className="px-8 py-4 text-right">
+                              <button 
+                                onClick={() => setSelectedCustomer(c)}
+                                className="px-4 py-2 bg-blue-900 text-white rounded-xl font-black text-[10px] uppercase hover:bg-blue-800 transition"
+                              >
+                                Record Payment
+                              </button>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+           )}
+
+           {/* Tab: REPORTS */}
+           {activeTab === 'reports' && (
+             <div className="space-y-8">
+               <div className="grid md:grid-cols-3 gap-6">
+                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Sales Revenue</p>
+                   <p className="text-3xl font-black text-blue-900">৳{sales.reduce((acc, s) => acc + s.total, 0)}</p>
+                 </div>
+                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Inventory Cost</p>
+                   <p className="text-3xl font-black text-slate-800">৳{stats.totalValue}</p>
+                 </div>
+                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Projected Profit</p>
+                   <p className="text-3xl font-black text-emerald-600">৳{stats.potentialProfit}</p>
+                 </div>
+               </div>
+             </div>
+           )}
+
         </div>
       </main>
 
-      {/* Staff Modal */}
+      {/* Staff Modal (With Salary Profile) */}
       {isStaffModalOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
-           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
+           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh] shadow-2xl">
               <div className="flex justify-between items-center mb-8 border-b pb-4">
-                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingStaff ? 'Update' : 'Register'} Technician</h2>
+                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingStaff ? 'Edit Staff Profile' : 'New Staff Registration'}</h2>
                  <button onClick={() => setIsStaffModalOpen(false)} className="p-2 text-red-500">✕</button>
               </div>
-              <form onSubmit={handleStaffSubmit} className="grid md:grid-cols-2 gap-6">
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
-                   <input name="name" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="Name" defaultValue={editingStaff?.name} />
+              <form onSubmit={handleStaffSubmit} className="space-y-8">
+                 {/* Basic Info */}
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                      <input name="name" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="Name" defaultValue={editingStaff?.name} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                      <input name="phone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="01XXXXXXXXX" defaultValue={editingStaff?.phone} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Role</label>
+                      <select name="role" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.role || 'Technician'}>
+                         <option value="Technician">Technician</option>
+                         <option value="Cashier">Cashier</option>
+                         <option value="Manager">Manager</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Join Date</label>
+                      <input name="joinedAt" type="date" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.joinedAt ? editingStaff.joinedAt.split('T')[0] : ''} />
+                    </div>
                  </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
-                   <input name="phone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="01XXXXXXXXX" defaultValue={editingStaff?.phone} />
+
+                 {/* Salary Profile Section */}
+                 <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 space-y-6">
+                    <h3 className="text-xs font-black text-blue-900 uppercase tracking-[0.2em] flex items-center gap-2">
+                       <DollarSign size={16}/> Salary & Benefits
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-6">
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Salary Type</label>
+                         <select name="salaryType" className="w-full p-4 bg-white rounded-xl font-bold border-none outline-none shadow-sm" defaultValue={editingStaff?.salaryType || 'Monthly'}>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Daily">Daily</option>
+                            <option value="Per Job">Per Job</option>
+                            <option value="Commission">Commission Based</option>
+                         </select>
+                       </div>
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Base Salary (৳)</label>
+                         <input name="baseSalary" type="number" required className="w-full p-4 bg-white rounded-xl font-bold border-none outline-none shadow-sm" defaultValue={editingStaff?.baseSalary} />
+                       </div>
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Comm. Per Service (৳)</label>
+                         <input name="commission" type="number" className="w-full p-4 bg-white rounded-xl font-bold border-none outline-none shadow-sm" defaultValue={editingStaff?.commissionPerService} />
+                       </div>
+                       <div className="space-y-1">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Overtime Rate (৳/hr)</label>
+                         <input name="overtime" type="number" className="w-full p-4 bg-white rounded-xl font-bold border-none outline-none shadow-sm" defaultValue={editingStaff?.overtimeRate} />
+                       </div>
+                    </div>
                  </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">WhatsApp</label>
-                   <input name="whatsapp" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="8801XXXXXXXXX" defaultValue={editingStaff?.whatsapp} />
+
+                 {/* Additional Details */}
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Service Area</label>
+                      <input name="area" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="Ex: Uttara" defaultValue={editingStaff?.area} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">WhatsApp</label>
+                      <input name="whatsapp" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="8801..." defaultValue={editingStaff?.whatsapp} />
+                    </div>
+                    <div className="md:col-span-2 space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Photo URL</label>
+                      <input name="photo" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.photo} />
+                    </div>
+                    <div className="md:col-span-2 space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Skills (Comma separated)</label>
+                      <input name="skills" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.skills?.join(', ')} />
+                    </div>
                  </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Service Area</label>
-                   <input name="area" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="Uttara, Dhaka" defaultValue={editingStaff?.area} />
+
+                 {/* Status Switches */}
+                 <div className="flex flex-wrap gap-8 py-4 border-t">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                       <input name="isActive" type="checkbox" className="w-5 h-5 accent-emerald-500" defaultChecked={editingStaff ? editingStaff.isActive : true} />
+                       <span className="text-xs font-black uppercase text-slate-700 tracking-tight group-hover:text-emerald-600 transition">Active Status</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                       <input name="isEmergency" type="checkbox" className="w-5 h-5 accent-red-500" defaultChecked={editingStaff?.isEmergencyStaff} />
+                       <span className="text-xs font-black uppercase text-slate-700 tracking-tight group-hover:text-red-600 transition">Emergency Duty</span>
+                    </label>
                  </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Experience (Yrs)</label>
-                   <input name="experience" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.experience} />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
-                   <select name="status" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" defaultValue={editingStaff?.status || 'Available'}>
-                      <option value="Available">Available</option>
-                      <option value="Busy">Busy</option>
-                      <option value="Offline">Offline</option>
-                   </select>
-                 </div>
-                 <div className="md:col-span-2 space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Photo URL</label>
-                   <input name="photo" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="https://..." defaultValue={editingStaff?.photo} />
-                 </div>
-                 <div className="md:col-span-2 space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Skills (Comma separated)</label>
-                   <input name="skills" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none outline-none" placeholder="IPS, Solar, Wiring, Repair, Installation" defaultValue={editingStaff?.skills?.join(', ')} />
-                 </div>
-                 <div className="md:col-span-2 flex items-center gap-3 py-2">
-                    <input name="isEmergency" type="checkbox" id="emergency-check" defaultChecked={editingStaff?.isEmergencyStaff} className="w-5 h-5 accent-emerald-500" />
-                    <label htmlFor="emergency-check" className="text-sm font-black text-slate-700 uppercase tracking-tight">Available for Emergency Response</label>
-                 </div>
-                 <button className="md:col-span-2 w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl mt-4">Save Technician</button>
+
+                 <button className="w-full py-5 bg-blue-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-blue-800 transition">Save Staff Profile</button>
               </form>
            </div>
         </div>
@@ -485,52 +557,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                  </div>
                  <button className="md:col-span-2 w-full py-5 bg-blue-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl mt-4">Save Product</button>
               </form>
-           </div>
-        </div>
-      )}
-
-      {/* Service Request Modal */}
-      {selectedRequest && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
-           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-in zoom-in duration-300">
-              <div className="flex justify-between items-center border-b pb-4">
-                 <h2 className="text-xl font-black uppercase">Manage Service</h2>
-                 <button onClick={() => setSelectedRequest(null)} className="p-2 text-red-500">✕</button>
-              </div>
-              <div className="space-y-4">
-                 <div className="p-4 bg-blue-50 rounded-2xl">
-                    <p className="text-[8px] font-black text-blue-400 uppercase">Issue</p>
-                    <p className="text-sm font-bold italic">"{selectedRequest.problemDescription}"</p>
-                 </div>
-                 <div className="space-y-4">
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Assign Technician</label>
-                       <select 
-                         value={assigningStaffId}
-                         onChange={e => setAssigningStaffId(e.target.value)}
-                         className="w-full bg-slate-50 rounded-xl px-4 py-4 font-bold border-none outline-none"
-                       >
-                         <option value="">Select Technician...</option>
-                         {staff.map(s => <option key={s.id} value={s.id}>{s.name} ({s.area})</option>)}
-                       </select>
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Final Service Price (৳)</label>
-                       <input 
-                         type="number" 
-                         value={manualPrice}
-                         onChange={e => setManualPrice(Number(e.target.value))}
-                         className="w-full bg-slate-50 rounded-xl px-4 py-4 font-black text-xl border-none outline-none" 
-                       />
-                    </div>
-                 </div>
-                 <button 
-                   onClick={handleServiceUpdate}
-                   className="w-full py-5 bg-blue-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-blue-800 transition transform active:scale-95"
-                 >
-                   Save Updates
-                 </button>
-              </div>
            </div>
         </div>
       )}

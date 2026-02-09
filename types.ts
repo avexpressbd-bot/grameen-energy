@@ -91,6 +91,8 @@ export interface ServiceAd {
 
 export type StaffSkill = 'IPS' | 'Solar' | 'Wiring' | 'Repair' | 'Installation';
 export type StaffStatus = 'Available' | 'Busy' | 'Offline';
+export type StaffRole = 'Technician' | 'Cashier' | 'Manager';
+export type SalaryType = 'Monthly' | 'Daily' | 'Per Job' | 'Commission';
 
 export interface Staff {
   id: string; 
@@ -102,6 +104,12 @@ export interface Staff {
   area: string;
   experience: number;
   status: StaffStatus;
+  role: StaffRole;
+  baseSalary: number;
+  salaryType: SalaryType;
+  commissionPerService: number;
+  overtimeRate: number;
+  isActive: boolean;
   isEmergencyStaff: boolean;
   rating: number;
   totalJobs: number;
