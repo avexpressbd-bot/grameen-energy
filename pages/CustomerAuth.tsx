@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 import React, { useState } from 'react';
 import { useLanguage } from '../components/LanguageContext';
@@ -37,7 +38,7 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
         } else if (role === 'customer' || role === 'technician') {
           onNavigate('profile');
         } else {
-          setError(t('Invalid ID or Password', 'ভুল আইডি অথবা পাসওয়ার্ড'));
+          setError(t('Invalid Credentials or Password', 'ভুল তথ্য অথবা পাসওয়ার্ড'));
         }
       } else {
         if (formData.password.length < 6) {
@@ -55,7 +56,7 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
         onNavigate('profile');
       }
     } catch (err: any) {
-      setError(err.message || t('Something went wrong', 'कुछ সমস্যা হয়েছে'));
+      setError(err.message || t('Something went wrong', 'কিছু সমস্যা হয়েছে'));
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
             </h2>
             <p className="text-blue-200 text-sm font-bold leading-relaxed">
               {isLogin 
-                ? t('Login with your phone or account ID.', 'আপনার ফোন অথবা অ্যাকাউন্ট আইডি দিয়ে লগইন করুন।') 
+                ? t('Login with your phone, email or account ID.', 'আপনার ফোন, ইমেইল অথবা অ্যাকাউন্ট আইডি দিয়ে লগইন করুন।') 
                 : t('Register today for exclusive offers.', 'নতুন প্রোফাইল তৈরি করুন সব সুবিধা পেতে।')}
             </p>
           </div>
@@ -124,7 +125,7 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
 
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                {isLogin ? t('Phone or Account ID', 'ফোন নম্বর অথবা আইডি') : t('Phone Number', 'ফোন নম্বর')}
+                {isLogin ? t('Phone / Email / ID', 'ফোন / ইমেইল / আইডি') : t('Phone Number', 'ফোন নম্বর')}
               </label>
               <div className="relative">
                 {isLogin ? <ShieldCheck className="absolute left-4 top-3.5 text-slate-300" size={18} /> : <Phone className="absolute left-4 top-3.5 text-slate-300" size={18} />}
@@ -133,7 +134,7 @@ const CustomerAuth: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
                   type="text"
                   value={formData.idOrPhone}
                   onChange={(e) => setFormData({...formData, idOrPhone: e.target.value})}
-                  placeholder={isLogin ? "01XXX / GE-C-XXX" : "01XXXXXXXXX"}
+                  placeholder={isLogin ? "01XXX / email@... / GE-C-XXX" : "01XXXXXXXXX"}
                   className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-transparent rounded-2xl outline-none focus:bg-white focus:border-blue-500/10 transition font-bold font-mono"
                 />
               </div>

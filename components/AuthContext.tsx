@@ -32,14 +32,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (id: string, password: string): Promise<'admin' | 'pos' | 'customer' | 'technician' | false> => {
+    const inputId = id.trim().toLowerCase();
+
     // 1. Check Hardcoded Staff Roles
-    if (id === 'admin' && password === 'admin123') {
+    if (inputId === 'admin' && password === 'admin123') {
       setStaffRole('admin');
       localStorage.setItem('ge_staff_role', 'admin');
       return 'admin';
     }
     
-    if (id === 'posuser' && password === 'pos123') {
+    if (inputId === 'posuser' && password === 'pos123') {
       setStaffRole('pos');
       localStorage.setItem('ge_staff_role', 'pos');
       return 'pos';
@@ -49,13 +51,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let userDoc = await getDoc(doc(db, 'users', id));
     let userData = userDoc.exists() ? userDoc.data() : null;
 
-    // 3. If not found by phone, try to find by Account ID
+    // 3. If not found by phone, try to find by Account ID or Email
     if (!userData) {
-      const q = query(collection(db, 'users'), where('accountId', '==', id));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        userData = querySnapshot.docs[0].data();
-        id = querySnapshot.docs[0].id; // The phone is the doc ID
+      // Check by accountId
+      const qAcc = query(collection(db, 'users'), where('accountId', '==', id));
+      const qAccSnap = await getDocs(qAcc);
+      
+      if (!qAccSnap.empty) {
+        userData = qAccSnap.docs[0].data();
+        id = qAccSnap.docs[0].id;
+      } else {
+        // Check by email
+        const qEmail = query(collection(db, 'users'), where('email', '==', inputId));
+        const qEmailSnap = await getDocs(qEmail);
+        if (!qEmailSnap.empty) {
+          userData = qEmailSnap.docs[0].data();
+          id = qEmailSnap.docs[0].id;
+        }
       }
     }
 
@@ -87,11 +99,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       throw new Error('This phone number is already registered.');
     }
 
+    // Also check if email is already taken
+    if (userData.email) {
+      const qEmail = query(collection(db, 'users'), where('email', '==', userData.email.toLowerCase()));
+      const qEmailSnap = await getDocs(qEmail);
+      if (!qEmailSnap.empty) {
+        throw new Error('This email is already registered.');
+      }
+    }
+
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
     const accountId = role === 'technician' ? `GE-T-${randomSuffix}` : `GE-C-${randomSuffix}`;
 
     const newUserDoc = {
       ...userData,
+      email: userData.email?.toLowerCase(),
       accountId,
       password,
       role,
@@ -104,6 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       uid: userData.phone,
       accountId,
       ...userData,
+      email: userData.email?.toLowerCase(),
       role,
       createdAt: newUserDoc.createdAt
     };
