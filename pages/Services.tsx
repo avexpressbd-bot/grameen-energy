@@ -7,7 +7,7 @@ import { ServiceAd, ServiceStatus } from '../types';
 import { 
   Zap, Phone, MessageSquare, Calendar, Clock, MapPin, 
   Info, Camera, ChevronRight, CheckCircle2, AlertTriangle, 
-  Wrench, ShieldCheck, HeartPulse, Hammer, Lightbulb, Settings, X, Loader2
+  Wrench, ShieldCheck, HeartPulse, Hammer, Lightbulb, Settings, X, Loader2, User
 } from 'lucide-react';
 
 const Services: React.FC = () => {
@@ -20,6 +20,7 @@ const Services: React.FC = () => {
   const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
+    name: user?.name || '',
     problem: '',
     date: '',
     time: '',
@@ -32,6 +33,7 @@ const Services: React.FC = () => {
     if (user) {
       setFormData(prev => ({
         ...prev,
+        name: prev.name || user.name || '',
         address: prev.address || user.address || '',
         phone: prev.phone || user.phone || ''
       }));
@@ -54,7 +56,7 @@ const Services: React.FC = () => {
     setIsBooking(true);
     try {
       const id = await addServiceRequest({
-        customerName: user?.name || 'Guest',
+        customerName: formData.name || 'Guest',
         customerPhone: formData.phone,
         customerAddress: formData.address,
         serviceType: selectedServiceType,
@@ -64,8 +66,9 @@ const Services: React.FC = () => {
       });
       setBookingSuccess(id);
       setSelectedServiceType(null);
-      // Reset form
+      // Reset form (keeping user info if logged in)
       setFormData({
+        name: user?.name || '',
         problem: '',
         date: '',
         time: '',
@@ -90,7 +93,7 @@ const Services: React.FC = () => {
               </div>
               <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900">{t('Request Sent!', 'অনুরোধ পাঠানো হয়েছে!')}</h2>
               <p className="text-slate-500 font-bold leading-relaxed">
-                {t(`Your service request (ID: ${bookingSuccess}) has been received. Our technician will contact you soon.`, `আপনার সার্ভিস রিকোয়েস্ট (ID: ${bookingSuccess}) সফলভাবে পাওয়া গেছে। আমাদের টেকনিশিয়ান আপনার সাথে দ্রুত যোগাযোগ করবেন।`)}
+                {t(`Your service request (ID: ${bookingSuccess}) has been received. Our team will contact you soon.`, `আপনার সার্ভিস রিকোয়েস্ট (ID: ${bookingSuccess}) সফলভাবে পাওয়া গেছে। আমাদের টিম আপনার সাথে দ্রুত যোগাযোগ করবেন।`)}
               </p>
               <button 
                 onClick={() => setBookingSuccess(null)}
@@ -104,8 +107,8 @@ const Services: React.FC = () => {
 
       {/* Booking Modal */}
       {selectedServiceType && (
-        <div className="fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in slide-in-from-bottom-8 duration-500">
+        <div className="fixed inset-0 z-[90] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in slide-in-from-bottom-8 duration-500 my-8">
               <div className="p-8 bg-blue-900 text-white flex justify-between items-center">
                  <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
                    <Wrench size={20} className="text-emerald-400" />
@@ -116,6 +119,22 @@ const Services: React.FC = () => {
                  </button>
               </div>
               <form onSubmit={handleBook} className="p-8 space-y-5">
+                 {/* New Customer Name Field */}
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Your Name', 'আপনার নাম')}</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-3.5 text-slate-300" size={18} />
+                      <input 
+                        required
+                        type="text"
+                        placeholder={t('Enter your full name', 'আপনার পুরো নাম লিখুন')}
+                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-none rounded-2xl font-bold outline-none focus:ring-4 focus:ring-blue-50 transition"
+                        value={formData.name}
+                        onChange={e => setFormData({...formData, name: e.target.value})}
+                      />
+                    </div>
+                 </div>
+
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t('Problem Summary', 'সমস্যার বর্ণনা')}</label>
                     <textarea 
@@ -179,7 +198,7 @@ const Services: React.FC = () => {
                    type="submit"
                    className="w-full py-5 bg-blue-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 hover:bg-blue-800 transition transform active:scale-95 disabled:opacity-50 mt-4"
                  >
-                   {isBooking ? <Loader2 className="animate-spin" /> : <ChevronRight size={20}/>}
+                   {isBooking ? <Loader2 className="animate-spin" size={20} /> : <ChevronRight size={20}/>}
                    {isBooking ? t('Processing...', 'অপেক্ষা করুন...') : t('Confirm Booking', 'বুকিং নিশ্চিত করুন')}
                  </button>
               </form>
