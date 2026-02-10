@@ -20,7 +20,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const { t } = useLanguage();
   
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
-  const [searchTerm, setSearchTerm] = useState('');
   
   // Modals
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -38,9 +37,14 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const [assigningStaffId, setAssigningStaffId] = useState('');
   const [manualPrice, setManualPrice] = useState(0);
 
-  // Filters for Staff
-  const technicians = useMemo(() => staff.filter(s => s.role === 'Technician'), [staff]);
-  const shopStaffMembers = useMemo(() => staff.filter(s => s.role === 'Cashier' || s.role === 'Manager'), [staff]);
+  // LEGACY SUPPORT: If a staff has no role, they are a Technician (your missing 2 techs)
+  const technicians = useMemo(() => {
+    return (staff || []).filter(s => !s.role || s.role === 'Technician');
+  }, [staff]);
+
+  const shopStaffMembers = useMemo(() => {
+    return (staff || []).filter(s => s.role === 'Cashier' || s.role === 'Manager');
+  }, [staff]);
 
   const lowStockItems = useMemo(() => products.filter(p => p.stock <= p.minStockLevel), [products]);
 
@@ -62,7 +66,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       name: formData.get('name'),
       phone: formData.get('phone'),
       whatsapp: formData.get('whatsapp') || formData.get('phone'),
-      area: formData.get('area') || 'Shop',
+      area: formData.get('area') || 'Field',
       experience: Number(formData.get('experience') || 0),
       photo: formData.get('photo') || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200',
       status: formData.get('status') || 'Available',
@@ -133,12 +137,12 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
            <h1 className="text-xl font-black uppercase tracking-tight text-slate-800">{activeTab.replace('-', ' ')}</h1>
            <div className="flex gap-4">
               {activeTab === 'technicians' && (
-                <button onClick={() => openAddStaffModal('Technician')} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg hover:bg-emerald-700 transition">
+                <button onClick={() => openAddStaffModal('Technician')} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg">
                   <Plus size={16}/> Add Technician
                 </button>
               )}
               {activeTab === 'shop-staff' && (
-                <button onClick={() => openAddStaffModal('Cashier')} className="bg-blue-900 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg hover:bg-blue-800 transition">
+                <button onClick={() => openAddStaffModal('Cashier')} className="bg-blue-900 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg">
                   <Plus size={16}/> Add Shop Staff
                 </button>
               )}
@@ -147,13 +151,13 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
            
-           {/* Tab: OVERVIEW */}
+           {/* Tab Logic - RESTORED FULL TAB CONTENT */}
            {activeTab === 'overview' && (
              <div className="space-y-8">
                 <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6">
                    {[
                      { label: 'Stock Value', val: `৳${stats.totalValue}`, icon: Wallet, color: 'blue' },
-                     { label: 'Profit Project.', val: `৳${stats.potentialProfit}`, icon: TrendingUp, color: 'emerald' },
+                     { label: 'Profit Proj.', val: `৳${stats.potentialProfit}`, icon: TrendingUp, color: 'emerald' },
                      { label: 'Total Due', val: `৳${stats.totalReceivables}`, icon: UserMinus, color: 'red' },
                      { label: 'Revenue Today', val: `৳${stats.revenueToday}`, icon: DollarSign, color: 'purple' },
                      { label: 'Jobs Pending', val: stats.pendingServices, icon: Wrench, color: 'amber' },
@@ -167,29 +171,17 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                      </div>
                    ))}
                 </div>
-
                 <div className="grid lg:grid-cols-2 gap-8">
                   <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                    <h3 className="font-black uppercase tracking-tight mb-6 flex items-center gap-2 text-slate-800">Low Stock Alert</h3>
-                    <div className="space-y-3">
-                      {lowStockItems.length > 0 ? lowStockItems.map(p => (
-                        <div key={p.id} className="flex items-center justify-between p-4 bg-red-50 rounded-2xl border border-red-100">
-                          <span className="text-xs font-black text-slate-700">{p.name}</span>
-                          <span className="text-xs font-black text-red-600">Stock: {p.stock}</span>
-                        </div>
-                      )) : <p className="text-center text-slate-400 text-xs py-4">Inventory is healthy.</p>}
-                    </div>
-                  </div>
-                  <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                    <h3 className="font-black uppercase tracking-tight mb-6 flex items-center gap-2 text-slate-800">Team Status</h3>
+                    <h3 className="font-black uppercase tracking-tight mb-6 flex items-center gap-2 text-slate-800">Team Activity</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-slate-50 rounded-2xl">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Technicians</p>
-                        <p className="text-xl font-black text-emerald-600">{technicians.filter(t => t.isActive).length}</p>
+                      <div className="p-4 bg-emerald-50 rounded-2xl">
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Technicians</p>
+                        <p className="text-2xl font-black text-emerald-900">{technicians.length}</p>
                       </div>
-                      <div className="p-4 bg-slate-50 rounded-2xl">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Shop Personnel</p>
-                        <p className="text-xl font-black text-blue-600">{shopStaffMembers.length}</p>
+                      <div className="p-4 bg-blue-50 rounded-2xl">
+                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Shop Personnel</p>
+                        <p className="text-2xl font-black text-blue-900">{shopStaffMembers.length}</p>
                       </div>
                     </div>
                   </div>
@@ -197,7 +189,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
-           {/* Tab: INVENTORY */}
            {activeTab === 'inventory' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
                 <div className="p-8 border-b flex justify-between items-center">
@@ -211,24 +202,19 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
                          <th className="px-8 py-5 text-left">Product</th>
                          <th className="px-6 py-5 text-left">Category</th>
-                         <th className="px-6 py-5 text-left">Price</th>
                          <th className="px-6 py-5 text-left">Stock</th>
                          <th className="px-8 py-5 text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
                       {products.map(p => (
-                        <tr key={p.id} className="hover:bg-slate-50 transition">
-                           <td className="px-8 py-4">
-                              <p className="text-sm font-black text-slate-800">{p.name}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">{p.sku}</p>
-                           </td>
+                        <tr key={p.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4"><p className="text-sm font-black text-slate-800">{p.name}</p></td>
                            <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{p.category}</td>
-                           <td className="px-6 py-4 font-black">৳{p.price}</td>
                            <td className={`px-6 py-4 font-black ${p.stock <= p.minStockLevel ? 'text-red-600' : 'text-emerald-600'}`}>{p.stock}</td>
                            <td className="px-8 py-4 text-right space-x-2">
-                              <button onClick={() => { setEditingProduct(p); setIsProductModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
-                              <button onClick={() => deleteProduct(p.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
+                              <button onClick={() => { setEditingProduct(p); setIsProductModalOpen(true); }} className="p-2 text-blue-600"><Edit2 size={16}/></button>
+                              <button onClick={() => deleteProduct(p.id)} className="p-2 text-red-400"><Trash2 size={16}/></button>
                            </td>
                         </tr>
                       ))}
@@ -237,109 +223,91 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
-           {/* Tab: TECHNICIANS */}
            {activeTab === 'technicians' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Field Expert & Technicians</h3>
-                </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
                       <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
                          <th className="px-8 py-5 text-left">Member</th>
                          <th className="px-6 py-5 text-left">Expertise</th>
-                         <th className="px-6 py-5 text-left">Area</th>
                          <th className="px-6 py-5 text-left">Status</th>
                          <th className="px-8 py-5 text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
-                      {technicians.length > 0 ? technicians.map(s => (
+                      {technicians.map(s => (
                         <tr key={s.id} className="hover:bg-slate-50 transition">
                            <td className="px-8 py-4 flex items-center gap-3">
-                              <img src={s.photo} className="w-10 h-10 rounded-xl object-cover border" />
+                              <img src={s.photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200'} className="w-10 h-10 rounded-xl object-cover border" />
                               <div>
                                  <p className="text-sm font-black text-slate-800">{s.name}</p>
                                  <p className="text-[9px] text-slate-400">{s.phone}</p>
                               </div>
                            </td>
                            <td className="px-6 py-4 flex flex-wrap gap-1">
-                              {s.skills.map(sk => <span key={sk} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase">{sk}</span>)}
+                              {s.skills?.map(sk => <span key={sk} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase">{sk}</span>) || <span className="text-[8px] text-slate-400">N/A</span>}
                            </td>
-                           <td className="px-6 py-4 text-xs font-bold text-slate-600">{s.area}</td>
-                           <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.status === 'Available' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{s.status}</span></td>
+                           <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.status === 'Available' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{s.status || 'Available'}</span></td>
                            <td className="px-8 py-4 text-right space-x-2">
-                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
-                              <button onClick={() => deleteStaff(s.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
+                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600"><Edit2 size={16}/></button>
+                              <button onClick={() => deleteStaff(s.id)} className="p-2 text-red-400"><Trash2 size={16}/></button>
                            </td>
                         </tr>
-                      )) : <tr><td colSpan={5} className="p-20 text-center text-slate-300 font-black uppercase">No Technicians found</td></tr>}
+                      ))}
+                      {technicians.length === 0 && <tr><td colSpan={4} className="p-20 text-center text-slate-300 uppercase font-black">No Technicians Found</td></tr>}
                    </tbody>
                 </table>
              </div>
            )}
 
-           {/* Tab: SHOP STAFF */}
            {activeTab === 'shop-staff' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Management & POS Personnel</h3>
-                </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
                       <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                         <th className="px-8 py-5 text-left">Staff Name</th>
+                         <th className="px-8 py-5 text-left">Staff Member</th>
                          <th className="px-6 py-5 text-left">Role</th>
-                         <th className="px-6 py-5 text-left">Joined</th>
                          <th className="px-6 py-5 text-left">Status</th>
                          <th className="px-8 py-5 text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
-                      {shopStaffMembers.length > 0 ? shopStaffMembers.map(s => (
-                        <tr key={s.id} className="hover:bg-slate-50 transition">
-                           <td className="px-8 py-4 flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400">{s.name.charAt(0)}</div>
-                              <div>
-                                 <p className="text-sm font-black text-slate-800">{s.name}</p>
-                                 <p className="text-[9px] text-slate-400">{s.phone}</p>
-                              </div>
+                      {shopStaffMembers.map(s => (
+                        <tr key={s.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4">
+                              <p className="text-sm font-black text-slate-800">{s.name}</p>
+                              <p className="text-[9px] text-slate-400">{s.phone}</p>
                            </td>
                            <td className="px-6 py-4"><span className="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-[9px] font-black uppercase">{s.role}</span></td>
-                           <td className="px-6 py-4 text-xs font-bold text-slate-500">{new Date(s.joinedAt).toLocaleDateString()}</td>
                            <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${s.isActive ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{s.isActive ? 'Active' : 'Inactive'}</span></td>
-                           <td className="px-8 py-4 text-right space-x-2">
-                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit2 size={16}/></button>
-                              <button onClick={() => deleteStaff(s.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
+                           <td className="px-8 py-4 text-right">
+                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600"><Edit2 size={16}/></button>
                            </td>
                         </tr>
-                      )) : <tr><td colSpan={5} className="p-20 text-center text-slate-300 font-black uppercase">No Shop Staff found</td></tr>}
+                      ))}
+                      {shopStaffMembers.length === 0 && <tr><td colSpan={4} className="p-20 text-center text-slate-300 uppercase font-black">No Shop Staff Found</td></tr>}
                    </tbody>
                 </table>
              </div>
            )}
 
-           {/* Tab: MOVEMENT LOGS */}
            {activeTab === 'stock-logs' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Stock Movement History</h3>
-                </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
                       <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
                          <th className="px-8 py-5 text-left">Timestamp</th>
                          <th className="px-6 py-5 text-left">Product</th>
                          <th className="px-6 py-5 text-left">Reason</th>
-                         <th className="px-8 py-5 text-right">Adjustment</th>
+                         <th className="px-8 py-5 text-right">Change</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
                       {stockLogs.map(log => (
-                        <tr key={log.id} className="hover:bg-slate-50 transition">
-                           <td className="px-8 py-4 text-xs font-bold text-slate-500">{new Date(log.date).toLocaleString()}</td>
+                        <tr key={log.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4 text-[10px] font-bold text-slate-500">{new Date(log.date).toLocaleString()}</td>
                            <td className="px-6 py-4 font-black text-sm text-slate-800">{log.productName}</td>
-                           <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black uppercase text-slate-500">{log.reason}</span></td>
+                           <td className="px-6 py-4 text-xs font-bold uppercase text-slate-500">{log.reason}</td>
                            <td className={`px-8 py-4 text-right font-black ${log.change > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                              {log.change > 0 ? `+${log.change}` : log.change}
                            </td>
@@ -350,32 +318,23 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
-           {/* Tab: SALES RECORDS */}
            {activeTab === 'sales' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Full Sales Ledger</h3>
-                </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
                       <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
                          <th className="px-8 py-5 text-left">Invoice</th>
                          <th className="px-6 py-5 text-left">Customer</th>
-                         <th className="px-6 py-5 text-left">Amount</th>
-                         <th className="px-6 py-5 text-left">Method</th>
+                         <th className="px-6 py-5 text-left">Total</th>
                          <th className="px-8 py-5 text-right">Date</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
                       {sales.map(s => (
-                        <tr key={s.id} className="hover:bg-slate-50 transition">
+                        <tr key={s.id} className="hover:bg-slate-50">
                            <td className="px-8 py-4 font-mono font-black text-xs text-blue-600">#{s.id}</td>
-                           <td className="px-6 py-4">
-                              <p className="text-xs font-black text-slate-800">{s.customerName}</p>
-                              <p className="text-[9px] text-slate-400">{s.customerPhone}</p>
-                           </td>
+                           <td className="px-6 py-4"><p className="text-xs font-black text-slate-800">{s.customerName}</p></td>
                            <td className="px-6 py-4 font-black text-sm">৳{s.total}</td>
-                           <td className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">{s.paymentMethod}</td>
                            <td className="px-8 py-4 text-right text-[10px] font-bold text-slate-400">{new Date(s.date).toLocaleDateString()}</td>
                         </tr>
                       ))}
@@ -384,29 +343,23 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
-           {/* Tab: DUE LEDGER */}
            {activeTab === 'customers' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Customer Receivables</h3>
-                </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
                       <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
                          <th className="px-8 py-5 text-left">Customer</th>
-                         <th className="px-6 py-5 text-left">Due Balance</th>
-                         <th className="px-6 py-5 text-left">Last Interaction</th>
+                         <th className="px-6 py-5 text-left">Total Due</th>
                          <th className="px-8 py-5 text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
                       {customers.map(c => (
-                        <tr key={c.id} className={`hover:bg-slate-50 transition ${c.totalDue > 0 ? 'bg-red-50/10' : ''}`}>
+                        <tr key={c.id} className="hover:bg-slate-50">
                            <td className="px-8 py-4 font-black text-sm text-slate-800">{c.name}</td>
                            <td className={`px-6 py-4 font-black ${c.totalDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>৳{c.totalDue}</td>
-                           <td className="px-6 py-4 text-[10px] font-bold text-slate-400">{new Date(c.lastUpdate).toLocaleDateString()}</td>
                            <td className="px-8 py-4 text-right">
-                              <button onClick={() => setSelectedCustomer(c)} className="px-4 py-2 bg-blue-900 text-white rounded-xl font-black text-[10px] uppercase shadow-lg">Collect Payment</button>
+                              <button onClick={() => setSelectedCustomer(c)} className="px-4 py-2 bg-blue-900 text-white rounded-xl font-black text-[10px] uppercase">Record Payment</button>
                            </td>
                         </tr>
                       ))}
@@ -415,57 +368,33 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
-           {/* Tab: REPORTS */}
            {activeTab === 'reports' && (
              <div className="space-y-8">
                 <div className="grid md:grid-cols-3 gap-6">
-                   <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Gross Sales</p>
+                   <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 text-center">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Gross Sales</p>
                      <p className="text-3xl font-black text-blue-900">৳{stats.totalRevenue}</p>
                    </div>
-                   <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Uncollected Dues</p>
+                   <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 text-center">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pending Dues</p>
                      <p className="text-3xl font-black text-red-500">৳{stats.totalReceivables}</p>
                    </div>
-                   <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Inventory Cost Value</p>
+                   <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 text-center">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Inventory Value</p>
                      <p className="text-3xl font-black text-slate-800">৳{stats.totalValue}</p>
                    </div>
-                </div>
-                <div className="bg-white p-10 rounded-[3.5rem] shadow-sm border border-slate-100">
-                  <h4 className="font-black uppercase tracking-tight text-slate-800 mb-6">Recent Sales Trend</h4>
-                  <div className="h-64 flex items-end gap-2 px-4 border-b border-l border-slate-100">
-                     {sales.slice(0, 10).reverse().map((s, i) => (
-                        <div 
-                          key={i} 
-                          className="flex-1 bg-emerald-100 rounded-t-xl transition-all hover:bg-emerald-500 group relative" 
-                          style={{ height: `${Math.min(100, (s.total / 10000) * 100)}%` }}
-                        >
-                           <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">
-                             ৳{s.total}
-                           </div>
-                        </div>
-                     ))}
-                  </div>
-                  <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-4">Growth Analytics (Past Transactions)</p>
                 </div>
              </div>
            )}
 
-           {/* Rest of UI Logic for Service Jobs and Salary Profiles remained in previous versions and is now integrated here fully */}
            {activeTab === 'staff-salary' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Salary & Compensation Master</h3>
-                </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
                       <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
                          <th className="px-8 py-5 text-left">Staff Name</th>
-                         <th className="px-6 py-5 text-left">Pay Type</th>
+                         <th className="px-6 py-5 text-left">Pay Model</th>
                          <th className="px-6 py-5 text-left">Base Pay</th>
-                         <th className="px-6 py-5 text-left">Commission</th>
-                         <th className="px-6 py-5 text-left">OT Rate</th>
                          <th className="px-8 py-5 text-right">Actions</th>
                       </tr>
                    </thead>
@@ -473,12 +402,10 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       {staff.map(s => (
                         <tr key={s.id} className="hover:bg-slate-50 transition">
                            <td className="px-8 py-4 font-black text-sm text-slate-800">{s.name}</td>
-                           <td className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">{s.salaryType}</td>
-                           <td className="px-6 py-4 font-black">৳{s.baseSalary}</td>
-                           <td className="px-6 py-4 text-emerald-600 font-bold">৳{s.commissionPerService || 0}</td>
-                           <td className="px-6 py-4 text-slate-500 font-bold">৳{s.overtimeRate || 0}</td>
+                           <td className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">{s.salaryType || 'Monthly'}</td>
+                           <td className="px-6 py-4 font-black text-emerald-600">৳{s.baseSalary || 0}</td>
                            <td className="px-8 py-4 text-right">
-                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition"><Edit2 size={16}/></button>
+                              <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 text-blue-600"><Edit2 size={16}/></button>
                            </td>
                         </tr>
                       ))}
@@ -493,24 +420,19 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                    <thead className="bg-slate-50 border-b">
                       <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
                          <th className="px-8 py-5 text-left">Customer</th>
-                         <th className="px-6 py-5 text-left">Requirement</th>
-                         <th className="px-6 py-5 text-left">Technician</th>
+                         <th className="px-6 py-5 text-left">Service</th>
                          <th className="px-6 py-5 text-left">Status</th>
                          <th className="px-8 py-5 text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
                       {serviceRequests.map(sr => (
-                        <tr key={sr.id} className="hover:bg-slate-50 transition">
-                           <td className="px-8 py-4">
-                              <p className="text-sm font-black text-slate-800">{sr.customerName}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">{sr.customerPhone}</p>
-                           </td>
+                        <tr key={sr.id} className="hover:bg-slate-50">
+                           <td className="px-8 py-4"><p className="text-sm font-black text-slate-800">{sr.customerName}</p></td>
                            <td className="px-6 py-4 text-xs font-bold text-blue-600 uppercase">{sr.serviceType}</td>
-                           <td className="px-6 py-4 text-xs font-bold">{sr.assignedStaffName || 'Not Assigned'}</td>
                            <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${sr.status === 'Completed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{sr.status}</span></td>
                            <td className="px-8 py-4 text-right">
-                              <button onClick={() => { setSelectedRequest(sr); setAssigningStaffId(sr.assignedStaffId || ''); setManualPrice(sr.manualPrice || 0); }} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase">Assign & Price</button>
+                              <button onClick={() => { setSelectedRequest(sr); setAssigningStaffId(sr.assignedStaffId || ''); setManualPrice(sr.manualPrice || 0); }} className="px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase">Assign</button>
                            </td>
                         </tr>
                       ))}
@@ -522,12 +444,14 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
         </div>
       </main>
 
+      {/* MODALS */}
+
       {/* Staff Modal */}
       {isStaffModalOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
               <div className="flex justify-between items-center mb-8 border-b pb-4">
-                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingStaff?.id ? 'Edit Profile' : 'New Registration'}</h2>
+                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingStaff?.id ? 'Edit Profile' : 'New Staff'}</h2>
                  <button onClick={() => setIsStaffModalOpen(false)} className="p-2 text-red-500">✕</button>
               </div>
               <form onSubmit={handleStaffSubmit} className="space-y-6">
@@ -537,11 +461,11 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                        <input name="name" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.name} />
                     </div>
                     <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone Number</label>
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone</label>
                        <input name="phone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.phone} />
                     </div>
                     <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Designated Role</label>
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Role</label>
                        <select name="role" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.role}>
                           <option value="Technician">Technician</option>
                           <option value="Cashier">Cashier</option>
@@ -553,44 +477,86 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                        <input name="baseSalary" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.baseSalary} />
                     </div>
                     <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pay Model</label>
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pay Type</label>
                        <select name="salaryType" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.salaryType || 'Monthly'}>
-                          <option value="Monthly">Monthly Salary</option>
-                          <option value="Daily">Daily Wages</option>
-                          <option value="Per Job">Per Job Commission</option>
-                          <option value="Commission">Full Commission Only</option>
+                          <option value="Monthly">Monthly</option>
+                          <option value="Daily">Daily</option>
+                          <option value="Commission">Commission Based</option>
                        </select>
                     </div>
                     <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Commission (৳)</label>
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Commission (৳)</label>
                        <input name="commission" type="number" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.commissionPerService} />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Overtime Hourly (৳)</label>
-                       <input name="overtime" type="number" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.overtimeRate} />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operating Area</label>
-                       <input name="area" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.area} />
                     </div>
                  </div>
                  <div className="flex gap-4 items-center pt-4 border-t">
                     <label className="flex items-center gap-2 cursor-pointer">
-                       <input type="checkbox" name="isActive" className="w-5 h-5 accent-emerald-500" defaultChecked={editingStaff?.isActive ?? true} />
-                       <span className="text-xs font-black uppercase text-slate-700">Currently On-Duty</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                       <input type="checkbox" name="isEmergency" className="w-5 h-5 accent-red-500" defaultChecked={editingStaff?.isEmergencyStaff} />
-                       <span className="text-xs font-black uppercase text-slate-700">Emergency Available</span>
+                       <input type="checkbox" name="isActive" className="w-5 h-5" defaultChecked={editingStaff?.isActive ?? true} />
+                       <span className="text-xs font-black uppercase text-slate-700">Active Duty</span>
                     </label>
                  </div>
-                 <button className="w-full py-5 bg-blue-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Update Staff Record</button>
+                 <button className="w-full py-5 bg-blue-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest">Update Staff Record</button>
               </form>
            </div>
         </div>
       )}
 
-      {/* Payment Modal */}
+      {/* Product Modal */}
+      {isProductModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
+              <div className="flex justify-between items-center mb-8 border-b pb-4">
+                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingProduct ? 'Update' : 'New'} Product</h2>
+                 <button onClick={() => setIsProductModalOpen(false)} className="p-2 text-red-500">✕</button>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const p = {
+                  name: fd.get('name'),
+                  category: fd.get('category'),
+                  price: Number(fd.get('price')),
+                  purchasePrice: Number(fd.get('purchasePrice')),
+                  stock: Number(fd.get('stock')),
+                  minStockLevel: Number(fd.get('minStockLevel') || 5),
+                  sku: fd.get('sku') || 'SKU-'+Date.now(),
+                  barcode: fd.get('barcode') || Date.now().toString(),
+                  image: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=400',
+                  description: '', descriptionBn: '', specs: {}
+                };
+                if(editingProduct) await updateProduct(editingProduct.id, p);
+                else await addProduct(p);
+                setIsProductModalOpen(false);
+              }} className="grid md:grid-cols-2 gap-6">
+                 <div className="md:col-span-2 space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Title</label>
+                   <input name="name" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.name} />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+                   <select name="category" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.category}>
+                      {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                   </select>
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock</label>
+                   <input name="stock" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.stock} />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sales Price</label>
+                   <input name="price" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.price} />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Purchase Cost</label>
+                   <input name="purchasePrice" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.purchasePrice} />
+                 </div>
+                 <button className="md:col-span-2 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Save Product</button>
+              </form>
+           </div>
+        </div>
+      )}
+
+      {/* Due Payment Modal */}
       {selectedCustomer && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-6">
@@ -610,7 +576,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       type="number" 
                       value={collectionAmount}
                       onChange={e => setCollectionAmount(Number(e.target.value))}
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 font-black text-xl outline-none focus:ring-4 focus:ring-blue-50" 
+                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 font-black text-xl outline-none" 
                     />
                  </div>
                  <button 
@@ -620,66 +586,11 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                      setCollectionAmount(0);
                      alert('Payment Recorded Successfully!');
                    }}
-                   className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-emerald-700 transition"
+                   className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-widest shadow-xl"
                  >
-                   Confirm Collection
+                   Confirm Payment
                  </button>
               </div>
-           </div>
-        </div>
-      )}
-
-      {/* Product Modal */}
-      {isProductModalOpen && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
-           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 overflow-y-auto max-h-[90vh]">
-              <div className="flex justify-between items-center mb-8 border-b pb-4">
-                 <h2 className="text-2xl font-black uppercase tracking-tight">{editingProduct ? 'Update' : 'New'} Product</h2>
-                 <button onClick={() => setIsProductModalOpen(false)} className="p-2 text-red-500">✕</button>
-              </div>
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                const fd = new FormData(e.currentTarget);
-                const p = {
-                  name: fd.get('name'),
-                  nameBn: fd.get('name'), // Simplified for admin usage
-                  category: fd.get('category'),
-                  price: Number(fd.get('price')),
-                  purchasePrice: Number(fd.get('purchasePrice')),
-                  stock: Number(fd.get('stock')),
-                  minStockLevel: Number(fd.get('minStockLevel') || 5),
-                  sku: fd.get('sku') || 'SKU-'+Date.now(),
-                  barcode: fd.get('barcode') || Date.now().toString(),
-                  description: '', descriptionBn: '', specs: {}, image: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=400'
-                };
-                if(editingProduct) await updateProduct(editingProduct.id, p);
-                else await addProduct(p);
-                setIsProductModalOpen(false);
-              }} className="grid md:grid-cols-2 gap-6">
-                 <div className="md:col-span-2 space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Title</label>
-                   <input name="name" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.name} />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
-                   <select name="category" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.category}>
-                      {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                   </select>
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock Quantity</label>
-                   <input name="stock" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.stock} />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sales Price (৳)</label>
-                   <input name="price" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.price} />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Purchase Cost (৳)</label>
-                   <input name="purchasePrice" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.purchasePrice} />
-                 </div>
-                 <button className="md:col-span-2 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Confirm Product Entry</button>
-              </form>
            </div>
         </div>
       )}
@@ -694,14 +605,14 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
               </div>
               <div className="space-y-4">
                  <div>
-                    <label className="text-[10px] font-black uppercase text-slate-400">Select Expert Technician</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400">Select Technician</label>
                     <select value={assigningStaffId} onChange={e => setAssigningStaffId(e.target.value)} className="w-full p-4 bg-slate-50 rounded-xl mt-1 font-bold">
                        <option value="">-- Choose Staff --</option>
-                       {technicians.map(t => <option key={t.id} value={t.id}>{t.name} ({t.area})</option>)}
+                       {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                  </div>
                  <div>
-                    <label className="text-[10px] font-black uppercase text-slate-400">Total Job Estimation (৳)</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400">Estimation (৳)</label>
                     <input type="number" value={manualPrice} onChange={e => setManualPrice(Number(e.target.value))} className="w-full p-4 bg-slate-50 rounded-xl mt-1 font-black text-lg" />
                  </div>
                  <button onClick={async () => {
@@ -713,7 +624,6 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                      status: assigningStaffId ? 'Assigned' : selectedRequest.status
                    });
                    setSelectedRequest(null);
-                   alert('Service job has been assigned and priced.');
                  }} className="w-full py-5 bg-blue-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl">Publish Assignment</button>
               </div>
            </div>
