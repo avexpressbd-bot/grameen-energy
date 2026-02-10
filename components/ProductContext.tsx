@@ -83,7 +83,6 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   const adjustStock = async (productId: string, change: number, reason: StockLog['reason']) => {
-    // Note: In Firestore, we use increment. Locally, it will update via onSnapshot eventually.
     try {
       await updateDoc(doc(db, "products", productId), { stock: increment(change) });
       
@@ -104,8 +103,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const addProduct = async (p: Product) => {
     const id = p.id || 'GE-' + Math.floor(Math.random() * 900000 + 100000);
     const { id: _, ...data } = p;
-    await setDoc(doc(db, "products", id), { ...data, id }); // Keeping id in fields too for safety
-    // For initial stock, we don't need adjustStock because setDoc already saved the stock
+    await setDoc(doc(db, "products", id), { ...data, id }); 
     await addDoc(collection(db, "stockLogs"), {
       productId: id,
       productName: p.name,
@@ -130,7 +128,10 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     await setDoc(doc(db, "sales", id), data);
     
     for (const item of sale.items) {
-      await adjustStock(item.productId, -item.quantity, 'Sale');
+      // Skip stock adjustment for manual items
+      if (!item.manualItem) {
+        await adjustStock(item.productId, -item.quantity, 'Sale');
+      }
     }
 
     if (sale.customerPhone) {

@@ -152,6 +152,8 @@ export interface SaleItem {
   unitPrice: number;
   totalPrice: number;
   warranty?: string;
+  manualItem?: boolean;
+  note?: string;
 }
 
 export type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
