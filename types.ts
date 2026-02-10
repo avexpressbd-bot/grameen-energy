@@ -20,7 +20,8 @@ export interface Product {
   brand?: string;
   price: number; // Selling Price
   purchasePrice: number; // For Profit Calculation
-  image: string;
+  image: string; // Primary Image
+  images?: string[]; // Up to 5 images
   description: string;
   descriptionBn: string;
   isBestSeller?: boolean;

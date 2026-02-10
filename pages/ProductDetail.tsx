@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 import React, { useState } from 'react';
 import { Product } from '../types';
@@ -11,6 +12,10 @@ const ProductDetail: React.FC<{ product: Product, onNavigate: (page: string) => 
   const { addToCart } = useCart();
   const [advice, setAdvice] = useState<string | null>(null);
   const [loadingAdvice, setLoadingAdvice] = useState(false);
+  const [activeImage, setActiveImage] = useState(product.image);
+
+  // Use either the new images array or fallback to a single image array
+  const gallery = product.images && product.images.length > 0 ? product.images : [product.image];
 
   const askExpert = async () => {
     setLoadingAdvice(true);
@@ -34,12 +39,16 @@ const ProductDetail: React.FC<{ product: Product, onNavigate: (page: string) => 
         {/* Gallery */}
         <div className="space-y-4">
           <div className="aspect-square rounded-2xl overflow-hidden border bg-white flex items-center justify-center">
-            <img src={product.image} alt={product.name} className="max-w-full max-h-full object-contain" />
+            <img src={activeImage} alt={product.name} className="max-w-full max-h-full object-contain" />
           </div>
-          <div className="grid grid-cols-4 gap-4">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="aspect-square rounded-lg overflow-hidden border hover:border-emerald-500 cursor-pointer">
-                <img src={product.image} className="w-full h-full object-cover opacity-60 hover:opacity-100 transition" alt="thumb" />
+          <div className="grid grid-cols-5 gap-4">
+            {gallery.map((img, i) => (
+              <div 
+                key={i} 
+                onClick={() => setActiveImage(img)}
+                className={`aspect-square rounded-lg overflow-hidden border-2 cursor-pointer transition ${activeImage === img ? 'border-emerald-500' : 'border-transparent opacity-60 hover:opacity-100'}`}
+              >
+                <img src={img} className="w-full h-full object-cover" alt="thumb" />
               </div>
             ))}
           </div>
