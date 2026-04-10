@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus, Staff, StaffReview, StockLog } from '../types';
-import { db } from '../services/firebase';
+import { db, auth } from '../services/firebase';
 import { 
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment, addDoc, getDocFromServer, getDoc 
 } from "firebase/firestore";
@@ -93,8 +93,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         operationType,
         path,
         authInfo: {
-          // Note: auth is imported from firebase.ts
-          userId: (window as any).firebaseAuth?.currentUser?.uid,
+          userId: auth?.currentUser?.uid,
         }
       };
       console.error('Firestore Error: ', JSON.stringify(errInfo));
@@ -167,10 +166,13 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const recordSale = async (sale: Sale) => {
     try {
       const { id, ...data } = sale;
-      await setDoc(doc(db, "sales", id), data);
       
-      // Stock adjustments are secondary, we don't want to fail the whole order if they fail
-      // but we should try our best.
+      // Sanitize data to remove undefined fields which Firestore doesn't like
+      const sanitizedData = JSON.parse(JSON.stringify(data));
+      
+      await setDoc(doc(db, "sales", id), sanitizedData);
+      
+      // Stock adjustments are secondary
       for (const item of sale.items) {
         if (!item.manualItem) {
           adjustStock(item.productId, -item.quantity, 'Sale').catch(err => 
@@ -183,7 +185,16 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         const cRef = doc(db, "customers", sale.customerPhone);
         const cSnap = await getDoc(cRef);
         
+        const customerData = { 
+          name: sale.customerName || "Walking", 
+          totalDue: increment(sale.dueAmount), 
+          lastUpdate: new Date().toISOString() 
+        };
+
         if (!cSnap.exists()) {
+          // For new customer, we can't use increment() in setDoc easily for the first time if we want to be safe, 
+          // but actually setDoc with increment works if the field doesn't exist? 
+          // No, it's better to set the initial value.
           await setDoc(cRef, { 
             name: sale.customerName || "Walking", 
             totalDue: sale.dueAmount, 

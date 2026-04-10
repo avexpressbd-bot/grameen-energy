@@ -64,7 +64,7 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
 
     const saleItems: SaleItem[] = cart.map(item => ({
       productId: item.id,
-      name: item.nameBn,
+      name: item.nameBn || item.name || 'Unnamed Product',
       quantity: item.quantity,
       unitPrice: item.discountPrice || item.price,
       totalPrice: (item.discountPrice || item.price) * item.quantity,
