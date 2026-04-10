@@ -96,6 +96,7 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
       clearCart();
       window.scrollTo(0, 0);
     } catch (error) {
+      console.error("Order Placement Error:", error);
       alert(t("Something went wrong. Please try again.", "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
     } finally {
       setSubmitting(false);

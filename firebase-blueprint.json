@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A product available for sale",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "nameBn": { "type": "string" },
+        "price": { "type": "number" },
+        "discountPrice": { "type": "number" },
+        "stock": { "type": "number" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "sku": { "type": "string" },
+        "barcode": { "type": "string" },
+        "minStockLevel": { "type": "number" },
+        "warranty": { "type": "string" }
+      },
+      "required": ["name", "price", "stock", "category"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "A record of a sale or order",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "customerCity": { "type": "string" },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "total": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "dueAmount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["items", "total", "date", "status"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "A customer record",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "totalDue": { "type": "number" },
+        "lastUpdate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A registered user (customer or technician)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "technician"] },
+        "accountId": { "type": "string" },
+        "password": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "role", "password"]
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Collection of products"
+    },
+    "sales": {
+      "schema": "Sale",
+      "description": "Collection of sales and orders"
+    },
+    "customers": {
+      "schema": "Customer",
+      "description": "Collection of customer profiles and dues"
+    },
+    "users": {
+      "schema": "User",
+      "description": "Collection of registered users"
+    }
+  }
+}

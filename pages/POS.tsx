@@ -61,8 +61,13 @@ const POS: React.FC = () => {
       status: 'Delivered',
       date: new Date().toISOString()
     };
-    await recordSale(newSale);
-    setCompletedSale(newSale);
+    try {
+      await recordSale(newSale);
+      setCompletedSale(newSale);
+    } catch (error) {
+      console.error("POS Sale Error:", error);
+      alert(t("Failed to record sale. Please check connection.", "বিক্রয় রেকর্ড করা সম্ভব হয়নি। কানেকশন চেক করুন।"));
+    }
   };
 
   const addToSale = (product: Product) => {

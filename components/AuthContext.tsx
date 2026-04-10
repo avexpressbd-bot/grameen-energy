@@ -1,8 +1,9 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CustomerUser } from '../types';
-import { db } from '../services/firebase';
+import { db, auth } from '../services/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 interface AuthContextType {
   user: CustomerUser | null;
@@ -22,6 +23,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Handle Firebase Auth (Anonymous as fallback)
+    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        signInAnonymously(auth).catch(err => console.error("Anonymous Auth Error:", err));
+      }
+    });
+
+    // 2. Handle Local Custom Auth
     const savedUser = localStorage.getItem('ge_customer_user');
     const savedStaff = localStorage.getItem('ge_staff_role');
     
@@ -29,6 +38,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (savedStaff) setStaffRole(savedStaff as 'admin' | 'pos');
     
     setLoading(false);
+
+    return () => unsubAuth();
   }, []);
 
   const login = async (id: string, password: string): Promise<'admin' | 'pos' | 'customer' | 'technician' | false> => {

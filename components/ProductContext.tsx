@@ -3,8 +3,24 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus, Staff, StaffReview, StockLog } from '../types';
 import { db } from '../services/firebase';
 import { 
-  collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment, addDoc 
+  collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment, addDoc, getDocFromServer, getDoc 
 } from "firebase/firestore";
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: any;
+}
 
 interface ProductContextType {
   products: Product[];
@@ -59,21 +75,46 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     if (!db) return;
 
+    // Test connection
+    const testConnection = async () => {
+      try {
+        await getDocFromServer(doc(db, 'site', 'config'));
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration. The client is offline.");
+        }
+      }
+    };
+    testConnection();
+
+    const handleFirestoreError = (error: any, operationType: OperationType, path: string | null) => {
+      const errInfo: FirestoreErrorInfo = {
+        error: error instanceof Error ? error.message : String(error),
+        operationType,
+        path,
+        authInfo: {
+          // Note: auth is imported from firebase.ts
+          userId: (window as any).firebaseAuth?.currentUser?.uid,
+        }
+      };
+      console.error('Firestore Error: ', JSON.stringify(errInfo));
+    };
+
     const unsubProducts = onSnapshot(collection(db, "products"), (s) => {
       const pList = s.docs.map(d => ({...d.data(), id: d.id})) as Product[];
       setProducts(pList);
-    });
+    }, (err) => handleFirestoreError(err, OperationType.LIST, "products"));
     
-    const unsubSales = onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (s) => setSales(s.docs.map(d => ({...d.data(), id: d.id})) as Sale[]));
-    const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]));
-    const unsubUsers = onSnapshot(collection(db, "users"), (s) => setRegisteredUsers(s.docs.map(d => ({...d.data(), uid: d.id})) as CustomerUser[]));
-    const unsubBlogs = onSnapshot(query(collection(db, "blogs"), orderBy("date", "desc")), (s) => setBlogs(s.docs.map(d => ({...d.data(), id: d.id})) as BlogPost[]));
-    const unsubServiceRequests = onSnapshot(query(collection(db, "serviceRequests"), orderBy("createdAt", "desc")), (s) => setServiceRequests(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceRequest[]));
-    const unsubServiceAds = onSnapshot(collection(db, "serviceAds"), (s) => setServiceAds(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceAd[]));
-    const unsubStaff = onSnapshot(collection(db, "staff"), (s) => setStaff(s.docs.map(d => ({...d.data(), id: d.id})) as Staff[]));
-    const unsubReviews = onSnapshot(collection(db, "staffReviews"), (s) => setReviews(s.docs.map(d => ({...d.data(), id: d.id})) as StaffReview[]));
-    const unsubLogs = onSnapshot(query(collection(db, "stockLogs"), orderBy("date", "desc")), (s) => setStockLogs(s.docs.map(d => ({...d.data(), id: d.id})) as StockLog[]));
-    const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => d.exists() && setSettings(d.data() as SiteSettings));
+    const unsubSales = onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (s) => setSales(s.docs.map(d => ({...d.data(), id: d.id})) as Sale[]), (err) => handleFirestoreError(err, OperationType.LIST, "sales"));
+    const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]), (err) => handleFirestoreError(err, OperationType.LIST, "customers"));
+    const unsubUsers = onSnapshot(collection(db, "users"), (s) => setRegisteredUsers(s.docs.map(d => ({...d.data(), uid: d.id})) as CustomerUser[]), (err) => handleFirestoreError(err, OperationType.LIST, "users"));
+    const unsubBlogs = onSnapshot(query(collection(db, "blogs"), orderBy("date", "desc")), (s) => setBlogs(s.docs.map(d => ({...d.data(), id: d.id})) as BlogPost[]), (err) => handleFirestoreError(err, OperationType.LIST, "blogs"));
+    const unsubServiceRequests = onSnapshot(query(collection(db, "serviceRequests"), orderBy("createdAt", "desc")), (s) => setServiceRequests(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceRequest[]), (err) => handleFirestoreError(err, OperationType.LIST, "serviceRequests"));
+    const unsubServiceAds = onSnapshot(collection(db, "serviceAds"), (s) => setServiceAds(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceAd[]), (err) => handleFirestoreError(err, OperationType.LIST, "serviceAds"));
+    const unsubStaff = onSnapshot(collection(db, "staff"), (s) => setStaff(s.docs.map(d => ({...d.data(), id: d.id})) as Staff[]), (err) => handleFirestoreError(err, OperationType.LIST, "staff"));
+    const unsubReviews = onSnapshot(collection(db, "staffReviews"), (s) => setReviews(s.docs.map(d => ({...d.data(), id: d.id})) as StaffReview[]), (err) => handleFirestoreError(err, OperationType.LIST, "staffReviews"));
+    const unsubLogs = onSnapshot(query(collection(db, "stockLogs"), orderBy("date", "desc")), (s) => setStockLogs(s.docs.map(d => ({...d.data(), id: d.id})) as StockLog[]), (err) => handleFirestoreError(err, OperationType.LIST, "stockLogs"));
+    const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => d.exists() && setSettings(d.data() as SiteSettings), (err) => handleFirestoreError(err, OperationType.GET, "site/config"));
 
     setLoading(false);
     return () => { 
@@ -124,31 +165,40 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const recordSale = async (sale: Sale) => {
-    const { id, ...data } = sale;
-    await setDoc(doc(db, "sales", id), data);
-    
-    for (const item of sale.items) {
-      // Skip stock adjustment for manual items
-      if (!item.manualItem) {
-        await adjustStock(item.productId, -item.quantity, 'Sale');
+    try {
+      const { id, ...data } = sale;
+      await setDoc(doc(db, "sales", id), data);
+      
+      // Stock adjustments are secondary, we don't want to fail the whole order if they fail
+      // but we should try our best.
+      for (const item of sale.items) {
+        if (!item.manualItem) {
+          adjustStock(item.productId, -item.quantity, 'Sale').catch(err => 
+            console.error(`Failed to adjust stock for ${item.productId}:`, err)
+          );
+        }
       }
-    }
 
-    if (sale.customerPhone) {
-      const cRef = doc(db, "customers", sale.customerPhone);
-      const cSnap = await getDocs(query(collection(db, "customers")));
-      if (!cSnap.docs.some(d => d.id === sale.customerPhone)) {
-        await setDoc(cRef, { 
-          name: sale.customerName || "Walking", 
-          totalDue: sale.dueAmount, 
-          lastUpdate: new Date().toISOString() 
-        });
-      } else {
-        await updateDoc(cRef, { 
-          totalDue: increment(sale.dueAmount), 
-          lastUpdate: new Date().toISOString() 
-        });
+      if (sale.customerPhone) {
+        const cRef = doc(db, "customers", sale.customerPhone);
+        const cSnap = await getDoc(cRef);
+        
+        if (!cSnap.exists()) {
+          await setDoc(cRef, { 
+            name: sale.customerName || "Walking", 
+            totalDue: sale.dueAmount, 
+            lastUpdate: new Date().toISOString() 
+          });
+        } else {
+          await updateDoc(cRef, { 
+            totalDue: increment(sale.dueAmount), 
+            lastUpdate: new Date().toISOString() 
+          });
+        }
       }
+    } catch (error) {
+      console.error("Firestore recordSale Error:", error);
+      throw error;
     }
   };
 
