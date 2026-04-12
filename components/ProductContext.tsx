@@ -79,18 +79,10 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     // Test connection
     const testConnection = async () => {
       try {
-        console.log("Testing Firestore connection...");
-        const testDoc = await getDoc(doc(db, 'site', 'config'));
-        console.log("Firestore connection test result:", testDoc.exists() ? "Config found" : "Config not found (but connected)");
+        await getDoc(doc(db, 'site', 'config'));
+        console.log("Firestore Connected Successfully.");
       } catch (error: any) {
-        console.error("Firestore Connection Test Failed:", error);
-        if (error.message.includes('the client is offline')) {
-          alert("আপনার ইন্টারনেট কানেকশন বা ফায়ারবেস কনফিগারেশন চেক করুন। অ্যাপটি অফলাইনে আছে।");
-        } else if (error.message.includes('permission-denied')) {
-          alert("ফায়ারবেস পারমিশন এরর। দয়া করে ফায়ারবেস কনসোলে Rules আপডেট করুন।");
-        } else {
-          alert("ফায়ারবেস কানেকশন এরর: " + error.message);
-        }
+        console.error("Firestore Connection Error:", error.message);
       }
     };
     testConnection();
