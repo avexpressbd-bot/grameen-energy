@@ -79,10 +79,17 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     // Test connection
     const testConnection = async () => {
       try {
-        await getDocFromServer(doc(db, 'site', 'config'));
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration. The client is offline.");
+        console.log("Testing Firestore connection...");
+        const testDoc = await getDoc(doc(db, 'site', 'config'));
+        console.log("Firestore connection test result:", testDoc.exists() ? "Config found" : "Config not found (but connected)");
+      } catch (error: any) {
+        console.error("Firestore Connection Test Failed:", error);
+        if (error.message.includes('the client is offline')) {
+          alert("আপনার ইন্টারনেট কানেকশন বা ফায়ারবেস কনফিগারেশন চেক করুন। অ্যাপটি অফলাইনে আছে।");
+        } else if (error.message.includes('permission-denied')) {
+          alert("ফায়ারবেস পারমিশন এরর। দয়া করে ফায়ারবেস কনসোলে Rules আপডেট করুন।");
+        } else {
+          alert("ফায়ারবেস কানেকশন এরর: " + error.message);
         }
       }
     };
@@ -101,9 +108,13 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
 
     const unsubProducts = onSnapshot(collection(db, "products"), (s) => {
+      console.log(`Fetched ${s.docs.length} products from Firestore.`);
       const pList = s.docs.map(d => ({...d.data(), id: d.id})) as Product[];
       setProducts(pList);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, "products"));
+    }, (err) => {
+      console.error("Products Snapshot Error:", err);
+      handleFirestoreError(err, OperationType.LIST, "products");
+    });
     
     const unsubSales = onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (s) => setSales(s.docs.map(d => ({...d.data(), id: d.id})) as Sale[]), (err) => handleFirestoreError(err, OperationType.LIST, "sales"));
     const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]), (err) => handleFirestoreError(err, OperationType.LIST, "customers"));
