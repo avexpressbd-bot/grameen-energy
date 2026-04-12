@@ -54,7 +54,7 @@ interface ProductContextType {
   addStaff: (s: Staff) => Promise<void>;
   updateStaff: (id: string, data: Partial<Staff>) => Promise<void>;
   deleteStaff: (id: string) => Promise<void>;
-  addReview: (review: StaffReview) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -147,20 +147,37 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const addProduct = async (p: Product) => {
     try {
       const id = 'GE-' + Math.floor(Math.random() * 900000 + 100000);
-      const { id: _, ...data } = p;
       
-      console.log("Attempting to add product to Firestore...", { id, data });
+      // Ensure all required fields have values
+      const productData = {
+        name: p.name || 'Unnamed Product',
+        nameBn: p.nameBn || p.name || 'নামহীন পণ্য',
+        category: p.category || 'Other',
+        price: Number(p.price) || 0,
+        purchasePrice: Number(p.purchasePrice) || 0,
+        stock: Number(p.stock) || 0,
+        minStockLevel: Number(p.minStockLevel) || 5,
+        sku: p.sku || 'SKU-' + id,
+        barcode: p.barcode || id,
+        image: p.image || 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=400',
+        images: p.images || [],
+        description: p.description || '',
+        descriptionBn: p.descriptionBn || '',
+        specs: p.specs || {},
+        id: id
+      };
       
-      await setDoc(doc(db, "products", id), { ...data, id }); 
-      console.log("Product saved successfully to Firestore ID:", id);
+      console.log("Saving product to Firestore:", id, productData);
       
-      // Success alert for the user
+      await setDoc(doc(db, "products", id), productData); 
+      console.log("Product saved successfully!");
+      
       alert("প্রোডাক্টটি সফলভাবে সেভ হয়েছে!");
       
       await addDoc(collection(db, "stockLogs"), {
         productId: id,
-        productName: p.name,
-        change: p.stock,
+        productName: productData.name,
+        change: productData.stock,
         reason: 'Purchase',
         date: new Date().toISOString(),
         user: "System Admin"
@@ -265,6 +282,22 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
   const updateCustomerDue = async (phone: string, name: string, amount: number) => await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
 
+  const refreshData = async () => {
+    try {
+      setLoading(true);
+      console.log("Manual refresh triggered...");
+      const s = await getDocs(collection(db, "products"));
+      console.log(`Manual fetch: Found ${s.docs.length} products.`);
+      setProducts(s.docs.map(d => ({...d.data(), id: d.id})) as Product[]);
+      setLoading(false);
+      alert(`ডাটাবেজ থেকে ${s.docs.length}টি প্রোডাক্ট পাওয়া গেছে।`);
+    } catch (e: any) {
+      console.error("Manual refresh error:", e);
+      alert("রিফ্রেশ করতে সমস্যা হয়েছে: " + e.message);
+      setLoading(false);
+    }
+  };
+
   return (
     <ProductContext.Provider value={{ 
       products, sales, customers, registeredUsers, blogs, settings, loading, 
@@ -272,7 +305,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       addProduct, updateProduct, deleteProduct, adjustStock, recordSale, 
       updateSaleStatus, updateSale, updateCustomerDue, updateSettings, addBlog, deleteBlog,
       addServiceRequest, updateServiceStatus, updateServiceRequest, addServiceAd, deleteServiceAd,
-      addStaff, updateStaff, deleteStaff, addReview
+      addStaff, updateStaff, deleteStaff, addReview, refreshData
     }}>
       {children}
     </ProductContext.Provider>
