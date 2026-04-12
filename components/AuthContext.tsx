@@ -26,7 +26,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // 1. Handle Firebase Auth (Anonymous as fallback)
     const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (!firebaseUser) {
-        signInAnonymously(auth).catch(err => console.error("Anonymous Auth Error:", err));
+        signInAnonymously(auth).catch(err => {
+          console.error("Anonymous Auth Error:", err.message);
+          if (err.code === 'auth/admin-restricted-operation') {
+            console.warn("ACTION REQUIRED: Enable 'Anonymous' sign-in provider in Firebase Console > Authentication > Sign-in method.");
+          }
+        });
       }
     });
 

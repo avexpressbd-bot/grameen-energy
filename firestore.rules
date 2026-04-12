@@ -43,7 +43,32 @@ service cloud.firestore {
     }
 
     // Rules
+    match /site/config {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /blogs/{blogId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /serviceAds/{adId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /staff/{staffId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /staffReviews/{reviewId} {
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -53,14 +78,22 @@ service cloud.firestore {
       allow read, update, delete: if isAuthenticated();
     }
 
+    match /serviceRequests/{requestId} {
+      allow create: if true;
+      allow read, update, delete: if isAuthenticated();
+    }
+
     match /customers/{phone} {
-      allow read: if true;
-      allow write: if true; // Allow updating dues during sale
+      allow read, write: if true; // Allow updating dues during sale
     }
 
     match /users/{phone} {
-      allow read: if true;
-      allow write: if true; // Allow registration
+      allow read, write: if true; // Allow registration
+    }
+
+    match /stockLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /{path=**} {

@@ -90,14 +90,24 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
     };
 
     try {
-      await recordSale(newSale);
+      // Add a timeout to the order placement
+      const orderPromise = recordSale(newSale);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout: Database connection taking too long.")), 10000)
+      );
+
+      await Promise.race([orderPromise, timeoutPromise]);
+      
       setOrderId(id);
       setIsOrdered(true);
       clearCart();
       window.scrollTo(0, 0);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Order Placement Error:", error);
-      alert(t("Something went wrong. Please try again.", "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন।"));
+      const errorMsg = error.message?.includes("Timeout") 
+        ? t("Connection timeout. Please check your internet or Firebase setup.", "কানেকশন টাইম-আউট। ইন্টারনেট বা ফায়ারবেস সেটআপ চেক করুন।")
+        : t("Something went wrong. Please try again.", "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+      alert(errorMsg);
     } finally {
       setSubmitting(false);
     }
