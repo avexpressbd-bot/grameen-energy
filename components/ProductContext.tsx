@@ -175,11 +175,14 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const recordSale = async (sale: Sale) => {
     try {
       const { id, ...data } = sale;
+      console.log("Starting recordSale for ID:", id);
       
       // Sanitize data to remove undefined fields which Firestore doesn't like
       const sanitizedData = JSON.parse(JSON.stringify(data));
       
+      console.log("Saving sale document...");
       await setDoc(doc(db, "sales", id), sanitizedData);
+      console.log("Sale document saved.");
       
       // Stock adjustments are secondary
       for (const item of sale.items) {
@@ -191,31 +194,27 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
 
       if (sale.customerPhone) {
+        console.log("Updating customer data for phone:", sale.customerPhone);
         const cRef = doc(db, "customers", sale.customerPhone);
         const cSnap = await getDoc(cRef);
         
-        const customerData = { 
-          name: sale.customerName || "Walking", 
-          totalDue: increment(sale.dueAmount), 
-          lastUpdate: new Date().toISOString() 
-        };
-
         if (!cSnap.exists()) {
-          // For new customer, we can't use increment() in setDoc easily for the first time if we want to be safe, 
-          // but actually setDoc with increment works if the field doesn't exist? 
-          // No, it's better to set the initial value.
+          console.log("Creating new customer...");
           await setDoc(cRef, { 
             name: sale.customerName || "Walking", 
             totalDue: sale.dueAmount, 
             lastUpdate: new Date().toISOString() 
           });
         } else {
+          console.log("Updating existing customer...");
           await updateDoc(cRef, { 
             totalDue: increment(sale.dueAmount), 
             lastUpdate: new Date().toISOString() 
           });
         }
+        console.log("Customer data updated.");
       }
+      console.log("recordSale completed successfully.");
     } catch (error) {
       console.error("Firestore recordSale Error:", error);
       throw error;

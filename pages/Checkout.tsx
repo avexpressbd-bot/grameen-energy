@@ -93,7 +93,7 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
       // Add a timeout to the order placement
       const orderPromise = recordSale(newSale);
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout: Database connection taking too long.")), 10000)
+        setTimeout(() => reject(new Error("Timeout: Database connection taking too long.")), 20000)
       );
 
       await Promise.race([orderPromise, timeoutPromise]);
@@ -103,10 +103,17 @@ const Checkout: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate
       clearCart();
       window.scrollTo(0, 0);
     } catch (error: any) {
-      console.error("Order Placement Error:", error);
-      const errorMsg = error.message?.includes("Timeout") 
-        ? t("Connection timeout. Please check your internet or Firebase setup.", "কানেকশন টাইম-আউট। ইন্টারনেট বা ফায়ারবেস সেটআপ চেক করুন।")
-        : t("Something went wrong. Please try again.", "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+      console.error("Order Placement Error Details:", error);
+      let errorMsg = t("Something went wrong. Please try again.", "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+      
+      if (error.message?.includes("Timeout")) {
+        errorMsg = t("Connection timeout. Please check your internet or Firebase setup.", "কানেকশন টাইম-আউট। ইন্টারনেট বা ফায়ারবেস সেটআপ চেক করুন।");
+      } else if (error.message?.includes("permission")) {
+        errorMsg = t("Permission denied. Please check Firebase Security Rules.", "অনুমতি নেই। ফায়ারবেস সিকিউরিটি রুলস চেক করুন।");
+      } else if (error.message) {
+        errorMsg = `${t("Error", "ত্রুটি")}: ${error.message}`;
+      }
+      
       alert(errorMsg);
     } finally {
       setSubmitting(false);
