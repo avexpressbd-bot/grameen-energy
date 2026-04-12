@@ -41,6 +41,7 @@ interface ProductContextType {
   adjustStock: (productId: string, change: number, reason: StockLog['reason']) => Promise<void>;
   recordSale: (sale: Sale) => Promise<void>;
   updateSaleStatus: (id: string, status: OrderStatus) => Promise<void>;
+  updateSale: (id: string, data: Partial<Sale>) => Promise<void>;
   updateCustomerDue: (phone: string, name: string, amountPaid: number) => Promise<void>;
   updateSettings: (newSettings: SiteSettings) => Promise<void>;
   addBlog: (blog: BlogPost) => Promise<void>;
@@ -141,17 +142,25 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const addProduct = async (p: Product) => {
-    const id = p.id || 'GE-' + Math.floor(Math.random() * 900000 + 100000);
-    const { id: _, ...data } = p;
-    await setDoc(doc(db, "products", id), { ...data, id }); 
-    await addDoc(collection(db, "stockLogs"), {
-      productId: id,
-      productName: p.name,
-      change: p.stock,
-      reason: 'Purchase',
-      date: new Date().toISOString(),
-      user: "System Admin"
-    });
+    try {
+      const id = p.id || 'GE-' + Math.floor(Math.random() * 900000 + 100000);
+      const { id: _, ...data } = p;
+      console.log("Adding product to Firestore:", id, data);
+      await setDoc(doc(db, "products", id), { ...data, id }); 
+      console.log("Product added successfully:", id);
+      
+      await addDoc(collection(db, "stockLogs"), {
+        productId: id,
+        productName: p.name,
+        change: p.stock,
+        reason: 'Purchase',
+        date: new Date().toISOString(),
+        user: "System Admin"
+      });
+    } catch (error) {
+      console.error("Firestore addProduct Error:", error);
+      throw error;
+    }
   };
 
   const updateProduct = async (id: string, p: Product) => {
@@ -241,6 +250,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const addBlog = async (b: BlogPost) => await setDoc(doc(db, "blogs", b.id), b);
   const deleteBlog = async (id: string) => await deleteDoc(doc(db, "blogs", id));
   const updateSaleStatus = async (id: string, status: OrderStatus) => await updateDoc(doc(db, "sales", id), { status });
+  const updateSale = async (id: string, data: Partial<Sale>) => {
+    const { id: _, ...updateData } = data;
+    const sanitizedData = JSON.parse(JSON.stringify(updateData));
+    await updateDoc(doc(db, "sales", id), sanitizedData);
+  };
   const updateCustomerDue = async (phone: string, name: string, amount: number) => await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
 
   return (
@@ -248,7 +262,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       products, sales, customers, registeredUsers, blogs, settings, loading, 
       serviceRequests, serviceAds, staff, reviews, stockLogs,
       addProduct, updateProduct, deleteProduct, adjustStock, recordSale, 
-      updateSaleStatus, updateCustomerDue, updateSettings, addBlog, deleteBlog,
+      updateSaleStatus, updateSale, updateCustomerDue, updateSettings, addBlog, deleteBlog,
       addServiceRequest, updateServiceStatus, updateServiceRequest, addServiceAd, deleteServiceAd,
       addStaff, updateStaff, deleteStaff, addReview
     }}>

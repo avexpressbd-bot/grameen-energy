@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
+import BarcodeScanner from '../components/BarcodeScanner';
 import { Category, Product, Sale, OrderStatus, Customer, ServiceRequest, StockLog, Staff, StaffSkill } from '../types';
 import { 
   Plus, Edit2, Trash2, Box, X, Search, DollarSign, BarChart3, Users,
@@ -17,7 +18,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const { 
     products, sales, stockLogs, customers, serviceRequests, staff, 
     addProduct, updateProduct, deleteProduct, updateServiceRequest, updateCustomerDue,
-    addStaff, updateStaff, deleteStaff
+    addStaff, updateStaff, deleteStaff, updateSale
   } = useProducts();
   const { t } = useLanguage();
   
@@ -26,10 +27,17 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   // Modals
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
+  const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
   
   // Editing states
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  
+  // Barcode state
+  const [scannedBarcode, setScannedBarcode] = useState('');
+  const [inventorySearch, setInventorySearch] = useState('');
   
   // Image Upload States (Multi-photo support: 1-5)
   const [productImages, setProductImages] = useState<string[]>([]);
@@ -106,6 +114,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
 
   const openProductModal = (product: Product | null = null) => {
     setEditingProduct(product);
+    setScannedBarcode(product?.barcode || '');
     if (product) {
       const existingImages = product.images || [];
       const primaryImage = product.image;
@@ -133,7 +142,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       stock: Number(fd.get('stock')),
       minStockLevel: Number(fd.get('minStockLevel') || 5),
       sku: fd.get('sku') || 'SKU-'+Date.now(),
-      barcode: fd.get('barcode') || Date.now().toString(),
+      barcode: scannedBarcode || fd.get('barcode') || Date.now().toString(),
       image: primaryImage,
       images: productImages, // Storing all 5 photos
       description: fd.get('description'),
@@ -141,11 +150,16 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       specs: editingProduct?.specs || {}
     };
 
-    if (editingProduct) await updateProduct(editingProduct.id, p);
-    else await addProduct(p);
-    
-    setIsProductModalOpen(false);
-    setProductImages([]);
+    try {
+      if (editingProduct) await updateProduct(editingProduct.id, p);
+      else await addProduct(p);
+      setIsProductModalOpen(false);
+      setProductImages([]);
+      setScannedBarcode('');
+    } catch (err) {
+      console.error("Failed to save product:", err);
+      alert("Failed to save product. Please check your connection and permissions.");
+    }
   };
 
   return (
@@ -201,6 +215,23 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
                 <div className="p-8 border-b flex justify-between items-center">
                    <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Product Inventory</h3>
+                    <div className="flex gap-2 w-full md:w-auto">
+                       <div className="relative flex-1 md:w-64">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input 
+                            type="text" 
+                            placeholder="Search products..." 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 rounded-xl text-xs font-bold border-none"
+                            onChange={(e) => setInventorySearch(e.target.value)}
+                          />
+                       </div>
+                       <button 
+                         onClick={() => setIsBarcodeScannerOpen(true)}
+                         className="p-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition"
+                       >
+                         <Camera size={18} />
+                       </button>
+                    </div>
                 </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
@@ -212,7 +243,12 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
-                      {products.map(p => (
+                      {products.filter(p => 
+                         p.name.toLowerCase().includes(inventorySearch.toLowerCase()) || 
+                         p.nameBn?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+                         p.barcode?.includes(inventorySearch) ||
+                         p.sku?.toLowerCase().includes(inventorySearch.toLowerCase())
+                       ).map(p => (
                         <tr key={p.id} className="hover:bg-slate-50">
                            <td className="px-8 py-4 flex items-center gap-3">
                               <img src={p.image} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
@@ -506,7 +542,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                          <th className="px-6 py-5 text-left">Customer</th>
                          <th className="px-6 py-5 text-left">Date</th>
                          <th className="px-6 py-5 text-right">Total</th>
-                         <th className="px-8 py-5 text-right">Status</th>
+                         <th className="px-6 py-5 text-right">Status</th>
+                          <th className="px-8 py-5 text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
@@ -520,9 +557,24 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                            <td className="px-6 py-4 text-xs font-bold text-slate-500">{new Date(sale.date).toLocaleDateString()}</td>
                            <td className="px-6 py-4 text-right font-black text-slate-800">৳{sale.total}</td>
                            <td className="px-8 py-4 text-right">
-                              <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase rounded-full">Paid</span>
-                           </td>
-                        </tr>
+                              <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase ${
+                                 sale.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' :
+                                 sale.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                 sale.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                                 'bg-blue-100 text-blue-700'
+                               }`}>
+                                 {sale.status || 'Paid'}
+                               </span>
+                            </td>
+                            <td className="px-8 py-4 text-right">
+                               <button 
+                                 onClick={() => { setEditingSale(sale); setIsSaleModalOpen(true); }}
+                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                               >
+                                 <Edit2 size={16} />
+                               </button>
+                            </td>
+                         </tr>
                       ))}
                    </tbody>
                 </table>
@@ -877,6 +929,98 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                          {editingProduct ? 'Update Inventory' : 'Add to Catalog'}
                        </button>
                     </div>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
+      {/* Barcode Scanner Modal */}
+      {isBarcodeScannerOpen && (
+        <BarcodeScanner 
+          onScan={(code) => {
+            setScannedBarcode(code);
+            setIsBarcodeScannerOpen(false);
+          }}
+          onClose={() => setIsBarcodeScannerOpen(false)}
+        />
+      )}
+
+      {/* Sale Edit Modal */}
+      {isSaleModalOpen && editingSale && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+           <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+              <div className="p-8 border-b flex justify-between items-center bg-slate-50">
+                 <div>
+                    <h2 className="text-xl font-black text-slate-800">Edit Order History</h2>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Order #{editingSale.id.slice(-6)}</p>
+                 </div>
+                 <button onClick={() => setIsSaleModalOpen(false)} className="p-3 hover:bg-white rounded-2xl transition text-slate-400">
+                    <X size={24} />
+                 </button>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const updatedSale = {
+                  ...editingSale,
+                  customerName: fd.get('customerName'),
+                  customerPhone: fd.get('customerPhone'),
+                  customerAddress: fd.get('customerAddress'),
+                  status: fd.get('status') as OrderStatus,
+                  total: Number(fd.get('total')),
+                  paidAmount: Number(fd.get('paidAmount')),
+                  dueAmount: Number(fd.get('total')) - Number(fd.get('paidAmount')),
+                };
+                try {
+                  await updateSale(editingSale.id, updatedSale);
+                  setIsSaleModalOpen(false);
+                } catch (err) {
+                  alert("Failed to update sale");
+                }
+              }} className="flex-1 overflow-y-auto p-8 space-y-6">
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
+                       <input name="customerName" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.customerName} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                       <input name="customerPhone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.customerPhone} />
+                    </div>
+                 </div>
+
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
+                    <textarea name="customerAddress" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-20" defaultValue={editingSale.customerAddress} />
+                 </div>
+
+                 <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Total Amount</label>
+                       <input name="total" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.total} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Paid Amount</label>
+                       <input name="paidAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.paidAmount} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+                       <select name="status" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.status}>
+                          {['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map(s => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                       </select>
+                    </div>
+                 </div>
+
+                 <div className="pt-6 border-t flex gap-4">
+                    <button type="button" onClick={() => setIsSaleModalOpen(false)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition">
+                       Cancel
+                    </button>
+                    <button type="submit" className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition">
+                       Update Order
+                    </button>
                  </div>
               </form>
            </div>
