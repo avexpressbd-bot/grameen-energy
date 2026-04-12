@@ -9,6 +9,7 @@ import { Filter, SlidersHorizontal, Search, ShoppingCart } from 'lucide-react';
 const Shop: React.FC<{ onProductClick: (id: string) => void }> = ({ onProductClick }) => {
   const { t } = useLanguage();
   const { products } = useProducts();
+  console.log("Shop products state:", products);
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [searchTerm, setSearchTerm] = useState('');
   

@@ -100,8 +100,12 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
 
     const unsubProducts = onSnapshot(collection(db, "products"), (s) => {
-      console.log(`Fetched ${s.docs.length} products from Firestore.`);
-      const pList = s.docs.map(d => ({...d.data(), id: d.id})) as Product[];
+      console.log(`[Snapshot] products collection updated. Count: ${s.docs.length}`);
+      const pList = s.docs.map(d => {
+        const data = d.data();
+        return {...data, id: d.id};
+      }) as Product[];
+      console.log("[Snapshot] Mapped products:", pList);
       setProducts(pList);
     }, (err) => {
       console.error("Products Snapshot Error:", err);
@@ -117,7 +121,9 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const unsubStaff = onSnapshot(collection(db, "staff"), (s) => setStaff(s.docs.map(d => ({...d.data(), id: d.id})) as Staff[]), (err) => handleFirestoreError(err, OperationType.LIST, "staff"));
     const unsubReviews = onSnapshot(collection(db, "staffReviews"), (s) => setReviews(s.docs.map(d => ({...d.data(), id: d.id})) as StaffReview[]), (err) => handleFirestoreError(err, OperationType.LIST, "staffReviews"));
     const unsubLogs = onSnapshot(query(collection(db, "stockLogs"), orderBy("date", "desc")), (s) => setStockLogs(s.docs.map(d => ({...d.data(), id: d.id})) as StockLog[]), (err) => handleFirestoreError(err, OperationType.LIST, "stockLogs"));
-    const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => d.exists() && setSettings(d.data() as SiteSettings), (err) => handleFirestoreError(err, OperationType.GET, "site/config"));
+    const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => {
+      if (d.exists()) setSettings(d.data() as SiteSettings);
+    }, (err) => handleFirestoreError(err, OperationType.GET, "site/config"));
 
     setLoading(false);
     return () => { 

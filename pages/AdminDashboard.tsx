@@ -18,8 +18,10 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const { 
     products, sales, stockLogs, customers, serviceRequests, staff, 
     addProduct, updateProduct, deleteProduct, updateServiceRequest, updateCustomerDue,
-    addStaff, updateStaff, deleteStaff, updateSale
+    addStaff, updateStaff, deleteStaff, updateSale, refreshData
   } = useProducts();
+
+  console.log("AdminDashboard products state:", products);
   const { t } = useLanguage();
   
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
