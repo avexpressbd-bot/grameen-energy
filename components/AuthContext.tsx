@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CustomerUser } from '../types';
 import { db, auth } from '../services/firebase';
+import firebaseConfig from '../firebase-applet-config.json';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
@@ -29,7 +30,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signInAnonymously(auth).catch(err => {
           console.error("Anonymous Auth Error:", err.message);
           if (err.code === 'auth/admin-restricted-operation') {
-            console.warn("ACTION REQUIRED: Enable 'Anonymous' sign-in provider in Firebase Console > Authentication > Sign-in method.");
+            const projectId = (firebaseConfig as any).projectId;
+            console.warn(`ACTION REQUIRED: Enable 'Anonymous' sign-in provider in Firebase Console for project [${projectId}].`);
+            console.warn(`Go to: https://console.firebase.google.com/project/${projectId}/authentication/providers`);
           }
         });
       }
