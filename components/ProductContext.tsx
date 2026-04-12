@@ -97,6 +97,10 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
       };
       console.error('Firestore Error: ', JSON.stringify(errInfo));
+      
+      if (error.message?.includes('permission-denied') || error.code === 'permission-denied') {
+        alert(`ফায়ারবেস পারমিশন এরর (${operationType} on ${path})। দয়া করে ফায়ারবেস কনসোলে Rules আপডেট করুন।`);
+      }
     };
 
     const unsubProducts = onSnapshot(collection(db, "products"), (s) => {
