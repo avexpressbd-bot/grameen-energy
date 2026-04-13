@@ -130,6 +130,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("handleProductSubmit triggered");
     const fd = new FormData(e.currentTarget);
     
     // Main image is the first one, or a placeholder
@@ -152,14 +153,22 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       specs: editingProduct?.specs || {}
     };
 
+    console.log("Product data to save:", p);
+
     try {
-      if (editingProduct) await updateProduct(editingProduct.id, p);
-      else await addProduct(p);
+      if (editingProduct) {
+        console.log("Updating existing product:", editingProduct.id);
+        await updateProduct(editingProduct.id, p);
+      } else {
+        console.log("Adding new product...");
+        await addProduct(p);
+      }
+      console.log("Save operation finished successfully");
       setIsProductModalOpen(false);
       setProductImages([]);
       setScannedBarcode('');
     } catch (err) {
-      console.error("Failed to save product:", err);
+      console.error("Failed to save product in AdminDashboard:", err);
       alert("Failed to save product. Please check your connection and permissions.");
     }
   };
