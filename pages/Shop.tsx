@@ -15,7 +15,10 @@ const Shop: React.FC<{ onProductClick: (id: string) => void }> = ({ onProductCli
   
   const filteredProducts = products.filter(p => {
     const matchesCat = selectedCategory === 'All' || p.category === selectedCategory;
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.nameBn.includes(searchTerm);
+    const matchesSearch = (p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      p.nameBn?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.barcode?.includes(searchTerm) ||
+      p.sku?.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesCat && matchesSearch;
   });
 

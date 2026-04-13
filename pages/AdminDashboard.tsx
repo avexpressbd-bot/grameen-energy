@@ -251,12 +251,15 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
-                      {products.filter(p => 
-                         p.name.toLowerCase().includes(inventorySearch.toLowerCase()) || 
-                         p.nameBn?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-                         p.barcode?.includes(inventorySearch) ||
-                         p.sku?.toLowerCase().includes(inventorySearch.toLowerCase())
-                       ).map(p => (
+                      {products.filter(p => {
+                        const search = inventorySearch.toLowerCase();
+                        return (
+                          p.name?.toLowerCase().includes(search) || 
+                          p.nameBn?.toLowerCase().includes(search) ||
+                          p.barcode?.includes(search) ||
+                          p.sku?.toLowerCase().includes(search)
+                        );
+                      }).map(p => (
                         <tr key={p.id} className="hover:bg-slate-50">
                            <td className="px-8 py-4 flex items-center gap-3">
                               <img src={p.image} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
