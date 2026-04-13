@@ -155,6 +155,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const addProduct = async (p: Product) => {
+    console.log("addProduct called with:", p);
     try {
       const id = 'GE-' + Math.floor(Math.random() * 900000 + 100000);
       
@@ -177,10 +178,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         id: id
       };
       
-      console.log("Saving product to Firestore:", id, productData);
+      console.log("Attempting to save to Firestore. Path: products/", id);
+      console.log("Data:", productData);
       
       await setDoc(doc(db, "products", id), productData); 
-      console.log("Product saved successfully!");
+      console.log("SUCCESS: Product saved to Firestore.");
       
       alert("প্রোডাক্টটি সফলভাবে সেভ হয়েছে!");
       
@@ -192,8 +194,9 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         date: new Date().toISOString(),
         user: "System Admin"
       });
+      console.log("SUCCESS: Stock log created.");
     } catch (error: any) {
-      console.error("Firestore addProduct Error:", error);
+      console.error("CRITICAL ERROR in addProduct:", error);
       alert("প্রোডাক্ট সেভ করতে সমস্যা হয়েছে: " + error.message);
       throw error;
     }
