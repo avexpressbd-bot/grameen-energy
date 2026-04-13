@@ -1,10 +1,10 @@
 {
-  "apiKey": "AIzaSyC2quDuygLI5EZiDz_xwBClgswhaOyVh0c",
-  "authDomain": "grameen-energy-655bc.firebaseapp.com",
-  "projectId": "grameen-energy-655bc",
-  "storageBucket": "grameen-energy-655bc.firebasestorage.app",
-  "messagingSenderId": "909658816808",
-  "appId": "1:909658816808:web:51832543eb683c5150901d",
-  "measurementId": "G-05DK24QGST",
-  "firestoreDatabaseId": "(default)"
+  "projectId": "ai-studio-applet-webapp-f319c",
+  "appId": "1:242719620937:web:6bb6e18ae2ae3037c26498",
+  "apiKey": "AIzaSyANCdMJu2eezfagT2m-Ngs3PD94F_M0Y0I",
+  "authDomain": "ai-studio-applet-webapp-f319c.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-73ccd466-1caa-4742-a830-83cbb2f1959a",
+  "storageBucket": "ai-studio-applet-webapp-f319c.firebasestorage.app",
+  "messagingSenderId": "242719620937",
+  "measurementId": ""
 }
