@@ -31,6 +31,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Editing states
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -99,13 +100,43 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
         setUploadProgress(progress);
       }
     };
-    reader.onloadend = () => {
-      setProductImages(prev => [...prev, reader.result as string].slice(0, 5));
-      setUploadProgress(100);
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploadProgress(0);
-      }, 500);
+    reader.onload = () => {
+      const img = new Image();
+      img.src = reader.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Compress to JPEG with 0.6 quality
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        console.log(`Image compressed: ${Math.round(compressedDataUrl.length / 1024)}KB`);
+        
+        setProductImages(prev => [...prev, compressedDataUrl].slice(0, 5));
+        setUploadProgress(100);
+        setTimeout(() => {
+          setIsUploading(false);
+          setUploadProgress(0);
+        }, 500);
+      };
     };
     reader.readAsDataURL(file);
   };
@@ -130,6 +161,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
     console.log("handleProductSubmit triggered");
     const fd = new FormData(e.currentTarget);
     
@@ -170,6 +203,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     } catch (err) {
       console.error("Failed to save product in AdminDashboard:", err);
       alert("Failed to save product. Please check your connection and permissions.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -944,8 +979,10 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                        </button>
                        <button 
                          type="submit"
-                         className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition"
+                         disabled={isSaving}
+                         className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition disabled:opacity-50 flex items-center justify-center gap-2"
                        >
+                         {isSaving && <Loader2 className="animate-spin" size={18} />}
                          {editingProduct ? 'Update Inventory' : 'Add to Catalog'}
                        </button>
                     </div>

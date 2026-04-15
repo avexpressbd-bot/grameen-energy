@@ -178,9 +178,16 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         id: id
       };
       
-      console.log("Attempting to save to Firestore. Path: products/", id);
-      console.log("Data:", productData);
+      const dataSize = JSON.stringify(productData).length;
+      console.log(`[Firestore] Product data size: ${Math.round(dataSize / 1024)}KB`);
       
+      if (dataSize > 1000000) {
+        const errorMsg = "প্রোডাক্টের ডাটা অনেক বড় (১ মেগাবাইটের বেশি)। দয়া করে কম ছবি ব্যবহার করুন বা ছবির সাইজ ছোট করুন।";
+        alert(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log("Attempting to save to Firestore. Path: products/", id);
       await setDoc(doc(db, "products", id), productData); 
       console.log("SUCCESS: Product saved to Firestore.");
       
