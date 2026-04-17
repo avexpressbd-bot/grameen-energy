@@ -1,6 +1,6 @@
 
 // @ts-nocheck
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
 import BarcodeScanner from '../components/BarcodeScanner';
