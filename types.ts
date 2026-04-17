@@ -50,6 +50,7 @@ export interface CartItem extends Product {
 export interface SiteSettings {
   siteName: string;
   siteNameBn: string;
+  logoUrl?: string;
   contactPhone: string;
   contactEmail: string;
   address: string;

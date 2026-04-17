@@ -12,13 +12,13 @@ import {
   Upload, Camera, Image as ImageIcon, Loader2
 } from 'lucide-react';
 
-type AdminTab = 'overview' | 'inventory' | 'service-requests' | 'technicians' | 'shop-staff' | 'staff-salary' | 'stock-logs' | 'sales' | 'customers' | 'reports';
+type AdminTab = 'overview' | 'inventory' | 'service-requests' | 'technicians' | 'shop-staff' | 'staff-salary' | 'stock-logs' | 'sales' | 'customers' | 'reports' | 'settings';
 
 const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const { 
-    products, sales, stockLogs, customers, serviceRequests, staff, 
+    products, sales, stockLogs, customers, serviceRequests, staff, settings,
     addProduct, updateProduct, deleteProduct, updateServiceRequest, updateCustomerDue,
-    addStaff, updateStaff, deleteStaff, updateSale, refreshData
+    addStaff, updateStaff, deleteStaff, updateSale, updateSettings, refreshData
   } = useProducts();
 
   console.log("AdminDashboard products state:", products);
@@ -115,6 +115,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   
   // Image Upload States (Multi-photo support: 1-5)
   const [productImages, setProductImages] = useState<string[]>([]);
+  const [settingsLogo, setSettingsLogo] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -212,8 +213,60 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     reader.readAsDataURL(file);
   };
 
-  const removeImage = (index: number) => {
-    setProductImages(prev => prev.filter((_, i) => i !== index));
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.src = reader.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const size = 300;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, size, size);
+          setSettingsLogo(canvas.toDataURL('image/png', 0.8));
+          setIsUploading(false);
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const fd = new FormData(e.currentTarget);
+    const s = {
+      ...settings,
+      siteName: fd.get('siteName') as string,
+      siteNameBn: fd.get('siteNameBn') as string,
+      contactPhone: fd.get('contactPhone') as string,
+      contactEmail: fd.get('contactEmail') as string,
+      address: fd.get('address') as string,
+      addressBn: fd.get('addressBn') as string,
+      whatsappNumber: fd.get('whatsappNumber') as string,
+      facebookUrl: fd.get('facebookUrl') as string,
+      instagramUrl: fd.get('instagramUrl') as string,
+      youtubeUrl: fd.get('youtubeUrl') as string,
+      heroTitleEn: fd.get('heroTitleEn') as string,
+      heroTitleBn: fd.get('heroTitleBn') as string,
+      heroSubtitleEn: fd.get('heroSubtitleEn') as string,
+      heroSubtitleBn: fd.get('heroSubtitleBn') as string,
+      logoUrl: settingsLogo || settings?.logoUrl
+    };
+    try {
+      await updateSettings(s);
+      alert('Settings updated successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update settings.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const openProductModal = (product: Product | null = null) => {
@@ -285,8 +338,12 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       {/* Sidebar */}
       <aside className="w-72 bg-slate-900 text-white flex flex-col shrink-0">
         <div className="p-8 border-b border-white/10 flex items-center gap-4">
-           <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center font-black">GE</div>
-           <h2 className="font-black uppercase tracking-widest text-sm">Management</h2>
+           {settings?.logoUrl ? (
+             <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded-xl" referrerPolicy="no-referrer" />
+           ) : (
+             <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center font-black">GE</div>
+           )}
+           <h2 className="font-black uppercase tracking-widest text-sm truncate">{settings?.siteName || 'Management'}</h2>
         </div>
         <nav className="p-4 space-y-1 flex-1 overflow-y-auto custom-scrollbar">
           {[
@@ -300,6 +357,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
             { id: 'sales', icon: ShoppingCart, label: 'Sales Records' },
             { id: 'customers', icon: Users, label: 'Due Ledger' },
             { id: 'reports', icon: BarChart3, label: 'Profit & Loss' },
+            { id: 'settings', icon: Settings, label: 'Site Settings' },
           ].map(tab => (
             <button 
               key={tab.id}
@@ -846,6 +904,142 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
            )}
 
         </div>
+            {activeTab === 'settings' && (
+              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b">
+                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Site Configuration</h3>
+                </div>
+                <form onSubmit={handleSettingsSubmit} className="p-8 space-y-8">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Brand Info */}
+                      <div className="space-y-6">
+                         <h4 className="text-xs font-black uppercase tracking-widest text-blue-600">Brand & Logo</h4>
+                         <div className="flex items-center gap-6">
+                            <div className="w-24 h-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group">
+                               {(settingsLogo || settings?.logoUrl) ? (
+                                 <img src={settingsLogo || settings?.logoUrl} className="w-full h-full object-contain" />
+                               ) : (
+                                 <ImageIcon size={24} className="text-slate-300" />
+                               )}
+                               <button 
+                                 type="button"
+                                 onClick={() => {
+                                   const input = document.createElement('input');
+                                   input.type = 'file';
+                                   input.accept = 'image/*';
+                                   input.onchange = (e: any) => handleLogoSelect(e);
+                                   input.click();
+                                 }}
+                                 className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white"
+                               >
+                                  <Upload size={20} />
+                               </button>
+                            </div>
+                            <div className="flex-1 space-y-4">
+                               <div className="space-y-1">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Site Name (EN)</label>
+                                  <input name="siteName" defaultValue={settings?.siteName} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                               </div>
+                               <div className="space-y-1">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Site Name (BN)</label>
+                                  <input name="siteNameBn" defaultValue={settings?.siteNameBn} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                               </div>
+                            </div>
+                         </div>
+                      </div>
+
+                      {/* Contact Info */}
+                      <div className="space-y-6">
+                         <h4 className="text-xs font-black uppercase tracking-widest text-blue-600">Contact Details</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                               <input name="contactPhone" defaultValue={settings?.contactPhone} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">WhatsApp</label>
+                               <input name="whatsappNumber" defaultValue={settings?.whatsappNumber} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                         </div>
+                         <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contact Email</label>
+                            <input name="contactEmail" defaultValue={settings?.contactEmail} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                         </div>
+                      </div>
+
+                      {/* Address */}
+                      <div className="space-y-6">
+                         <h4 className="text-xs font-black uppercase tracking-widest text-blue-600">Office Address</h4>
+                         <div className="space-y-4">
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Address (EN)</label>
+                               <textarea name="address" defaultValue={settings?.address} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-20" />
+                            </div>
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Address (BN)</label>
+                               <textarea name="addressBn" defaultValue={settings?.addressBn} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-20" />
+                            </div>
+                         </div>
+                      </div>
+
+                      {/* Hero Section */}
+                      <div className="space-y-6">
+                         <h4 className="text-xs font-black uppercase tracking-widest text-blue-600">Hero Section</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hero Title (EN)</label>
+                               <input name="heroTitleEn" defaultValue={settings?.heroTitleEn} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hero Title (BN)</label>
+                               <input name="heroTitleBn" defaultValue={settings?.heroTitleBn} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                         </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hero Subtitle (EN)</label>
+                               <input name="heroSubtitleEn" defaultValue={settings?.heroSubtitleEn} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hero Subtitle (BN)</label>
+                               <input name="heroSubtitleBn" defaultValue={settings?.heroSubtitleBn} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                         </div>
+                      </div>
+
+                      {/* Social Links */}
+                      <div className="space-y-6 md:col-span-2">
+                         <h4 className="text-xs font-black uppercase tracking-widest text-blue-600">Social Media Links</h4>
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Facebook URL</label>
+                               <input name="facebookUrl" defaultValue={settings?.facebookUrl} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instagram URL</label>
+                               <input name="instagramUrl" defaultValue={settings?.instagramUrl} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YouTube URL</label>
+                               <input name="youtubeUrl" defaultValue={settings?.youtubeUrl} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="pt-8 border-t flex justify-end">
+                      <button 
+                        type="submit"
+                        disabled={isSaving}
+                        className="px-12 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition disabled:opacity-50 flex items-center gap-3"
+                      >
+                         {isSaving && <Loader2 className="animate-spin" size={18} />}
+                         Save All Changes
+                      </button>
+                   </div>
+                </form>
+              </div>
+            )}
       </main>
 
       {/* Staff Modal */}

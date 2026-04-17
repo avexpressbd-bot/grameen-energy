@@ -25,7 +25,11 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, isAuthenticated, onLogout }
       <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 border-b border-gray-800 pb-12 mb-8">
         <div className="space-y-6">
           <div className="flex items-center gap-2">
-            <div className="bg-emerald-600 text-white p-1 rounded font-bold text-xl">GE</div>
+            {settings?.logoUrl ? (
+              <img src={settings.logoUrl} alt="Logo" className="h-10 w-10 object-contain" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="bg-emerald-600 text-white p-1 rounded font-bold text-xl">GE</div>
+            )}
             <div className="flex flex-col">
               <span className="font-bold text-xl leading-tight">{siteName}</span>
               <span className="text-xs text-emerald-500 font-medium">{t('Solar & Electrical', 'সোলার ও ইলেকট্রিক্যাল')}</span>

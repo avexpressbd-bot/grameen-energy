@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useLanguage } from './LanguageContext';
 import { useCart } from './CartContext';
 import { useAuth } from './AuthContext';
+import { useProducts } from './ProductContext';
 import { ShoppingCart, Menu, X, Search, Phone, MessageSquare, ScanLine, Zap, Lock, LayoutDashboard, MapPin, User, LogOut, ChevronDown, Wrench, Award } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
@@ -14,6 +15,7 @@ const Header: React.FC<{
   const { language, setLanguage, t } = useLanguage();
   const { cart } = useCart();
   const { user, logout } = useAuth();
+  const { settings } = useProducts();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -31,7 +33,7 @@ const Header: React.FC<{
       <header className="sticky top-0 z-50 bg-white shadow-sm border-b">
         <div className="bg-blue-900 text-white py-2 px-4 text-xs md:text-sm flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 font-bold"><Phone size={14}/> +880 1XXX-XXXXXX</span>
+            <span className="flex items-center gap-1 font-bold"><Phone size={14}/> {settings?.contactPhone || '+880 1XXX-XXXXXX'}</span>
           </div>
           <div className="flex gap-4 items-center">
             <button onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')} className="hover:text-emerald-400 font-bold">
@@ -42,9 +44,15 @@ const Header: React.FC<{
 
         <div className="max-w-7xl mx-auto px-4 h-16 md:h-20 flex items-center justify-between gap-4">
           <button onClick={() => onNavigate('home')} className="flex items-center gap-2 group shrink-0">
-            <div className="bg-emerald-600 text-white p-1 rounded font-bold text-xl md:text-2xl group-hover:bg-blue-700 transition">GE</div>
+            {settings?.logoUrl ? (
+              <img src={settings.logoUrl} alt="Logo" className="h-10 w-10 md:h-12 md:w-12 object-contain" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="bg-emerald-600 text-white p-1 rounded font-bold text-xl md:text-2xl group-hover:bg-blue-700 transition">GE</div>
+            )}
             <div className="flex flex-col text-left">
-              <span className="font-bold text-lg md:text-xl text-blue-900 leading-tight tracking-tight">Grameen Energy</span>
+              <span className="font-bold text-lg md:text-xl text-blue-900 leading-tight tracking-tight">
+                {language === 'en' ? (settings?.siteName || 'Grameen Energy') : (settings?.siteNameBn || 'গ্রামিন এনার্জি')}
+              </span>
             </div>
           </button>
 

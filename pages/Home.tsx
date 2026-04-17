@@ -7,8 +7,8 @@ import { Zap, ShieldCheck, Truck, RefreshCcw, ArrowRight } from 'lucide-react';
 import { Category } from '../types';
 
 const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: string) => void }> = ({ onProductClick, onNavigate }) => {
-  const { t } = useLanguage();
-  const { products } = useProducts();
+  const { t, language } = useLanguage();
+  const { products, settings } = useProducts();
   const bestSellers = products.filter(p => p.isBestSeller);
   const categories = Object.values(Category);
 
@@ -19,14 +19,16 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
         <div className="max-w-7xl mx-auto px-4 relative z-10">
           <div className="max-w-3xl space-y-6 md:space-y-8 text-center md:text-left">
             <span className="inline-block px-4 py-1.5 bg-emerald-500 text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg">
-              {t('Welcome to Grameen Energy', 'গ্রামিন এনার্জি-তে স্বাগতম')}
+              {language === 'en' ? (settings?.siteName || 'Welcome to Grameen Energy') : (settings?.siteNameBn || 'গ্রামিন এনার্জি-তে স্বাগতম')}
             </span>
             <h1 className="text-4xl md:text-7xl font-black leading-tight tracking-tight">
-              {t('Reliable Power Solutions', 'বিশ্বস্ত বিদ্যুৎ সমাধান')} <br className="hidden md:block"/>
-              <span className="text-emerald-400">{t('Grameen Energy', 'গ্রামিন এনার্জি')}</span>
+              {language === 'en' ? (settings?.heroTitleEn || 'Reliable Power Solutions') : (settings?.heroTitleBn || 'বিশ্বস্ত বিদ্যুৎ সমাধান')} <br className="hidden md:block"/>
+              <span className="text-emerald-400">
+                {language === 'en' ? (settings?.siteName || 'Grameen Energy') : (settings?.siteNameBn || 'গ্রামিন এনার্জি')}
+              </span>
             </h1>
             <p className="text-base md:text-xl text-blue-100/80 font-medium leading-relaxed max-w-2xl mx-auto md:mx-0">
-              {t('High-quality electrical and energy products for rural and urban homes. Sustainable, efficient, and affordable.', 'গ্রাম ও শহরের বাসাবাড়ির জন্য উচ্চমানের ইলেকট্রিক্যাল এবং এনার্জি প্রোডাক্ট। টেকসই, দক্ষ এবং সাশ্রয়ী।')}
+              {language === 'en' ? (settings?.heroSubtitleEn || 'High-quality electrical and energy products for rural and urban homes.') : (settings?.heroSubtitleBn || 'গ্রাম ও শহরের বাসাবাড়ির জন্য উচ্চমানের ইলেকট্রিক্যাল এবং এনার্জি প্রোডাক্ট।')}
             </p>
             <div className="flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-4">
               <button 
