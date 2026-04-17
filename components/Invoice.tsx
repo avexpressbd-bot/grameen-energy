@@ -53,7 +53,11 @@ const Invoice: React.FC<InvoiceProps> = ({ sale, onClose }) => {
               <tr key={idx}>
                 <td className="py-3 pr-2">
                   <p className="font-black text-slate-800 leading-tight">{item.name}</p>
-                  <p className="text-[8px] text-slate-400 mt-0.5">@৳{item.unitPrice}</p>
+                  <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+                    <p className="text-[8px] text-slate-400">@৳{item.unitPrice}</p>
+                    {item.warranty && <p className="text-[7px] font-bold text-emerald-600 uppercase tracking-tighter">W: {item.warranty}</p>}
+                    {item.barcode && <p className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">S/N: {item.barcode}</p>}
+                  </div>
                 </td>
                 <td className="py-3 text-center font-bold">{item.quantity}</td>
                 <td className="py-3 text-right font-black">৳{item.totalPrice}</td>

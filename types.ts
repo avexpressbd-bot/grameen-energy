@@ -153,6 +153,7 @@ export interface SaleItem {
   unitPrice: number;
   totalPrice: number;
   warranty?: string;
+  barcode?: string;
   manualItem?: boolean;
   note?: string;
 }

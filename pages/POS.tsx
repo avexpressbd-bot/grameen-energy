@@ -93,7 +93,8 @@ const POS: React.FC = () => {
         quantity: 1,
         unitPrice: product.discountPrice || product.price || 0,
         totalPrice: product.discountPrice || product.price || 0,
-        warranty: product.warranty
+        warranty: product.warranty,
+        barcode: product.barcode
       }];
     });
   };

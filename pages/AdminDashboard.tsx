@@ -8,7 +8,7 @@ import { Category, Product, Sale, OrderStatus, Customer, ServiceRequest, StockLo
 import { 
   Plus, Edit2, Trash2, Box, X, Search, DollarSign, BarChart3, Users,
   Wallet, CheckCircle, Settings, LayoutDashboard, ShoppingCart, Printer, AlertTriangle, TrendingUp, Award, ChevronRight, Hash, Activity,
-  UserPlus, UserMinus, CreditCard, Banknote, Wrench, Clock, MapPin, Calendar, FileText, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, ShieldOff, Coins, UserCog,
+  UserPlus, UserMinus, CreditCard, Banknote, Wrench, Clock, Bell, MapPin, Calendar, FileText, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, ShieldOff, Coins, UserCog,
   Upload, Camera, Image as ImageIcon, Loader2
 } from 'lucide-react';
 
@@ -25,6 +25,77 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const { t } = useLanguage();
   
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  
+  // Notifications state
+  const [unseenOrders, setUnseenOrders] = useState<(Sale | ServiceRequest)[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [lastSeenSaleId, setLastSeenSaleId] = useState<string | null>(localStorage.getItem('lastSeenSaleId'));
+  const [lastSeenServiceId, setLastSeenServiceId] = useState<string | null>(localStorage.getItem('lastSeenServiceId'));
+
+  // Notification Sound
+  const playNotifySound = () => {
+    try {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(() => {});
+    } catch (e) {}
+  };
+
+  // Monitor new orders
+  useEffect(() => {
+    if (sales.length > 0) {
+      if (!lastSeenSaleId) {
+        setLastSeenSaleId(sales[0].id);
+        localStorage.setItem('lastSeenSaleId', sales[0].id);
+      } else {
+        const lastIndex = sales.findIndex(s => s.id === lastSeenSaleId);
+        if (lastIndex > 0 || lastIndex === -1) {
+          const newSales = lastIndex === -1 ? sales : sales.slice(0, lastIndex);
+          if (newSales.length > 0) {
+            setUnseenOrders(prev => {
+              const filtered = newSales.filter(ns => !prev.some(po => po.id === ns.id));
+              if (filtered.length > 0) playNotifySound();
+              return [...filtered, ...prev];
+            });
+          }
+        }
+      }
+    }
+  }, [sales, lastSeenSaleId]);
+
+  // Monitor new service requests
+  useEffect(() => {
+    if (serviceRequests.length > 0) {
+      if (!lastSeenServiceId) {
+        setLastSeenServiceId(serviceRequests[0].id);
+        localStorage.setItem('lastSeenServiceId', serviceRequests[0].id);
+      } else {
+        const lastIndex = serviceRequests.findIndex(sr => sr.id === lastSeenServiceId);
+        if (lastIndex > 0 || lastIndex === -1) {
+          const newReqs = lastIndex === -1 ? serviceRequests : serviceRequests.slice(0, lastIndex);
+          if (newReqs.length > 0) {
+            setUnseenOrders(prev => {
+              const filtered = newReqs.filter(nr => !prev.some(po => po.id === nr.id));
+              if (filtered.length > 0) playNotifySound();
+              return [...filtered, ...prev];
+            });
+          }
+        }
+      }
+    }
+  }, [serviceRequests, lastSeenServiceId]);
+
+  const markNotificationsAsRead = () => {
+    if (sales.length > 0) {
+      setLastSeenSaleId(sales[0].id);
+      localStorage.setItem('lastSeenSaleId', sales[0].id);
+    }
+    if (serviceRequests.length > 0) {
+      setLastSeenServiceId(serviceRequests[0].id);
+      localStorage.setItem('lastSeenServiceId', serviceRequests[0].id);
+    }
+    setUnseenOrders([]);
+    setShowNotifications(false);
+  };
   
   // Modals
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -178,7 +249,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       stock: Number(fd.get('stock')),
       minStockLevel: Number(fd.get('minStockLevel') || 5),
       sku: fd.get('sku') || 'SKU-'+Date.now(),
-      barcode: scannedBarcode || fd.get('barcode') || Date.now().toString(),
+      barcode: scannedBarcode || fd.get('barcode') || `BC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      warranty: fd.get('warranty') || '',
       image: primaryImage,
       images: productImages, // Storing all 5 photos
       description: fd.get('description'),
@@ -246,7 +318,69 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-20 bg-white border-b px-8 flex justify-between items-center shrink-0">
            <h1 className="text-xl font-black uppercase tracking-tight text-slate-800">{activeTab.replace('-', ' ')}</h1>
-           <div className="flex gap-4">
+           <div className="flex items-center gap-6">
+              {/* Notifications Bell */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`p-3 rounded-2xl transition-all relative ${unseenOrders.length > 0 ? 'bg-amber-50 text-amber-600 animate-pulse' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                >
+                  <Bell size={20} className={unseenOrders.length > 0 ? 'animate-bounce' : ''} />
+                  {unseenOrders.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                      {unseenOrders.length}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 mt-4 w-80 bg-white rounded-[2rem] shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in slide-in-from-top-2">
+                    <div className="p-6 border-b flex justify-between items-center bg-slate-50">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Updates</h4>
+                      <button onClick={markNotificationsAsRead} className="text-[10px] font-black uppercase text-blue-600 hover:underline">Clear</button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto custom-scrollbar">
+                      {unseenOrders.length === 0 ? (
+                        <div className="p-10 text-center space-y-3">
+                          <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
+                             <ShoppingCart size={20} />
+                          </div>
+                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">No new updates</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-50">
+                          {unseenOrders.map(order => {
+                            const isService = order.id.startsWith('SR-');
+                            return (
+                              <button 
+                                key={order.id}
+                                onClick={() => {
+                                  setActiveTab(isService ? 'service-requests' : 'sales');
+                                  markNotificationsAsRead();
+                                }}
+                                className="w-full p-6 text-left hover:bg-slate-50 transition flex items-start gap-4"
+                              >
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isService ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                                  {isService ? <Wrench size={18} /> : <Plus size={18} />}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-black text-slate-800 truncate">{isService ? order.customerName : order.customerName}</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                    {isService ? `Service: ${order.productModel}` : `Order: ৳${order.total}`}
+                                    {' • '}
+                                    {new Date(isService ? order.createdAt : order.date).toLocaleTimeString()}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {activeTab === 'inventory' && (
                 <button onClick={() => openProductModal()} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg">
                   <Plus size={16}/> New Product
@@ -963,8 +1097,18 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                              <input name="purchasePrice" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.purchasePrice} />
                           </div>
                        </div>
-                       <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Short Description</label>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Barcode / Serial</label>
+                              <input name="barcode" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.barcode} placeholder="Auto-generated if empty" />
+                           </div>
+                           <div className="space-y-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Warranty (e.g. 1 Year)</label>
+                              <input name="warranty" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.warranty} placeholder="Custom warranty" />
+                           </div>
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Short Description</label>
                           <textarea name="description" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-24" defaultValue={editingProduct?.description} />
                        </div>
                     </div>
