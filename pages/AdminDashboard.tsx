@@ -1054,21 +1054,21 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
-                const s = {
+                const s: Staff = {
                   id: editingStaff?.id || 'ST-' + Date.now(),
                   name: fd.get('name') as string,
                   phone: fd.get('phone') as string,
-                  whatsapp: fd.get('whatsapp') as string,
-                  photo: fd.get('photo') as string || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+                  whatsapp: (fd.get('whatsapp') as string) || '',
+                  photo: (fd.get('photo') as string) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
                   role: fd.get('role') as StaffRole,
                   status: (fd.get('status') as StaffStatus) || 'Available',
-                  skills: (fd.get('skills') as string).split(',').map(s => s.trim()) as StaffSkill[],
-                  area: fd.get('area') as string,
-                  experience: Number(fd.get('experience')),
-                  baseSalary: Number(fd.get('baseSalary')),
-                  salaryType: fd.get('salaryType') as SalaryType,
-                  commissionPerService: Number(fd.get('commissionPerService')),
-                  overtimeRate: Number(fd.get('overtimeRate')),
+                  skills: ((fd.get('skills') as string) || '').split(',').map(s => s.trim()).filter(Boolean) as StaffSkill[],
+                  area: (fd.get('area') as string) || 'Dhaka',
+                  experience: Number(fd.get('experience')) || 0,
+                  baseSalary: Number(fd.get('baseSalary')) || 0,
+                  salaryType: (fd.get('salaryType') as SalaryType) || 'Monthly',
+                  commissionPerService: Number(fd.get('commissionPerService')) || 0,
+                  overtimeRate: Number(fd.get('overtimeRate')) || 0,
                   isActive: true,
                   isEmergencyStaff: fd.get('isEmergencyStaff') === 'on',
                   rating: editingStaff?.rating || 5,
