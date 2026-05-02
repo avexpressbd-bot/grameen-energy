@@ -115,11 +115,13 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   
   // Image Upload States (Multi-photo support: 1-5)
   const [productImages, setProductImages] = useState<string[]>([]);
+  const [staffPhoto, setStaffPhoto] = useState<string>('');
   const [settingsLogo, setSettingsLogo] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const staffPhotoInputRef = useRef<HTMLInputElement>(null);
   
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [collectionAmount, setCollectionAmount] = useState<number>(0);
@@ -236,6 +238,44 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     }
   };
 
+  const handleStaffPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.src = reader.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400;
+          const MAX_HEIGHT = 400;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          setStaffPhoto(canvas.toDataURL('image/jpeg', 0.8));
+          setIsUploading(false);
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSettingsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -281,6 +321,12 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       setProductImages([]);
     }
     setIsProductModalOpen(true);
+  };
+
+  const openStaffModal = (staffMember: Staff | null = null) => {
+    setEditingStaff(staffMember);
+    setStaffPhoto(staffMember?.photo || '');
+    setIsStaffModalOpen(true);
   };
 
   const handleProductSubmit = async (e: React.FormEvent) => {
@@ -663,7 +709,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                  <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">
                    {activeTab === 'technicians' ? 'Technicians' : 'Shop Staff'}
                  </h2>
-                 <button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg">
+                 <button onClick={() => openStaffModal()} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg">
                     <Plus size={16}/> New Staff
                  </button>
                </div>
@@ -672,7 +718,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                  {(activeTab === 'technicians' ? technicians : shopStaffMembers).map(s => (
                    <div key={s.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 relative group">
                       <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { setEditingStaff(s); setIsStaffModalOpen(true); }} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100"><Edit2 size={14}/></button>
+                        <button onClick={() => openStaffModal(s)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100"><Edit2 size={14}/></button>
                         <button onClick={() => deleteStaff(s.id)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100"><Trash2 size={14}/></button>
                       </div>
                       
@@ -1059,7 +1105,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                   name: fd.get('name') as string,
                   phone: fd.get('phone') as string,
                   whatsapp: (fd.get('whatsapp') as string) || '',
-                  photo: (fd.get('photo') as string) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+                  photo: staffPhoto || editingStaff?.photo || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
                   role: fd.get('role') as StaffRole,
                   status: (fd.get('status') as StaffStatus) || 'Available',
                   skills: ((fd.get('skills') as string) || '').split(',').map(s => s.trim()).filter(Boolean) as StaffSkill[],
@@ -1115,9 +1161,33 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                     <div className="space-y-1">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Commission (৳)</label>
                        <input name="commissionPerService" type="number" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.commissionPerService} />
-                    </div>
-                 </div>
-                 <div className="pt-6 border-t flex gap-4">
+                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6 pb-6 border-b">
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Experience (Years)</label>
+                        <input name="experience" type="number" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingStaff?.experience || 0} />
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Staff Photo</label>
+                        <div className="flex gap-2">
+                           <button 
+                             type="button" 
+                             onClick={() => staffPhotoInputRef.current?.click()}
+                             className="flex-1 py-4 bg-slate-100 rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-slate-200 transition flex items-center justify-center gap-2"
+                           >
+                             <Camera size={14} /> Upload
+                           </button>
+                           {(staffPhoto || editingStaff?.photo) && (
+                             <div className="w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-slate-100">
+                               <img src={staffPhoto || editingStaff?.photo} className="w-full h-full object-cover" />
+                             </div>
+                           )}
+                        </div>
+                        <input ref={staffPhotoInputRef} type="file" accept="image/*" onChange={handleStaffPhotoSelect} className="hidden" />
+                     </div>
+                  </div>
+                  <div className="pt-6 border-t flex gap-4">
                     <button type="button" onClick={() => setIsStaffModalOpen(false)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition">Cancel</button>
                     <button type="submit" className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition">
                        {editingStaff ? 'Update Staff' : 'Add Staff Member'}
@@ -1306,8 +1376,9 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                           <textarea name="description" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-24" defaultValue={editingProduct?.description} />
                        </div>
                     </div>
+                 </div>
 
-                    <div className="pt-6 border-t flex gap-4">
+                  <div className="pt-6 border-t flex gap-4">
                        <button 
                          type="button" 
                          onClick={() => setIsProductModalOpen(false)}
@@ -1324,8 +1395,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                          {editingProduct ? 'Update Inventory' : 'Add to Catalog'}
                        </button>
                     </div>
-                 </div>
-              </form>
+                 </form>
            </div>
         </div>
       )}
