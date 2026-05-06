@@ -179,6 +179,20 @@ export interface Sale {
   date: string;
 }
 
+export interface DueEntry {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  productDetails: string;
+  date: string;
+  totalAmount: number;
+  paidAmount: number;
+  dueAmount: number;
+  saleId?: string;
+  note?: string;
+  isSettled: boolean;
+}
+
 export interface Customer {
   id: string;
   name: string;

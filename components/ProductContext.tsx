@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus, Staff, StaffReview, StockLog } from '../types';
+import { Product, Sale, Customer, SiteSettings, BlogPost, OrderStatus, CustomerUser, ServiceRequest, ServiceAd, ServiceStatus, Staff, StaffReview, StockLog, DueEntry } from '../types';
 import { db, auth } from '../services/firebase';
 import { 
   collection, onSnapshot, updateDoc, deleteDoc, doc, setDoc, query, orderBy, getDocs, increment, addDoc, getDocFromServer, getDoc 
@@ -33,6 +33,7 @@ interface ProductContextType {
   staff: Staff[];
   reviews: StaffReview[];
   stockLogs: StockLog[];
+  dueEntries: DueEntry[];
   settings: SiteSettings | null;
   loading: boolean;
   addProduct: (product: Product) => Promise<void>;
@@ -54,6 +55,8 @@ interface ProductContextType {
   addStaff: (s: Staff) => Promise<void>;
   updateStaff: (id: string, data: Partial<Staff>) => Promise<void>;
   deleteStaff: (id: string) => Promise<void>;
+  addDueEntry: (entry: Omit<DueEntry, 'id'>) => Promise<void>;
+  updateDueEntry: (id: string, data: Partial<DueEntry>) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -70,6 +73,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [staff, setStaff] = useState<Staff[]>([]);
   const [reviews, setReviews] = useState<StaffReview[]>([]);
   const [stockLogs, setStockLogs] = useState<StockLog[]>([]);
+  const [dueEntries, setDueEntries] = useState<DueEntry[]>([]);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -125,6 +129,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const unsubStaff = onSnapshot(collection(db, "staff"), (s) => setStaff(s.docs.map(d => ({...d.data(), id: d.id})) as Staff[]), (err) => handleFirestoreError(err, OperationType.LIST, "staff"));
     const unsubReviews = onSnapshot(collection(db, "staffReviews"), (s) => setReviews(s.docs.map(d => ({...d.data(), id: d.id})) as StaffReview[]), (err) => handleFirestoreError(err, OperationType.LIST, "staffReviews"));
     const unsubLogs = onSnapshot(query(collection(db, "stockLogs"), orderBy("date", "desc")), (s) => setStockLogs(s.docs.map(d => ({...d.data(), id: d.id})) as StockLog[]), (err) => handleFirestoreError(err, OperationType.LIST, "stockLogs"));
+    const unsubDueEntries = onSnapshot(query(collection(db, "dueEntries"), orderBy("date", "desc")), (s) => setDueEntries(s.docs.map(d => ({...d.data(), id: d.id})) as DueEntry[]), (err) => handleFirestoreError(err, OperationType.LIST, "dueEntries"));
     const unsubSettings = onSnapshot(doc(db, "site", "config"), (d) => {
       if (d.exists()) setSettings(d.data() as SiteSettings);
     }, (err) => handleFirestoreError(err, OperationType.GET, "site/config"));
@@ -132,7 +137,7 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     setLoading(false);
     return () => { 
       unsubProducts(); unsubSales(); unsubCustomers(); unsubUsers(); unsubBlogs(); 
-      unsubServiceRequests(); unsubServiceAds(); unsubStaff(); unsubReviews(); unsubSettings(); unsubLogs();
+      unsubServiceRequests(); unsubServiceAds(); unsubStaff(); unsubReviews(); unsubSettings(); unsubLogs(); unsubDueEntries();
     };
   }, []);
 
@@ -259,6 +264,22 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
           });
         }
         console.log("Customer data updated.");
+
+        if (sale.dueAmount > 0) {
+          console.log("Automatically adding to Due Ledger...");
+          const productDetails = sale.items.map(item => `${item.name} (${item.quantity})`).join(', ');
+          await addDoc(collection(db, "dueEntries"), {
+            customerName: sale.customerName,
+            customerPhone: sale.customerPhone,
+            productDetails,
+            date: new Date().toISOString(),
+            totalAmount: sale.total,
+            paidAmount: sale.paidAmount,
+            dueAmount: sale.dueAmount,
+            saleId: id,
+            isSettled: false
+          });
+        }
       }
       console.log("recordSale completed successfully.");
     } catch (error) {
@@ -300,7 +321,47 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const sanitizedData = JSON.parse(JSON.stringify(updateData));
     await updateDoc(doc(db, "sales", id), sanitizedData);
   };
-  const updateCustomerDue = async (phone: string, name: string, amount: number) => await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
+  const updateCustomerDue = async (phone: string, name: string, amount: number) => {
+    await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
+    
+    // Add a collection log entry
+    await addDoc(collection(db, "dueEntries"), {
+      customerName: name,
+      customerPhone: phone,
+      productDetails: 'Payment Collection (পেমেন্ট সংগ্রহ)',
+      date: new Date().toISOString(),
+      totalAmount: 0,
+      paidAmount: amount,
+      dueAmount: -amount,
+      note: 'Manual collection',
+      isSettled: false
+    });
+  };
+
+  const addDueEntry = async (entry: Omit<DueEntry, 'id'>) => {
+    const id = 'DUE-' + Date.now();
+    await setDoc(doc(db, "dueEntries", id), { ...entry, id });
+    
+    // Also update customer total
+    const cRef = doc(db, "customers", entry.customerPhone);
+    const cSnap = await getDoc(cRef);
+    if (!cSnap.exists()) {
+      await setDoc(cRef, { 
+        name: entry.customerName, 
+        totalDue: entry.dueAmount, 
+        lastUpdate: new Date().toISOString() 
+      });
+    } else {
+      await updateDoc(cRef, { 
+        totalDue: increment(entry.dueAmount), 
+        lastUpdate: new Date().toISOString() 
+      });
+    }
+  };
+
+  const updateDueEntry = async (id: string, data: Partial<DueEntry>) => {
+    await updateDoc(doc(db, "dueEntries", id), data as any);
+  };
 
   const refreshData = async () => {
     try {
@@ -321,11 +382,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   return (
     <ProductContext.Provider value={{ 
       products, sales, customers, registeredUsers, blogs, settings, loading, 
-      serviceRequests, serviceAds, staff, reviews, stockLogs,
+      serviceRequests, serviceAds, staff, reviews, stockLogs, dueEntries,
       addProduct, updateProduct, deleteProduct, adjustStock, recordSale, 
       updateSaleStatus, updateSale, updateCustomerDue, updateSettings, addBlog, deleteBlog,
       addServiceRequest, updateServiceStatus, updateServiceRequest, addServiceAd, deleteServiceAd,
-      addStaff, updateStaff, deleteStaff, addReview, refreshData
+      addStaff, updateStaff, deleteStaff, addReview, addDueEntry, updateDueEntry, refreshData
     }}>
       {children}
     </ProductContext.Provider>

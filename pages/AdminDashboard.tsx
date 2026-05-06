@@ -9,16 +9,16 @@ import {
   Plus, Edit2, Trash2, Box, X, Search, DollarSign, BarChart3, Users,
   Wallet, CheckCircle, Settings, LayoutDashboard, ShoppingCart, Printer, AlertTriangle, TrendingUp, Award, ChevronRight, Hash, Activity,
   UserPlus, UserMinus, CreditCard, Banknote, Wrench, Clock, Bell, MapPin, Calendar, FileText, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, ShieldOff, Coins, UserCog,
-  Upload, Camera, Image as ImageIcon, Loader2
+  Upload, Camera, Image as ImageIcon, Loader2, Scan
 } from 'lucide-react';
 
 type AdminTab = 'overview' | 'inventory' | 'service-requests' | 'technicians' | 'shop-staff' | 'staff-salary' | 'stock-logs' | 'sales' | 'customers' | 'reports' | 'settings';
 
 const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const { 
-    products, sales, stockLogs, customers, serviceRequests, staff, settings,
+    products, sales, stockLogs, customers, serviceRequests, staff, settings, dueEntries,
     addProduct, updateProduct, deleteProduct, updateServiceRequest, updateCustomerDue,
-    addStaff, updateStaff, deleteStaff, updateSale, updateSettings, refreshData
+    addStaff, updateStaff, deleteStaff, updateSale, updateSettings, addDueEntry, refreshData
   } = useProducts();
 
   console.log("AdminDashboard products state:", products);
@@ -124,6 +124,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const staffPhotoInputRef = useRef<HTMLInputElement>(null);
   
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isDueEntryModalOpen, setIsDueEntryModalOpen] = useState(false);
   const [collectionAmount, setCollectionAmount] = useState<number>(0);
 
   // Service Management State
@@ -876,38 +877,106 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
 
            {/* Due Ledger Tab */}
            {activeTab === 'customers' && (
-             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b flex justify-between items-center">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Customer Due Ledger</h3>
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 gap-4">
+                   <div>
+                      <h3 className="text-xl font-black uppercase tracking-tight text-slate-800">ডিও লেজার (Due Ledger)</h3>
+                      <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">বাকি লেনদেনের বিস্তারিত তালিকা</p>
+                   </div>
+                   <button 
+                     onClick={() => setIsDueEntryModalOpen(true)}
+                     className="bg-slate-900 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg hover:bg-slate-800 transition w-full md:w-auto justify-center"
+                   >
+                     <Plus size={16}/> ম্যানুয়ালি ডিউ এড করুন (Add Due)
+                   </button>
                 </div>
-                <table className="w-full">
-                   <thead className="bg-slate-50 border-b">
-                      <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                         <th className="px-8 py-5 text-left">Customer</th>
-                         <th className="px-6 py-5 text-left">Last Update</th>
-                         <th className="px-6 py-5 text-right">Total Due</th>
-                         <th className="px-8 py-5 text-right">Actions</th>
-                      </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {customers.map(c => (
-                        <tr key={c.id} className="hover:bg-slate-50">
-                           <td className="px-8 py-4 font-black text-slate-800 text-sm">{c.name} <span className="text-slate-400 font-normal ml-2">({c.id})</span></td>
-                           <td className="px-6 py-4 text-xs font-bold text-slate-500">{new Date(c.lastUpdate).toLocaleDateString()}</td>
-                           <td className={`px-6 py-4 text-right font-black ${c.totalDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>৳{c.totalDue}</td>
-                           <td className="px-8 py-4 text-right">
-                              <button 
-                                onClick={() => { setSelectedCustomer(c); setCollectionAmount(0); }}
-                                className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-100 transition"
-                              >
-                                Collect
-                              </button>
-                           </td>
-                        </tr>
-                      ))}
-                   </tbody>
-                </table>
-             </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                   <div className="lg:col-span-1 bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden h-fit">
+                      <div className="p-8 border-b flex justify-between items-center bg-slate-50">
+                         <h4 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">কাস্টমার তালিকা</h4>
+                      </div>
+                      <div className="divide-y divide-slate-50 max-h-[600px] overflow-y-auto custom-scrollbar">
+                         {customers.filter(c => c.totalDue > 0).sort((a,b) => b.totalDue - a.totalDue).map(c => (
+                           <button 
+                             key={c.id} 
+                             onClick={() => setSelectedCustomer(c)}
+                             className={`w-full p-6 text-left hover:bg-slate-50 transition flex justify-between items-center ${selectedCustomer?.id === c.id ? 'bg-blue-50 ring-2 ring-blue-500/20' : ''}`}
+                           >
+                              <div className="min-w-0">
+                                 <p className="text-sm font-black text-slate-800 truncate">{c.name}</p>
+                                 <p className="text-[10px] font-bold text-slate-400">{c.id}</p>
+                              </div>
+                              <p className="font-black text-red-600 text-sm whitespace-nowrap">৳{c.totalDue}</p>
+                           </button>
+                         ))}
+                      </div>
+                   </div>
+
+                   <div className="lg:col-span-2 bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col min-h-[500px]">
+                      <div className="p-8 border-b flex justify-between items-center bg-slate-50">
+                         <h4 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">
+                            {selectedCustomer ? `${selectedCustomer.name} - লেনদেন ইতিহাস` : 'সর্বশেষ লেনদেন'}
+                         </h4>
+                         {selectedCustomer && (
+                           <button onClick={() => setSelectedCustomer(null)} className="text-[10px] font-black text-blue-600 uppercase hover:underline">View All</button>
+                         )}
+                      </div>
+                      <div className="flex-1 overflow-x-auto">
+                         <table className="w-full">
+                            <thead className="bg-slate-200/50 border-b">
+                               <tr className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">
+                                  <th className="px-8 py-5 text-left">তারিখ</th>
+                                  {!selectedCustomer && <th className="px-6 py-5 text-left">কাস্টমার</th>}
+                                  <th className="px-6 py-5 text-left">বিবরণ</th>
+                                  <th className="px-6 py-5 text-right">এমাউন্ট</th>
+                                  <th className="px-6 py-5 text-right">জমা</th>
+                                  <th className="px-8 py-5 text-right">বাকি</th>
+                               </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                               {(selectedCustomer ? dueEntries.filter(de => de.customerPhone === selectedCustomer.id) : dueEntries.slice(0, 50)).map(de => (
+                                 <tr key={de.id} className="hover:bg-slate-50 transition">
+                                    <td className="px-8 py-4 text-[10px] font-bold text-slate-500 whitespace-nowrap">
+                                       {new Date(de.date).toLocaleDateString()}
+                                    </td>
+                                    {!selectedCustomer && (
+                                       <td className="px-6 py-4">
+                                          <p className="text-xs font-black text-slate-800">{de.customerName}</p>
+                                          <p className="text-[9px] font-bold text-slate-400">{de.customerPhone}</p>
+                                       </td>
+                                    )}
+                                    <td className="px-6 py-4">
+                                       <p className="text-xs font-bold text-slate-600 line-clamp-1">{de.productDetails}</p>
+                                    </td>
+                                    <td className="px-6 py-4 text-right font-black text-xs text-slate-600">৳{de.totalAmount}</td>
+                                    <td className="px-6 py-4 text-right font-black text-xs text-emerald-600">৳{de.paidAmount}</td>
+                                    <td className={`px-8 py-4 text-right font-black text-sm ${de.dueAmount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                       {de.dueAmount > 0 ? `৳${de.dueAmount}` : (de.dueAmount < 0 ? `৳${Math.abs(de.dueAmount)} পরিশোধ` : '-')}
+                                    </td>
+                                 </tr>
+                               ))}
+                            </tbody>
+                         </table>
+                      </div>
+                      
+                      {selectedCustomer && (
+                        <div className="p-8 bg-slate-900 border-t flex flex-col md:flex-row justify-between items-center gap-4">
+                           <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">মোট বাকি (Current Balance)</p>
+                              <p className="text-3xl font-black text-white">৳{selectedCustomer.totalDue}</p>
+                           </div>
+                           <button 
+                             onClick={() => setCollectionAmount(0)}
+                             className="w-full md:w-auto px-10 py-5 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-400 transition"
+                           >
+                             টাকা জমা নিন (Collect Payment)
+                           </button>
+                        </div>
+                      )}
+                   </div>
+                </div>
+              </div>
            )}
 
            {/* Reports Tab */}
@@ -949,13 +1018,24 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
              </div>
            )}
 
-        </div>
             {activeTab === 'settings' && (
               <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Site Configuration</h3>
+                <div className="p-8 border-b flex justify-between items-center bg-slate-50">
+                   <div>
+                      <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Site Configuration</h3>
+                      <p className="text-xs font-black text-slate-800">পোর্টার সেটিংস এবং তথ্য (Site Control)</p>
+                   </div>
+                   <button 
+                     type="submit"
+                     form="site-settings-form"
+                     disabled={isSaving}
+                     className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/10 hover:bg-blue-500 transition disabled:opacity-50 flex items-center gap-3"
+                   >
+                      {isSaving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle size={16} />}
+                      Update (সেভ করুন)
+                   </button>
                 </div>
-                <form onSubmit={handleSettingsSubmit} className="p-8 space-y-8">
+                <form id="site-settings-form" onSubmit={handleSettingsSubmit} className="p-8 space-y-8">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* Brand Info */}
                       <div className="space-y-6">
@@ -1080,12 +1160,13 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                         className="px-12 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition disabled:opacity-50 flex items-center gap-3"
                       >
                          {isSaving && <Loader2 className="animate-spin" size={18} />}
-                         Save All Changes
+                         Update Settings (সেটিংস আপডেট করুন)
                       </button>
                    </div>
                 </form>
               </div>
             )}
+        </div>
       </main>
 
       {/* Staff Modal */}
@@ -1364,7 +1445,22 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                         <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-1">
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Barcode / Serial</label>
-                              <input name="barcode" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.barcode} placeholder="Auto-generated if empty" />
+                              <div className="relative">
+                                 <input 
+                                   name="barcode" 
+                                   className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none pr-12" 
+                                   key={scannedBarcode || editingProduct?.barcode}
+                                   defaultValue={scannedBarcode || editingProduct?.barcode} 
+                                   placeholder="Enter or scan barcode" 
+                                 />
+                                 <button 
+                                   type="button"
+                                   onClick={() => setIsBarcodeScannerOpen(true)}
+                                   className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white rounded-lg shadow-sm text-blue-600 hover:bg-blue-50 transition"
+                                 >
+                                   <Scan size={18} />
+                                 </button>
+                              </div>
                            </div>
                            <div className="space-y-1">
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Warranty (e.g. 1 Year)</label>
@@ -1486,6 +1582,70 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                     <button type="submit" className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition">
                        Update Order
                     </button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
+      {/* Manual Due Entry Modal */}
+      {isDueEntryModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in duration-300 shadow-2xl">
+              <div className="flex justify-between items-center mb-8 border-b pb-4">
+                 <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800">ম্যানুয়ালি ডিউ এড করুন</h2>
+                 <button onClick={() => setIsDueEntryModalOpen(false)} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition">✕</button>
+              </div>
+              
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const total = Number(fd.get('totalAmount'));
+                const paid = Number(fd.get('paidAmount'));
+                const entry = {
+                  customerName: fd.get('customerName') as string,
+                  customerPhone: fd.get('customerPhone') as string,
+                  productDetails: fd.get('productDetails') as string,
+                  date: new Date().toISOString(),
+                  totalAmount: total,
+                  paidAmount: paid,
+                  dueAmount: total - paid,
+                  note: fd.get('note') as string,
+                  isSettled: (total - paid) <= 0
+                };
+                await addDueEntry(entry);
+                setIsDueEntryModalOpen(false);
+              }} className="space-y-6">
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
+                       <input name="customerName" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" placeholder="কাস্টমারের নাম" />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                       <input name="customerPhone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" placeholder="মোবাইল নাম্বার" />
+                    </div>
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Details</label>
+                    <textarea name="productDetails" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-20" placeholder="কি কি নিয়েছে?" />
+                 </div>
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Total Amount (মোট টাকা)</label>
+                       <input name="totalAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Paid Amount (জমা টাকা)</label>
+                       <input name="paidAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue="0" />
+                    </div>
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Note (অপশনাল)</label>
+                    <input name="note" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" placeholder="কোন বিশেষ তথ্য..." />
+                 </div>
+                 <div className="pt-6 border-t flex gap-4">
+                    <button type="button" onClick={() => setIsDueEntryModalOpen(false)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest">Cancel</button>
+                    <button type="submit" className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition">ডিউ এড করুন</button>
                  </div>
               </form>
            </div>

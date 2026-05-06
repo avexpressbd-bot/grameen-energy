@@ -4,9 +4,10 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
 import { Product, Sale, SaleItem, Category } from '../types';
+import BarcodeScanner from '../components/BarcodeScanner';
 import { 
   Search, Plus, Minus, Trash2, Printer, Zap, 
-  ScanLine, ShoppingCart, Calculator, CreditCard, 
+  Scan, ShoppingCart, Calculator, CreditCard, 
   Smartphone, Banknote, User, Phone, Tag, Box, AlertTriangle, Filter, ChevronLeft, ChevronRight, X as CloseIcon, PlusCircle, Edit3, Keyboard
 } from 'lucide-react';
 import Invoice from '../components/Invoice';
@@ -25,6 +26,7 @@ const POS: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'POS Machine' | 'Mobile Banking'>('Cash');
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [activeMobileView, setActiveMobileView] = useState<'catalog' | 'cart'>('catalog');
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
 
   // Manual Item States
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -272,10 +274,17 @@ const POS: React.FC = () => {
                   ref={barcodeInputRef}
                   type="text" 
                   placeholder={t('SCAN OR SEARCH (F1)...', 'বারকোড স্ক্যান অথবা সার্চ...')}
-                  className="w-full pl-12 pr-4 py-4 md:py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-black text-base md:text-lg placeholder:text-slate-300"
+                  className="w-full pl-12 pr-12 py-4 md:py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:bg-white transition-all font-black text-base md:text-lg placeholder:text-slate-300"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
+                <button 
+                  type="button"
+                  onClick={() => setIsBarcodeScannerOpen(true)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-white rounded-xl shadow-sm text-blue-600 hover:bg-blue-50 transition"
+                >
+                  <Scan size={20} />
+                </button>
               </div>
             </form>
             <button 
@@ -486,6 +495,22 @@ const POS: React.FC = () => {
         .custom-scrollbar-dark::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
         .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
       `}</style>
+      {/* Barcode Scanner Modal */}
+      {isBarcodeScannerOpen && (
+        <BarcodeScanner 
+          onScan={(code) => {
+            const product = products.find(p => (p.barcode || '') === code || (p.sku || '') === code || (p.id || '') === code);
+            if (product) {
+              addToSale(product);
+              setIsBarcodeScannerOpen(false);
+            } else {
+              alert(t('Product not found with barcode: ', 'বারকোড দিয়ে প্রোডাক্ট পাওয়া যায়নি: ') + code);
+              setIsBarcodeScannerOpen(false);
+            }
+          }}
+          onClose={() => setIsBarcodeScannerOpen(false)}
+        />
+      )}
     </div>
   );
 };
