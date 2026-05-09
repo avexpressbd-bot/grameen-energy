@@ -42,7 +42,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const savedUser = localStorage.getItem('ge_customer_user');
     const savedStaff = localStorage.getItem('ge_staff_role');
     
-    if (savedUser) setUser(JSON.parse(savedUser));
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error("Auth: Failed to parse saved user", e);
+        localStorage.removeItem('ge_customer_user');
+      }
+    }
     if (savedStaff) setStaffRole(savedStaff as 'admin' | 'pos');
     
     setLoading(false);

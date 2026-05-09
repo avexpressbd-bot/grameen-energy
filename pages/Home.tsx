@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
@@ -45,13 +44,15 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
   const { products, settings } = useProducts();
   const [currentBanner, setCurrentBanner] = React.useState(0);
 
-  const bannerProducts = products.filter(p => p.isBanner).slice(0, 5);
+  const bannerProducts = (products || []).filter(p => p && p.isBanner).slice(0, 5);
   const bannerImages = bannerProducts.length > 0 
-    ? bannerProducts.map(p => p.image) 
+    ? bannerProducts.map(p => p.image).filter(Boolean) as string[]
     : [
         "https://images.unsplash.com/photo-1593305841991-05c297ba4575?auto=format&fit=crop&q=80&w=1200",
         "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&q=80&w=1200"
       ];
+
+  const safeCurrentBanner = currentBanner >= bannerImages.length ? 0 : currentBanner;
 
   React.useEffect(() => {
     if (bannerImages.length <= 1) return;
@@ -61,19 +62,19 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
     return () => clearInterval(timer);
   }, [bannerImages.length]);
 
-  const featuredProducts = products.filter(p => p.isBestSeller).slice(0, 6);
+  const featuredProducts = (products || []).filter(p => p && p.isBestSeller).slice(0, 6);
   
   // Categorize real products for the grid sections
-  const solarProducts = products.filter(p => p.category === Category.Solar).slice(0, 3).map(p => ({
+  const solarProducts = (products || []).filter(p => p && p.category === Category.Solar).slice(0, 3).map(p => ({
     image: p.image,
-    subtitle: `${p.brand} | High Quality`,
+    subtitle: `${p.brand || 'Grameen'} | High Quality`,
     buttonText: p.name,
     id: p.id
   }));
 
-  const acAndFans = products.filter(p => p.category === Category.AC || p.category === Category.Fan).slice(0, 3).map(p => ({
+  const acAndFans = (products || []).filter(p => p && (p.category === Category.AC || p.category === Category.Fan)).slice(0, 3).map(p => ({
     image: p.image,
-    subtitle: `${p.brand} | Professional Range`,
+    subtitle: `${p.brand || 'Grameen'} | Professional Range`,
     buttonText: p.name,
     id: p.id
   }));
@@ -84,7 +85,7 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
       <section className="relative w-full h-[250px] md:h-[450px] overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div
-            key={currentBanner}
+            key={safeCurrentBanner}
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
@@ -92,7 +93,7 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
             className="absolute inset-0"
           >
             <img 
-              src={bannerImages[currentBanner]} 
+              src={bannerImages[safeCurrentBanner]} 
               className="w-full h-full object-contain bg-white" 
               alt="Banner" 
               referrerPolicy="no-referrer"
@@ -106,7 +107,7 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
             <button 
               key={idx} 
               onClick={() => setCurrentBanner(idx)}
-              className={`w-2 h-2 rounded-full transition-all ${idx === currentBanner ? 'bg-blue-600 w-6' : 'bg-slate-300'}`}
+              className={`w-2 h-2 rounded-full transition-all ${idx === safeCurrentBanner ? 'bg-blue-600 w-6' : 'bg-slate-300'}`}
             />
           ))}
         </div>

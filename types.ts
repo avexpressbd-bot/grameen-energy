@@ -11,7 +11,11 @@ export enum Category {
   MOBILES = 'Mobiles',
   G_AND_A = 'Gadgets & Accessories',
   APPLIANCES = 'Electronics & Appliances',
-  HOME_AND_KITCHEN = 'Home & Kitchen'
+  HOME_AND_KITCHEN = 'Home & Kitchen',
+  AC = 'Air Conditioner',
+  Fan = 'Fan',
+  Fridge = 'Refrigerator',
+  TV = 'Television'
 }
 
 export interface Product {
