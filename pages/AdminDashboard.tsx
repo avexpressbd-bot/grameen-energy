@@ -355,6 +355,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       images: productImages, // Storing all 5 photos
       description: fd.get('description'),
       descriptionBn: fd.get('descriptionBn'),
+      isBestSeller: fd.get('isBestSeller') === 'on',
+      isBanner: fd.get('isBanner') === 'on',
       specs: editingProduct?.specs || {}
     };
 
@@ -546,7 +548,13 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                         <tr key={p.id} className="hover:bg-slate-50">
                            <td className="px-8 py-4 flex items-center gap-3">
                               <img src={p.image} className="w-10 h-10 rounded-lg object-cover bg-slate-100" />
-                              <p className="text-sm font-black text-slate-800">{p.name}</p>
+                              <div className="flex flex-col">
+                                 <p className="text-sm font-black text-slate-800">{p.name}</p>
+                                 <div className="flex gap-2">
+                                    {p.isBanner && <span className="text-[8px] font-black uppercase text-blue-600">Banner</span>}
+                                    {p.isBestSeller && <span className="text-[8px] font-black uppercase text-amber-600">Best Seller</span>}
+                                 </div>
+                              </div>
                            </td>
                            <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{p.category}</td>
                            <td className={`px-6 py-4 font-black ${p.stock <= p.minStockLevel ? 'text-red-600' : 'text-emerald-600'}`}>{p.stock}</td>
@@ -1466,6 +1474,16 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Warranty (e.g. 1 Year)</label>
                               <input name="warranty" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingProduct?.warranty} placeholder="Custom warranty" />
                            </div>
+                        </div>
+                        <div className="flex gap-6 py-2">
+                           <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" name="isBestSeller" defaultChecked={editingProduct?.isBestSeller} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Best Seller</span>
+                           </label>
+                           <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" name="isBanner" defaultChecked={editingProduct?.isBanner} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Show in Hero Slider</span>
+                           </label>
                         </div>
                         <div className="space-y-1">
                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Short Description</label>

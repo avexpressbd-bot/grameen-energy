@@ -7,7 +7,11 @@ export enum Category {
   Switch = 'Switch & Socket',
   Cable = 'Cable & Wire',
   Charger = 'Charger & Adapter',
-  Accessories = 'Electrical Accessories'
+  Accessories = 'Electrical Accessories',
+  MOBILES = 'Mobiles',
+  G_AND_A = 'Gadgets & Accessories',
+  APPLIANCES = 'Electronics & Appliances',
+  HOME_AND_KITCHEN = 'Home & Kitchen'
 }
 
 export interface Product {
@@ -25,6 +29,7 @@ export interface Product {
   description: string;
   descriptionBn: string;
   isBestSeller?: boolean;
+  isBanner?: boolean;
   isOffer?: boolean;
   discountPrice?: number;
   specs: Record<string, string>;

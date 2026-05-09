@@ -30,99 +30,99 @@ const Header: React.FC<{
       {isScannerOpen && (
         <BarcodeScanner onScan={handleScan} onClose={() => setIsScannerOpen(false)} />
       )}
-      <header className="sticky top-0 z-50 bg-white shadow-sm border-b">
-        <div className="bg-blue-900 text-white py-2 px-4 text-xs md:text-sm flex justify-between items-center">
+      <header className="sticky top-0 z-50 bg-[#005CB9] text-white">
+        <div className="max-w-7xl mx-auto px-4 h-16 md:h-20 flex items-center justify-between gap-4">
+          {/* Menu & Logo */}
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1 font-bold"><Phone size={14}/> {settings?.contactPhone || '+880 1XXX-XXXXXX'}</span>
-          </div>
-          <div className="flex gap-4 items-center">
-            <button onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')} className="hover:text-emerald-400 font-bold">
-              {language === 'en' ? 'বাংলা' : 'English'}
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-1 hover:bg-white/10 rounded transition md:hidden">
+              <Menu size={24}/>
+            </button>
+            <button onClick={() => onNavigate('home')} className="flex items-center gap-2 group shrink-0">
+              <div className="flex flex-col text-left">
+                <span className="font-black text-xl md:text-2xl text-white leading-tight tracking-tighter">
+                  {language === 'en' ? (settings?.siteName || 'Grameen Energy') : (settings?.siteNameBn || 'গ্রামিন এনার্জি')}
+                </span>
+                <span className="text-[8px] md:text-[10px] font-bold text-white/70 uppercase tracking-[0.2em] -mt-1">Reliable Energy Solutions</span>
+              </div>
             </button>
           </div>
-        </div>
 
-        <div className="max-w-7xl mx-auto px-4 h-16 md:h-20 flex items-center justify-between gap-4">
-          <button onClick={() => onNavigate('home')} className="flex items-center gap-2 group shrink-0">
-            {settings?.logoUrl ? (
-              <img src={settings.logoUrl} alt="Logo" className="h-10 w-10 md:h-12 md:w-12 object-contain" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="bg-emerald-600 text-white p-1 rounded font-bold text-xl md:text-2xl group-hover:bg-blue-700 transition">GE</div>
-            )}
-            <div className="flex flex-col text-left">
-              <span className="font-bold text-lg md:text-xl text-blue-900 leading-tight tracking-tight">
-                {language === 'en' ? (settings?.siteName || 'Grameen Energy') : (settings?.siteNameBn || 'গ্রামিন এনার্জি')}
-              </span>
+          {/* Search Bar - Desktop */}
+          <div className="hidden md:flex flex-1 max-w-2xl px-4">
+            <div className="relative w-full">
+              <input 
+                type="text" 
+                placeholder="Search for products, brands and more" 
+                className="w-full h-11 bg-white text-slate-800 rounded-lg pl-4 pr-12 text-sm font-medium focus:ring-2 focus:ring-blue-400 outline-none"
+              />
+              <button className="absolute right-0 top-0 h-full px-4 text-slate-400 hover:text-blue-600">
+                <Search size={20} />
+              </button>
             </div>
-          </button>
+          </div>
 
-          <nav className="hidden lg:flex items-center gap-8 font-black whitespace-nowrap text-xs uppercase tracking-widest text-slate-500">
-            <button onClick={() => onNavigate('home')} className="hover:text-blue-900 transition">{t('Home', 'হোম')}</button>
-            <button onClick={() => onNavigate('shop')} className="hover:text-blue-900 transition">{t('Shop', 'শপ')}</button>
-            <button onClick={() => onNavigate('services')} className="hover:text-blue-900 transition">{t('Services', 'সার্ভিস')}</button>
-            <button onClick={() => onNavigate('staff')} className="hover:text-blue-900 transition flex items-center gap-2">
-              <Award size={14} className="text-emerald-500"/> {t('Technicians', 'টেকনিশিয়ান')}
+          {/* Actions */}
+          <div className="flex items-center gap-2 md:gap-6 font-bold text-xs">
+            <button onClick={() => onNavigate('cart')} className="relative p-2">
+              <ShoppingCart size={22}/>
+              {cart.length > 0 && <span className="absolute top-0 right-0 bg-red-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-black">{cart.length}</span>}
             </button>
             
-            {currentStaffRole && (
-              <button 
-                onClick={() => onNavigate(currentStaffRole)}
-                className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-xl hover:bg-blue-100 transition border border-blue-100"
-              >
-                <LayoutDashboard size={14}/> {t('Staff Panel', 'স্টাফ প্যানেল')}
-              </button>
-            )}
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsScannerOpen(true)} className="p-2.5 text-slate-400 bg-slate-50 rounded-full hover:bg-blue-50 hover:text-blue-600 transition">
-              <ScanLine size={24}/>
-            </button>
-
-            <div className="relative">
-              {user ? (
+            <div className="h-4 w-px bg-white/20 hidden md:block"></div>
+            
+            {!user ? (
+              <button onClick={() => onNavigate('customer-auth')} className="hover:opacity-80 transition py-2">{t('Login', 'লগইন')}</button>
+            ) : (
+              <div className="relative">
                 <button 
                   onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-                  className="flex items-center gap-2 p-1.5 pr-3 bg-blue-50 text-blue-900 rounded-full border border-blue-100"
+                  className="flex items-center gap-2 group"
                 >
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs uppercase">
-                    {user.name.charAt(0)}
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+                    <User size={18} />
                   </div>
-                  <ChevronDown size={14} />
+                  <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
                 </button>
-              ) : (
-                <button onClick={() => onNavigate('customer-auth')} className="p-2.5 text-slate-400 bg-slate-50 rounded-full hover:bg-blue-50 transition"><User size={24}/></button>
-              )}
-
-              {isAccountMenuOpen && user && (
-                <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-3 z-[100]">
-                  <button onClick={() => { onNavigate('profile'); setIsAccountMenuOpen(false); }} className="w-full text-left px-5 py-2.5 hover:bg-slate-50 text-xs font-bold flex items-center gap-3">
-                    <User size={16} /> {user.role === 'technician' ? 'My Dashboard' : 'Profile'}
-                  </button>
-                  <button onClick={() => { logout(); setIsAccountMenuOpen(false); onNavigate('home'); }} className="w-full text-left px-5 py-2.5 hover:bg-red-50 text-xs font-bold text-red-500 flex items-center gap-3">
-                    <LogOut size={16} /> {t('Logout', 'লগআউট')}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <button onClick={() => onNavigate('cart')} className="relative p-2.5 text-white bg-blue-900 rounded-full">
-              <ShoppingCart size={24}/>
-              {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-black">{cart.length}</span>}
-            </button>
-
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden p-2 text-blue-900">
-              {isMenuOpen ? <X size={28}/> : <Menu size={28}/>}
-            </button>
+                
+                {isAccountMenuOpen && (
+                  <div className="absolute right-0 mt-3 w-48 bg-white text-slate-800 rounded-xl shadow-2xl border py-2 z-[100]">
+                    <button onClick={() => { onNavigate('profile'); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2">
+                      <User size={16} /> Profile
+                    </button>
+                    {currentStaffRole && (
+                      <button onClick={() => { onNavigate(currentStaffRole); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-blue-600">
+                        <LayoutDashboard size={16} /> Dashboard
+                      </button>
+                    )}
+                    <button onClick={() => { logout(); setIsAccountMenuOpen(false); onNavigate('home'); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-500 flex items-center gap-2">
+                      <LogOut size={16} /> Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Search Bar - Mobile */}
+        <div className="md:hidden px-4 pb-3">
+          <div className="relative w-full">
+            <input 
+              type="text" 
+              placeholder="Search for products..." 
+              className="w-full h-10 bg-white text-slate-800 rounded-lg pl-3 pr-10 text-xs font-medium outline-none"
+            />
+            <button className="absolute right-0 top-0 h-full px-3 text-slate-400">
+              <Search size={18} />
+            </button>
+          </div>
+        </div>
         {isMenuOpen && (
-          <div className="lg:hidden bg-white border-t p-6 flex flex-col gap-6 shadow-xl">
-            <button onClick={() => { onNavigate('home'); setIsMenuOpen(false); }}>{t('Home', 'হোম')}</button>
-            <button onClick={() => { onNavigate('shop'); setIsMenuOpen(false); }}>{t('Shop', 'শপ')}</button>
-            <button onClick={() => { onNavigate('services'); setIsMenuOpen(false); }}>{t('Services', 'সার্ভিস')}</button>
-            <button onClick={() => { onNavigate('staff'); setIsMenuOpen(false); }}>{t('Technicians', 'টেকনিশিয়ান')}</button>
+          <div className="lg:hidden bg-white border-t p-6 flex flex-col gap-6 shadow-xl text-slate-800">
+            <button className="text-left font-black uppercase text-xs tracking-widest" onClick={() => { onNavigate('home'); setIsMenuOpen(false); }}>{t('Home', 'হোম')}</button>
+            <button className="text-left font-black uppercase text-xs tracking-widest" onClick={() => { onNavigate('shop'); setIsMenuOpen(false); }}>{t('Shop', 'শপ')}</button>
+            <button className="text-left font-black uppercase text-xs tracking-widest" onClick={() => { onNavigate('services'); setIsMenuOpen(false); }}>{t('Services', 'সার্ভিস')}</button>
+            <button className="text-left font-black uppercase text-xs tracking-widest" onClick={() => { onNavigate('staff'); setIsMenuOpen(false); }}>{t('Technicians', 'টেকনিশিয়ান')}</button>
           </div>
         )}
       </header>

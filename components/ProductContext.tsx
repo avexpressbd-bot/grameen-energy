@@ -180,6 +180,8 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         description: p.description || '',
         descriptionBn: p.descriptionBn || '',
         specs: p.specs || {},
+        isBestSeller: !!p.isBestSeller,
+        isBanner: !!p.isBanner,
         id: id
       };
       
