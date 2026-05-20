@@ -18,7 +18,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const { 
     products, sales, stockLogs, customers, serviceRequests, staff, settings, dueEntries,
     addProduct, updateProduct, deleteProduct, updateServiceRequest, updateCustomerDue,
-    addStaff, updateStaff, deleteStaff, updateSale, updateSettings, addDueEntry, refreshData
+    addStaff, updateStaff, deleteStaff, updateSale, updateSettings, addDueEntry, updateDueEntry, refreshData
   } = useProducts();
 
   console.log("AdminDashboard products state:", products);
@@ -125,7 +125,37 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isDueEntryModalOpen, setIsDueEntryModalOpen] = useState(false);
+  const [editingDueEntry, setEditingDueEntry] = useState<DueEntry | null>(null);
+  const [isDueEntryEditModalOpen, setIsDueEntryEditModalOpen] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [collectionAmount, setCollectionAmount] = useState<number>(0);
+
+  const filteredCustomers = useMemo(() => {
+    const term = customerSearchTerm.toLowerCase().trim();
+    const list = [...(customers || [])];
+    if (!term) {
+      return list.filter(c => c && c.totalDue > 0).sort((a, b) => (b.totalDue || 0) - (a.totalDue || 0));
+    }
+    return list.filter(c => 
+      c && (
+        (c.name || '').toLowerCase().includes(term) || 
+        (c.id || '').includes(term)
+      )
+    ).sort((a, b) => (b.totalDue || 0) - (a.totalDue || 0));
+  }, [customers, customerSearchTerm]);
+
+  const filteredSales = useMemo(() => {
+    const term = orderSearchTerm.toLowerCase().trim();
+    if (!term) return sales || [];
+    return (sales || []).filter(sale => 
+      sale && (
+        (sale.customerName || '').toLowerCase().includes(term) || 
+        (sale.customerPhone || '').includes(term) || 
+        (sale.id || '').toLowerCase().includes(term)
+      )
+    );
+  }, [sales, orderSearchTerm]);
 
   // Service Management State
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
@@ -835,7 +865,22 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
            {activeTab === 'sales' && (
              <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
                 <div className="p-8 border-b">
-                   <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Sales History</h3>
+                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center w-full gap-4">
+                      <div>
+                         <h3 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">Sales History</h3>
+                         <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">বিক্রয় রশিদসমূহ</p>
+                      </div>
+                      <div className="relative w-full md:w-72">
+                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                         <input 
+                           type="text" 
+                           placeholder="কাস্টমারের নাম বা নাম্বার দিয়ে খুঁজুন..." 
+                           value={orderSearchTerm}
+                           onChange={(e) => setOrderSearchTerm(e.target.value)}
+                           className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500 transition font-sans text-slate-800"
+                         />
+                      </div>
+                   </div>
                 </div>
                 <table className="w-full">
                    <thead className="bg-slate-50 border-b">
@@ -849,7 +894,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
-                      {sales.map(sale => (
+                      {filteredSales.map(sale => (
                         <tr key={sale.id} className="hover:bg-slate-50">
                            <td className="px-8 py-4 font-black text-slate-800 text-xs">#{sale.id.slice(-6)}</td>
                            <td className="px-6 py-4">
@@ -901,11 +946,21 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                    <div className="lg:col-span-1 bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden h-fit">
-                      <div className="p-8 border-b flex justify-between items-center bg-slate-50">
+                      <div className="p-8 border-b flex flex-col gap-4 bg-slate-50">
                          <h4 className="font-black uppercase tracking-widest text-slate-400 text-[10px]">কাস্টমার তালিকা</h4>
+                         <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input 
+                              type="text" 
+                              placeholder="নাম বা মোবাইল দিয়ে খুঁজুন..." 
+                              value={customerSearchTerm}
+                              onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500 transition font-sans text-slate-800"
+                            />
+                         </div>
                       </div>
                       <div className="divide-y divide-slate-50 max-h-[600px] overflow-y-auto custom-scrollbar">
-                         {customers.filter(c => c.totalDue > 0).sort((a,b) => b.totalDue - a.totalDue).map(c => (
+                         {filteredCustomers.map(c => (
                            <button 
                              key={c.id} 
                              onClick={() => setSelectedCustomer(c)}
@@ -940,6 +995,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                                   <th className="px-6 py-5 text-right">এমাউন্ট</th>
                                   <th className="px-6 py-5 text-right">জমা</th>
                                   <th className="px-8 py-5 text-right">বাকি</th>
+                                  <th className="px-8 py-5 text-right">এডিট</th>
                                </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
@@ -961,6 +1017,14 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                                     <td className="px-6 py-4 text-right font-black text-xs text-emerald-600">৳{de.paidAmount}</td>
                                     <td className={`px-8 py-4 text-right font-black text-sm ${de.dueAmount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                                        {de.dueAmount > 0 ? `৳${de.dueAmount}` : (de.dueAmount < 0 ? `৳${Math.abs(de.dueAmount)} পরিশোধ` : '-')}
+                                    </td>
+                                    <td className="px-8 py-4 text-right whitespace-nowrap">
+                                       <button 
+                                         onClick={() => { setEditingDueEntry(de); setIsDueEntryEditModalOpen(true); }}
+                                         className="p-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg inline-block transition"
+                                       >
+                                         <Edit2 size={16} />
+                                       </button>
                                     </td>
                                  </tr>
                                ))}
@@ -1662,8 +1726,76 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                     <input name="note" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" placeholder="কোন বিশেষ তথ্য..." />
                  </div>
                  <div className="pt-6 border-t flex gap-4">
-                    <button type="button" onClick={() => setIsDueEntryModalOpen(false)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest">Cancel</button>
+                    <button type="button" onClick={() => setIsDueEntryModalOpen(false)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest animate-in fade-in duration-100">Cancel</button>
                     <button type="submit" className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition">ডিউ এড করুন</button>
+                 </div>
+              </form>
+           </div>
+        </div>
+      )}
+
+      {/* Edit Due Entry Modal */}
+      {isDueEntryEditModalOpen && editingDueEntry && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+           <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 animate-in zoom-in-95 duration-300 shadow-2xl">
+              <div className="flex justify-between items-center mb-8 border-b pb-4">
+                 <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800">ডিউ এন্ট্রি পরিবর্তন করুন (Edit Due)</h2>
+                 <button onClick={() => { setIsDueEntryEditModalOpen(false); setEditingDueEntry(null); }} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition">✕</button>
+              </div>
+              
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const total = Number(fd.get('totalAmount'));
+                const paid = Number(fd.get('paidAmount'));
+                
+                const updatedEntry = {
+                  ...editingDueEntry,
+                  customerName: fd.get('customerName') as string,
+                  customerPhone: fd.get('customerPhone') as string,
+                  productDetails: fd.get('productDetails') as string,
+                  totalAmount: total,
+                  paidAmount: paid,
+                  dueAmount: total - paid,
+                  note: fd.get('note') as string,
+                  isSettled: (total - paid) <= 0
+                };
+                
+                await updateDueEntry(editingDueEntry.id, updatedEntry);
+                setIsDueEntryEditModalOpen(false);
+                setEditingDueEntry(null);
+              }} className="space-y-6">
+                 <div className="grid grid-cols-2 gap-6 font-sans">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
+                       <input name="customerName" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.customerName} placeholder="কাস্টমারের নাম" />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                       <input name="customerPhone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.customerPhone} placeholder="মোবাইল নাম্বার" />
+                    </div>
+                 </div>
+                 <div className="space-y-1 font-sans">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Details</label>
+                    <textarea name="productDetails" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-20" defaultValue={editingDueEntry.productDetails} placeholder="কি কি নিয়েছে?" />
+                 </div>
+                 <div className="grid grid-cols-2 gap-6 font-sans">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Total Amount (মোট টাকা)</label>
+                       <input name="totalAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.totalAmount} />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Paid Amount (জমা টাকা)</label>
+                       <input name="paidAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.paidAmount} />
+                    </div>
+                 </div>
+                 <div className="space-y-1 font-sans">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Note (অপশনাল)</label>
+                    <input name="note" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.note || ''} placeholder="কোন বিশেষ তথ্য..." />
+                 </div>
+                 <div className="pt-6 border-t flex gap-4 font-sans">
+                    <button type="button" onClick={() => { setIsDueEntryEditModalOpen(false); setEditingDueEntry(null); }} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest transition">Cancel</button>
+                    <button type="submit" className="flex-[2] py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-600/10 hover:bg-blue-500 transition font-sans">পরিবর্তন সংরক্ষণ করুন</button>
                  </div>
               </form>
            </div>

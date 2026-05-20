@@ -394,29 +394,33 @@ const POS: React.FC = () => {
                       {item.manualItem && <span className="text-[7px] font-black bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full uppercase tracking-widest">Manual</span>}
                     </div>
                     
-                    <div className="flex items-center gap-3 mt-2">
-                      {item.manualItem ? (
-                        <div className="flex items-center gap-1 bg-white/5 rounded-lg px-2 py-1 border border-white/5 focus-within:border-emerald-500">
-                          <span className="text-[10px] text-slate-500 font-black">৳</span>
-                          <input 
-                            type="number"
-                            value={item.unitPrice} 
-                            onChange={(e) => editManualItemInline(item.productId, 'unitPrice', e.target.value)}
-                            className="text-[10px] font-black text-slate-300 bg-transparent w-16 outline-none"
-                          />
-                        </div>
-                      ) : (
-                        <p className="text-[10px] font-black text-slate-500">৳ {item.unitPrice}</p>
-                      )}
+                    <div className="flex items-center gap-3 mt-2 font-sans">
+                      <div className="flex items-center gap-1 bg-white/5 focus-within:bg-white/10 rounded-lg px-2 py-1 border border-white/5 focus-within:border-emerald-500 transition">
+                        <span className="text-[10px] text-slate-500 font-black">৳</span>
+                        <input 
+                          type="number"
+                          value={item.unitPrice} 
+                          onChange={(e) => editManualItemInline(item.productId, 'unitPrice', Number(e.target.value) || 0)}
+                          className="text-[10px] font-black text-slate-200 bg-transparent w-16 outline-none font-sans"
+                        />
+                      </div>
                       <p className="text-[10px] font-bold text-slate-600">x {item.quantity}</p>
                       <p className="text-[10px] font-black text-emerald-400 ml-auto">৳ {item.totalPrice}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                     <button onClick={() => updateQuantity(item.productId, -1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-red-500/20 transition"><Minus size={14}/></button>
-                     <span className="w-6 text-center font-black text-xs">{item.quantity}</span>
-                     <button onClick={() => updateQuantity(item.productId, 1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-emerald-500/20 transition"><Plus size={14}/></button>
+                  <div className="flex items-center gap-1 font-sans">
+                     <button type="button" onClick={() => updateQuantity(item.productId, -1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-red-500/20 transition"><Minus size={14}/></button>
+                     <input 
+                       type="number"
+                       value={item.quantity}
+                       onChange={(e) => {
+                         const cleanVal = Math.max(1, Number(e.target.value));
+                         setCurrentSale(prev => prev.map(i => i.productId === item.productId ? { ...i, quantity: cleanVal, totalPrice: cleanVal * i.unitPrice } : i));
+                       }}
+                       className="w-12 text-center font-black text-xs bg-transparent border-none outline-none p-0 text-white select-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-sans"
+                     />
+                     <button type="button" onClick={() => updateQuantity(item.productId, 1)} className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center hover:bg-emerald-500/20 transition"><Plus size={14}/></button>
                   </div>
                   <button onClick={() => setCurrentSale(prev => prev.filter(i => i.productId !== item.productId))} className="p-2 text-slate-700 hover:text-red-500 transition"><Trash2 size={18}/></button>
                 </div>
