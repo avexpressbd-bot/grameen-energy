@@ -108,6 +108,27 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [editedSaleItems, setEditedSaleItems] = useState<SaleItem[]>([]);
+  const [editedSaleDiscount, setEditedSaleDiscount] = useState<number>(0);
+  const [editedSalePaidAmount, setEditedSalePaidAmount] = useState<number>(0);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [selectedProductToAdd, setSelectedProductToAdd] = useState<Product | null>(null);
+
+  useEffect(() => {
+    if (editingSale) {
+      setEditedSaleItems(editingSale.items || []);
+      setEditedSaleDiscount(editingSale.discount || 0);
+      setEditedSalePaidAmount(editingSale.paidAmount || 0);
+      setProductSearchTerm('');
+      setSelectedProductToAdd(null);
+    } else {
+      setEditedSaleItems([]);
+      setEditedSaleDiscount(0);
+      setEditedSalePaidAmount(0);
+      setProductSearchTerm('');
+      setSelectedProductToAdd(null);
+    }
+  }, [editingSale]);
   
   // Barcode state
   const [scannedBarcode, setScannedBarcode] = useState('');
@@ -156,6 +177,19 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       )
     );
   }, [sales, orderSearchTerm]);
+
+  const filteredProductsToSearch = useMemo(() => {
+    const term = productSearchTerm.toLowerCase().trim();
+    if (!term) return [];
+    return (products || []).filter(p => 
+      p && (
+        (p.name || '').toLowerCase().includes(term) || 
+        (p.nameBn || '').toLowerCase().includes(term) ||
+        (p.id || '').toLowerCase().includes(term) ||
+        (p.barcode || '').toLowerCase().includes(term)
+      )
+    ).slice(0, 5);
+  }, [products, productSearchTerm]);
 
   // Service Management State
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
@@ -1569,35 +1603,25 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                          disabled={isSaving}
                          className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition disabled:opacity-50 flex items-center justify-center gap-2"
                        >
-                         {isSaving && <Loader2 className="animate-spin" size={18} />}
-                         {editingProduct ? 'Update Inventory' : 'Add to Catalog'}
-                       </button>
-                    </div>
-                 </form>
-           </div>
-        </div>
-      )}
-      {/* Barcode Scanner Modal */}
-      {isBarcodeScannerOpen && (
-        <BarcodeScanner 
-          onScan={(code) => {
-            setScannedBarcode(code);
-            setIsBarcodeScannerOpen(false);
-          }}
-          onClose={() => setIsBarcodeScannerOpen(false)}
-        />
+                          {isSaving && <Loader2 className="animate-spin" size={18} />}
+                          {editingProduct ? 'Update Inventory' : 'Add to Catalog'}
+                        </button>
+                     </div>
+                  </form>
+            </div>
+         </div>
       )}
 
       {/* Sale Edit Modal */}
       {isSaleModalOpen && editingSale && (
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-           <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+           <div className="bg-white rounded-[3rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
               <div className="p-8 border-b flex justify-between items-center bg-slate-50">
                  <div>
-                    <h2 className="text-xl font-black text-slate-800">Edit Order History</h2>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Order #{editingSale.id.slice(-6)}</p>
+                    <h2 className="text-xl font-black text-slate-800">অর্ডার এডিট করুন (Edit Order / Sale)</h2>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Order #{editingSale.id.slice(-6)} | {editingSale.paymentMethod || 'POS'}</p>
                  </div>
-                 <button onClick={() => setIsSaleModalOpen(false)} className="p-3 hover:bg-white rounded-2xl transition text-slate-400">
+                 <button onClick={() => setIsSaleModalOpen(false)} className="p-3 hover:bg-slate-100 rounded-2xl transition text-slate-400">
                     <X size={24} />
                  </button>
               </div>
@@ -1605,70 +1629,280 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
+                const calcSubtotal = editedSaleItems.reduce((acc, item) => acc + (item.totalPrice || 0), 0);
+                const discountVal = Number(editedSaleDiscount) || 0;
+                const calcTotal = Math.max(0, calcSubtotal - discountVal);
+                const paidVal = Number(editedSalePaidAmount) || 0;
+                const calcDue = Math.max(0, calcTotal - paidVal);
+
                 const updatedSale = {
                   ...editingSale,
-                  customerName: fd.get('customerName'),
-                  customerPhone: fd.get('customerPhone'),
-                  customerAddress: fd.get('customerAddress'),
+                  customerName: fd.get('customerName') as string,
+                  customerPhone: fd.get('customerPhone') as string,
+                  customerAddress: fd.get('customerAddress') as string,
                   status: fd.get('status') as OrderStatus,
-                  total: Number(fd.get('total')),
-                  paidAmount: Number(fd.get('paidAmount')),
-                  dueAmount: Number(fd.get('total')) - Number(fd.get('paidAmount')),
+                  items: editedSaleItems,
+                  subtotal: calcSubtotal,
+                  discount: discountVal,
+                  total: calcTotal,
+                  paidAmount: paidVal,
+                  dueAmount: calcDue,
                 };
                 try {
                   await updateSale(editingSale.id, updatedSale);
                   setIsSaleModalOpen(false);
                 } catch (err) {
-                  alert("Failed to update sale");
+                  alert("অর্ডার আপডেট করতে সমস্যা হয়েছে।");
                 }
-              }} className="flex-1 overflow-y-auto p-8 space-y-6">
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
-                       <input name="customerName" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.customerName} />
+              }} className="flex-1 overflow-y-auto p-8 space-y-6 flex flex-col md:flex-row gap-8">
+                 
+                 {/* Left Column: Customer and Status Details */}
+                 <div className="flex-1 space-y-5">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-1">কাস্টমার ও ডেলিভারি তথ্য</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
+                          <input name="customerName" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.customerName} />
+                       </div>
+                       <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                          <input name="customerPhone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.customerPhone} />
+                       </div>
                     </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
-                       <input name="customerPhone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.customerPhone} />
-                    </div>
-                 </div>
 
-                 <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
-                    <textarea name="customerAddress" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-20" defaultValue={editingSale.customerAddress} />
-                 </div>
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
+                       <textarea name="customerAddress" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-16" defaultValue={editingSale.customerAddress} />
+                    </div>
 
-                 <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Total Amount</label>
-                       <input name="total" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.total} />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Paid Amount</label>
-                       <input name="paidAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.paidAmount} />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Order Status</label>
                        <select name="status" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingSale.status}>
                           {['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map(s => (
                             <option key={s} value={s}>{s}</option>
                           ))}
                        </select>
                     </div>
+
+                    {/* Order Financials Summary */}
+                    <div className="bg-slate-50 p-6 rounded-3xl space-y-3 font-sans border border-slate-100">
+                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">মোট হিসাব (Financial Summary)</h3>
+                       <div className="flex justify-between text-xs font-bold text-slate-500">
+                          <span>Subtotal (সাবটোটাল):</span>
+                          <span>৳{editedSaleItems.reduce((acc, item) => acc + (item.totalPrice || 0), 0)}</span>
+                       </div>
+                       <div className="flex justify-between text-xs font-bold text-slate-500 items-center">
+                          <span>Discount (ডিসকাউন্ট):</span>
+                          <div className="flex items-center gap-1 bg-white rounded-lg px-2 py-0.5 border w-24">
+                             <span className="text-[10px] text-slate-400 font-black">৳</span>
+                             <input 
+                               type="number" 
+                               value={editedSaleDiscount}
+                               onChange={(e) => setEditedSaleDiscount(Math.max(0, Number(e.target.value) || 0))}
+                               className="text-xs font-black text-slate-700 bg-transparent w-full outline-none p-0 border-none"
+                             />
+                          </div>
+                       </div>
+                       <div className="flex justify-between text-sm font-black text-slate-800 border-t pt-2 border-slate-200">
+                          <span>Total to Pay (মোট টাকা):</span>
+                          <span>৳{Math.max(0, editedSaleItems.reduce((acc, item) => acc + (item.totalPrice || 0), 0) - editedSaleDiscount)}</span>
+                       </div>
+                       <div className="flex justify-between text-xs font-bold text-slate-500 items-center pt-1">
+                          <span>Paid Amount (জমা টাকা):</span>
+                          <div className="flex items-center gap-1 bg-white rounded-lg px-2 py-0.5 border w-24">
+                             <span className="text-[10px] text-slate-400 font-black">৳</span>
+                             <input 
+                               type="number" 
+                               value={editedSalePaidAmount}
+                               onChange={(e) => setEditedSalePaidAmount(Math.max(0, Number(e.target.value) || 0))}
+                               className="text-xs font-black text-slate-700 bg-transparent w-full outline-none p-0 border-none"
+                             />
+                          </div>
+                       </div>
+                       
+                       {/* Due status check */}
+                       {(() => {
+                         const subTotalVal = editedSaleItems.reduce((acc, item) => acc + (item.totalPrice || 0), 0);
+                         const finalTotal = Math.max(0, subTotalVal - editedSaleDiscount);
+                         const dueVal = Math.max(0, finalTotal - editedSalePaidAmount);
+                         
+                         return (
+                           <div className="flex justify-between text-sm font-black border-t pt-2 border-slate-200">
+                              <span>Due Amount (বাকি টাকা):</span>
+                              <span className={dueVal > 0 ? "text-red-600 font-extrabold" : "text-emerald-600 font-extrabold"}>
+                                 ৳{dueVal} {dueVal <= 0 ? "(পরিশোধিত)" : ""}
+                              </span>
+                           </div>
+                         );
+                       })()}
+                    </div>
+
+                    <div className="pt-2 flex gap-3">
+                       <button type="button" onClick={() => setIsSaleModalOpen(false)} className="flex-1 py-4 border-2 border-slate-200 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition">
+                          Cancel
+                       </button>
+                       <button type="submit" className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition">
+                          পরিবর্তন সেভ করুন
+                       </button>
+                    </div>
                  </div>
 
-                 <div className="pt-6 border-t flex gap-4">
-                    <button type="button" onClick={() => setIsSaleModalOpen(false)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition">
-                       Cancel
-                    </button>
-                    <button type="submit" className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition">
-                       Update Order
-                    </button>
+                 {/* Right Column: Ordered Items List Builder */}
+                 <div className="flex-[1.2] flex flex-col space-y-4 border-l pl-0 md:pl-8 border-slate-100">
+                    <div className="flex justify-between items-center border-b pb-2">
+                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">অর্ডারের আইটেম সমূহ (Order Items)</h3>
+                       <button 
+                         type="button" 
+                         onClick={() => {
+                           const id = 'MAN-' + Date.now();
+                           setEditedSaleItems([
+                             ...editedSaleItems,
+                             {
+                               productId: id,
+                               name: 'নতুন ম্যানুয়াল আইটেম',
+                               quantity: 1,
+                               unitPrice: 0,
+                               totalPrice: 0,
+                               manualItem: true
+                             }
+                           ]);
+                         }}
+                         className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-100 transition flex items-center gap-1"
+                       >
+                          <Plus size={12} /> ম্যানুয়াল আইটেম যোগ করুন
+                       </button>
+                    </div>
+
+                    {/* Catalog search box */}
+                    <div className="relative">
+                       <Search className="absolute left-3 top-3.5 text-slate-400" size={14} />
+                       <input 
+                         type="text" 
+                         placeholder="ক্যাটালগ থেকে প্রোডাক্টের নাম বা বারকোড দিয়ে সার্চ করুন..."
+                         value={productSearchTerm}
+                         onChange={(e) => setProductSearchTerm(e.target.value)}
+                         className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold outline-none focus:border-blue-500 text-slate-800 transition"
+                       />
+                       
+                       {filteredProductsToSearch.length > 0 && (
+                         <div className="absolute top-11 left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1 divide-y divide-slate-50">
+                            {filteredProductsToSearch.map(p => (
+                              <button 
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  const existing = editedSaleItems.find(item => item.productId === p.id);
+                                  if (existing) {
+                                    setEditedSaleItems(editedSaleItems.map(item => 
+                                      item.productId === p.id 
+                                        ? { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * item.unitPrice }
+                                        : item
+                                    ));
+                                  } else {
+                                    setEditedSaleItems([
+                                      ...editedSaleItems,
+                                      {
+                                        productId: p.id,
+                                        name: p.nameBn || p.name,
+                                        quantity: 1,
+                                        unitPrice: p.price || 0,
+                                        totalPrice: p.price || 0,
+                                        warranty: p.warranty || 'No Warranty',
+                                        barcode: p.barcode || '',
+                                        manualItem: false
+                                      }
+                                    ]);
+                                  }
+                                  setProductSearchTerm('');
+                                }}
+                                className="w-full pointer-events-auto text-left py-2 px-3 hover:bg-blue-50 rounded-lg flex items-center justify-between text-xs transition"
+                              >
+                                 <span className="font-extrabold text-slate-800">{p.nameBn || p.name}</span>
+                                 <span className="font-sans text-blue-600 font-extrabold">৳{p.price}</span>
+                              </button>
+                            ))}
+                         </div>
+                       )}
+                    </div>
+
+                    {/* Ordered Items Scroll Container */}
+                    <div className="flex-1 overflow-y-auto max-h-[350px] space-y-3 pr-2 scrollbar-thin">
+                       {editedSaleItems.length === 0 ? (
+                         <div className="text-center py-10 bg-slate-50 rounded-2xl">
+                            <p className="text-xs font-bold text-slate-400">এই অর্ডারে কোনো আইটেম নেই। দয়া করে আইটেম এড করুন।</p>
+                         </div>
+                       ) : (
+                         editedSaleItems.map(item => (
+                           <div key={item.productId} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-between gap-2.5">
+                              <div className="flex justify-between items-start gap-2">
+                                 {item.manualItem ? (
+                                   <input 
+                                     type="text" 
+                                     value={item.name}
+                                     onChange={(e) => {
+                                       setEditedSaleItems(editedSaleItems.map(i => i.productId === item.productId ? { ...i, name: e.target.value } : i));
+                                     }}
+                                     className="text-xs font-extrabold text-slate-800 bg-white border border-slate-200 rounded-lg px-2 py-1 flex-1 pointer-events-auto"
+                                     placeholder="আইটেমের নাম লিখুন"
+                                   />
+                                 ) : (
+                                   <p className="text-xs font-extrabold text-slate-800">{item.name}</p>
+                                 )}
+
+                                 <button 
+                                   type="button" 
+                                   onClick={() => setEditedSaleItems(editedSaleItems.filter(i => i.productId !== item.productId))}
+                                   className="text-red-400 hover:text-red-600 transition p-1 hover:bg-red-50 rounded-lg"
+                                 >
+                                    <Trash2 size={14} />
+                                 </button>
+                              </div>
+
+                              <div className="flex items-center justify-between font-sans text-xs">
+                                 <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-400 font-black">৳</span>
+                                    <input 
+                                      type="number"
+                                      value={item.unitPrice}
+                                      onChange={(e) => {
+                                        const cleanPr = Math.max(0, Number(e.target.value) || 0);
+                                        setEditedSaleItems(editedSaleItems.map(i => 
+                                          i.productId === item.productId ? { ...i, unitPrice: cleanPr, totalPrice: i.quantity * cleanPr } : i
+                                        ));
+                                      }}
+                                      className="p-1 w-16 bg-white border border-slate-200 rounded-lg text-xs font-bold text-center pointer-events-auto"
+                                    />
+                                 </div>
+
+                                 <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-400 font-bold ml-1">x</span>
+                                    <input 
+                                      type="number"
+                                      value={item.quantity}
+                                      onChange={(e) => {
+                                        const cleanQ = Math.max(1, Number(e.target.value) || 1);
+                                        setEditedSaleItems(editedSaleItems.map(i => 
+                                          i.productId === item.productId ? { ...i, quantity: cleanQ, totalPrice: cleanQ * i.unitPrice } : i
+                                        ));
+                                      }}
+                                      className="p-1 w-12 bg-white border border-slate-200 rounded-lg text-xs font-bold text-center pointer-events-auto"
+                                    />
+                                 </div>
+
+                                 <div className="text-right ml-auto font-extrabold text-slate-700">
+                                    ৳{item.totalPrice}
+                                 </div>
+                              </div>
+                           </div>
+                         ))
+                       )}
+                    </div>
                  </div>
               </form>
            </div>
         </div>
       )}
+
       {/* Manual Due Entry Modal */}
       {isDueEntryModalOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">

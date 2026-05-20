@@ -319,9 +319,63 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   const deleteBlog = async (id: string) => await deleteDoc(doc(db, "blogs", id));
   const updateSaleStatus = async (id: string, status: OrderStatus) => await updateDoc(doc(db, "sales", id), { status });
   const updateSale = async (id: string, data: Partial<Sale>) => {
+    const originalSale = sales.find(s => s.id === id);
     const { id: _, ...updateData } = data;
     const sanitizedData = JSON.parse(JSON.stringify(updateData));
     await updateDoc(doc(db, "sales", id), sanitizedData);
+
+    const oldDue = originalSale?.dueAmount || 0;
+    const newDue = data.dueAmount !== undefined ? data.dueAmount : oldDue;
+    const customerPhone = data.customerPhone || originalSale?.customerPhone;
+    const customerName = data.customerName || originalSale?.customerName || "Walking Customer";
+
+    // Update customer total due
+    if (customerPhone && oldDue !== newDue) {
+      const dueDiff = newDue - oldDue;
+      const cRef = doc(db, "customers", customerPhone);
+      const cSnap = await getDoc(cRef);
+      if (cSnap.exists()) {
+        await updateDoc(cRef, {
+          totalDue: increment(dueDiff),
+          lastUpdate: new Date().toISOString()
+        });
+      } else {
+        await setDoc(cRef, {
+          name: customerName,
+          totalDue: Math.max(0, dueDiff),
+          lastUpdate: new Date().toISOString()
+        });
+      }
+    }
+
+    // Update associated due entry
+    const matchingDueEntry = dueEntries.find(de => de.saleId === id);
+    if (matchingDueEntry) {
+      const productDetails = (data.items || originalSale?.items || []).map(item => `${item.name} (${item.quantity})`).join(', ');
+      await updateDoc(doc(db, "dueEntries", matchingDueEntry.id), {
+        customerName,
+        customerPhone,
+        productDetails,
+        totalAmount: data.total !== undefined ? data.total : (originalSale?.total || 0),
+        paidAmount: data.paidAmount !== undefined ? data.paidAmount : (originalSale?.paidAmount || 0),
+        dueAmount: newDue,
+        isSettled: newDue <= 0
+      } as any);
+    } else if (newDue > 0 && customerPhone) {
+      // Create new due entry
+      const productDetails = (data.items || originalSale?.items || []).map(item => `${item.name} (${item.quantity})`).join(', ');
+      await addDoc(collection(db, "dueEntries"), {
+        customerName,
+        customerPhone,
+        productDetails,
+        date: new Date().toISOString(),
+        totalAmount: data.total !== undefined ? data.total : (originalSale?.total || 0),
+        paidAmount: data.paidAmount !== undefined ? data.paidAmount : (originalSale?.paidAmount || 0),
+        dueAmount: newDue,
+        saleId: id,
+        isSettled: false
+      });
+    }
   };
   const updateCustomerDue = async (phone: string, name: string, amount: number) => {
     await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
@@ -362,7 +416,32 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const updateDueEntry = async (id: string, data: Partial<DueEntry>) => {
+    const originalEntry = dueEntries.find(e => e.id === id);
+    let originalDueDiff = 0;
+    if (originalEntry && data.dueAmount !== undefined) {
+      originalDueDiff = data.dueAmount - (originalEntry.dueAmount || 0);
+    }
+    
     await updateDoc(doc(db, "dueEntries", id), data as any);
+    
+    const customerPhone = data.customerPhone || originalEntry?.customerPhone;
+    if (customerPhone && originalDueDiff !== 0) {
+      const cRef = doc(db, "customers", customerPhone);
+      const cSnap = await getDoc(cRef);
+      if (cSnap.exists()) {
+        await updateDoc(cRef, {
+          totalDue: increment(originalDueDiff),
+          lastUpdate: new Date().toISOString()
+        });
+      } else {
+        const customerName = data.customerName || originalEntry?.customerName || "Customer";
+        await setDoc(cRef, {
+          name: customerName,
+          totalDue: Math.max(0, originalDueDiff),
+          lastUpdate: new Date().toISOString()
+        });
+      }
+    }
   };
 
   const refreshData = async () => {
