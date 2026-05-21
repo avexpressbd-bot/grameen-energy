@@ -362,7 +362,63 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const updateDueEntry = async (id: string, data: Partial<DueEntry>) => {
-    await updateDoc(doc(db, "dueEntries", id), data as any);
+    try {
+      const entryRef = doc(db, "dueEntries", id);
+      const entrySnap = await getDoc(entryRef);
+      if (entrySnap.exists()) {
+        const oldEntry = entrySnap.data() as DueEntry;
+        const oldDue = oldEntry.dueAmount || 0;
+        const oldPhone = oldEntry.customerPhone;
+        
+        const newDue = data.dueAmount !== undefined ? data.dueAmount : oldDue;
+        const newPhone = data.customerPhone || oldPhone;
+        const newName = data.customerName || oldEntry.customerName;
+
+        // Perform the update
+        await updateDoc(entryRef, data as any);
+
+        if (oldPhone === newPhone) {
+          // Same customer, update by difference (newDue - oldDue)
+          const diff = newDue - oldDue;
+          if (diff !== 0) {
+            const cRef = doc(db, "customers", newPhone);
+            await updateDoc(cRef, {
+              totalDue: increment(diff),
+              lastUpdate: new Date().toISOString()
+            });
+          }
+        } else {
+          // Customer changed!
+          // Decrement old customer
+          const oldCRef = doc(db, "customers", oldPhone);
+          await updateDoc(oldCRef, {
+            totalDue: increment(-oldDue),
+            lastUpdate: new Date().toISOString()
+          });
+
+          // Increment new customer
+          const newCRef = doc(db, "customers", newPhone);
+          const newCSnap = await getDoc(newCRef);
+          if (!newCSnap.exists()) {
+            await setDoc(newCRef, {
+              name: newName,
+              totalDue: newDue,
+              lastUpdate: new Date().toISOString()
+            });
+          } else {
+            await updateDoc(newCRef, {
+              totalDue: increment(newDue),
+              lastUpdate: new Date().toISOString()
+            });
+          }
+        }
+      } else {
+        await updateDoc(entryRef, data as any);
+      }
+    } catch (err) {
+      console.error("Error updating due entry and sync customer:", err);
+      await updateDoc(doc(db, "dueEntries", id), data as any).catch(e => console.error(e));
+    }
   };
 
   const refreshData = async () => {
