@@ -324,20 +324,56 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     await updateDoc(doc(db, "sales", id), sanitizedData);
   };
   const updateCustomerDue = async (phone: string, name: string, amount: number) => {
-    await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
-    
-    // Add a collection log entry
-    await addDoc(collection(db, "dueEntries"), {
-      customerName: name,
-      customerPhone: phone,
-      productDetails: 'Payment Collection (পেমেন্ট সংগ্রহ)',
-      date: new Date().toISOString(),
-      totalAmount: 0,
-      paidAmount: amount,
-      dueAmount: -amount,
-      note: 'Manual collection',
-      isSettled: false
-    });
+    try {
+      // 1. Decrement customer totalDue
+      await updateDoc(doc(db, "customers", phone), { totalDue: increment(-amount), lastUpdate: new Date().toISOString() });
+      
+      // 2. Fetch all outstanding due entries for this customer (sorted oldest to newest)
+      const q = query(
+        collection(db, "dueEntries"),
+        orderBy("date", "asc")
+      );
+      const querySnapshot = await getDocs(q);
+      
+      let remainingPayment = amount;
+      for (const docSnap of querySnapshot.docs) {
+        if (remainingPayment <= 0) break;
+        const entry = docSnap.data() as DueEntry;
+        
+        // Filter: same customer, has outstanding due, and is a real purchase (totalAmount > 0)
+        if (entry.customerPhone === phone && entry.dueAmount > 0 && entry.totalAmount > 0) {
+          const allocated = Math.min(entry.dueAmount, remainingPayment);
+          const newPaidAmount = (entry.paidAmount || 0) + allocated;
+          const newDueAmount = entry.dueAmount - allocated;
+          const isSettled = newDueAmount <= 0;
+          
+          await updateDoc(docSnap.ref, {
+            paidAmount: newPaidAmount,
+            dueAmount: newDueAmount,
+            isSettled: isSettled
+          });
+          
+          remainingPayment -= allocated;
+        }
+      }
+
+      // 3. Add a payment record with dueAmount = 0 (so it doesn't double-count in totalDue math)
+      await addDoc(collection(db, "dueEntries"), {
+        customerName: name,
+        customerPhone: phone,
+        productDetails: 'Payment Collection (পেমেন্ট সংগ্রহ)',
+        date: new Date().toISOString(),
+        totalAmount: 0,
+        paidAmount: amount,
+        dueAmount: 0,
+        note: 'Manual collection',
+        isSettled: true,
+        isPayment: true
+      });
+    } catch (error) {
+      console.error("Error in updateCustomerDue:", error);
+      throw error;
+    }
   };
 
   const addDueEntry = async (entry: Omit<DueEntry, 'id'>) => {
@@ -367,49 +403,101 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
       const entrySnap = await getDoc(entryRef);
       if (entrySnap.exists()) {
         const oldEntry = entrySnap.data() as DueEntry;
-        const oldDue = oldEntry.dueAmount || 0;
-        const oldPhone = oldEntry.customerPhone;
-        
-        const newDue = data.dueAmount !== undefined ? data.dueAmount : oldDue;
-        const newPhone = data.customerPhone || oldPhone;
-        const newName = data.customerName || oldEntry.customerName;
+        const isPayment = oldEntry.isPayment || oldEntry.productDetails.includes('Payment Collection') || oldEntry.totalAmount === 0;
 
-        // Perform the update
-        await updateDoc(entryRef, data as any);
+        if (isPayment) {
+          const oldPaid = oldEntry.paidAmount || 0;
+          const newPaid = data.paidAmount !== undefined ? data.paidAmount : oldPaid;
+          const oldPhone = oldEntry.customerPhone;
+          const newPhone = data.customerPhone || oldPhone;
+          const newName = data.customerName || oldEntry.customerName;
 
-        if (oldPhone === newPhone) {
-          // Same customer, update by difference (newDue - oldDue)
-          const diff = newDue - oldDue;
-          if (diff !== 0) {
-            const cRef = doc(db, "customers", newPhone);
-            await updateDoc(cRef, {
-              totalDue: increment(diff),
+          // Force dueAmount to 0 for payment collection logs to prevent double counting
+          data.dueAmount = 0;
+          data.isPayment = true;
+
+          await updateDoc(entryRef, data as any);
+
+          if (oldPhone === newPhone) {
+            const diffPaid = newPaid - oldPaid;
+            if (diffPaid !== 0) {
+              const cRef = doc(db, "customers", newPhone);
+              await updateDoc(cRef, {
+                totalDue: increment(-diffPaid),
+                lastUpdate: new Date().toISOString()
+              });
+            }
+          } else {
+            // Customer changed for this payment entry
+            // 1. Restore old customer's due (add back the old paid amount)
+            const oldCRef = doc(db, "customers", oldPhone);
+            await updateDoc(oldCRef, {
+              totalDue: increment(oldPaid),
               lastUpdate: new Date().toISOString()
             });
+
+            // 2. Subtract the payment amount from the new customer's due
+            const newCRef = doc(db, "customers", newPhone);
+            const newCSnap = await getDoc(newCRef);
+            if (!newCSnap.exists()) {
+              await setDoc(newCRef, {
+                name: newName,
+                totalDue: -newPaid,
+                lastUpdate: new Date().toISOString()
+              });
+            } else {
+              await updateDoc(newCRef, {
+                totalDue: increment(-newPaid),
+                lastUpdate: new Date().toISOString()
+              });
+            }
           }
         } else {
-          // Customer changed!
-          // Decrement old customer
-          const oldCRef = doc(db, "customers", oldPhone);
-          await updateDoc(oldCRef, {
-            totalDue: increment(-oldDue),
-            lastUpdate: new Date().toISOString()
-          });
+          // Real purchase entry
+          const oldDue = oldEntry.dueAmount || 0;
+          const oldPhone = oldEntry.customerPhone;
+          
+          const newDue = data.dueAmount !== undefined ? data.dueAmount : oldDue;
+          const newPhone = data.customerPhone || oldPhone;
+          const newName = data.customerName || oldEntry.customerName;
 
-          // Increment new customer
-          const newCRef = doc(db, "customers", newPhone);
-          const newCSnap = await getDoc(newCRef);
-          if (!newCSnap.exists()) {
-            await setDoc(newCRef, {
-              name: newName,
-              totalDue: newDue,
-              lastUpdate: new Date().toISOString()
-            });
+          // Perform the update
+          await updateDoc(entryRef, data as any);
+
+          if (oldPhone === newPhone) {
+            // Same customer, update by difference (newDue - oldDue)
+            const diff = newDue - oldDue;
+            if (diff !== 0) {
+              const cRef = doc(db, "customers", newPhone);
+              await updateDoc(cRef, {
+                totalDue: increment(diff),
+                lastUpdate: new Date().toISOString()
+              });
+            }
           } else {
-            await updateDoc(newCRef, {
-              totalDue: increment(newDue),
+            // Customer changed!
+            // Decrement old customer
+            const oldCRef = doc(db, "customers", oldPhone);
+            await updateDoc(oldCRef, {
+              totalDue: increment(-oldDue),
               lastUpdate: new Date().toISOString()
             });
+
+            // Increment new customer
+            const newCRef = doc(db, "customers", newPhone);
+            const newCSnap = await getDoc(newCRef);
+            if (!newCSnap.exists()) {
+              await setDoc(newCRef, {
+                name: newName,
+                totalDue: newDue,
+                lastUpdate: new Date().toISOString()
+              });
+            } else {
+              await updateDoc(newCRef, {
+                totalDue: increment(newDue),
+                lastUpdate: new Date().toISOString()
+              });
+            }
           }
         }
       } else {

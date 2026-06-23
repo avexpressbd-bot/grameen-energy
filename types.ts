@@ -200,6 +200,7 @@ export interface DueEntry {
   saleId?: string;
   note?: string;
   isSettled: boolean;
+  isPayment?: boolean;
 }
 
 export interface Customer {

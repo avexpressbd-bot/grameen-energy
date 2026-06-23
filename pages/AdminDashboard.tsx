@@ -130,6 +130,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [collectionAmount, setCollectionAmount] = useState<number>(0);
+  const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
 
   const filteredCustomers = useMemo(() => {
     const term = customerSearchTerm.toLowerCase().trim();
@@ -999,35 +1000,45 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                                </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                               {(selectedCustomer ? dueEntries.filter(de => de.customerPhone === selectedCustomer.id) : dueEntries.slice(0, 50)).map(de => (
-                                 <tr key={de.id} className="hover:bg-slate-50 transition">
-                                    <td className="px-8 py-4 text-[10px] font-bold text-slate-500 whitespace-nowrap">
-                                       {new Date(de.date).toLocaleDateString()}
-                                    </td>
-                                    {!selectedCustomer && (
-                                       <td className="px-6 py-4">
-                                          <p className="text-xs font-black text-slate-800">{de.customerName}</p>
-                                          <p className="text-[9px] font-bold text-slate-400">{de.customerPhone}</p>
-                                       </td>
-                                    )}
-                                    <td className="px-6 py-4">
-                                       <p className="text-xs font-bold text-slate-600 line-clamp-1">{de.productDetails}</p>
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-black text-xs text-slate-600">৳{de.totalAmount}</td>
-                                    <td className="px-6 py-4 text-right font-black text-xs text-emerald-600">৳{de.paidAmount}</td>
-                                    <td className={`px-8 py-4 text-right font-black text-sm ${de.dueAmount > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                                       {de.dueAmount > 0 ? `৳${de.dueAmount}` : (de.dueAmount < 0 ? `৳${Math.abs(de.dueAmount)} পরিশোধ` : '-')}
-                                    </td>
-                                    <td className="px-8 py-4 text-right whitespace-nowrap">
-                                       <button 
-                                         onClick={() => { setEditingDueEntry(de); setIsDueEntryEditModalOpen(true); }}
-                                         className="p-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg inline-block transition"
-                                       >
-                                         <Edit2 size={16} />
-                                       </button>
-                                    </td>
-                                 </tr>
-                               ))}
+                               {(selectedCustomer ? dueEntries.filter(de => de.customerPhone === selectedCustomer.id) : dueEntries.slice(0, 50)).map(de => {
+                                 const isPayment = de.isPayment || de.productDetails.includes('Payment Collection') || de.totalAmount === 0;
+                                 return (
+                                   <tr key={de.id} className={`${isPayment ? 'bg-emerald-50/40 hover:bg-emerald-50' : 'hover:bg-slate-50'} transition`}>
+                                      <td className="px-8 py-4 text-[10px] font-bold text-slate-500 whitespace-nowrap">
+                                         {new Date(de.date).toLocaleDateString()}
+                                      </td>
+                                      {!selectedCustomer && (
+                                         <td className="px-6 py-4">
+                                            <p className="text-xs font-black text-slate-800">{de.customerName}</p>
+                                            <p className="text-[9px] font-bold text-slate-400">{de.customerPhone}</p>
+                                         </td>
+                                      )}
+                                      <td className="px-6 py-4">
+                                         <div className="flex items-center gap-2">
+                                            {isPayment && (
+                                              <span className="text-[8px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">জমা</span>
+                                            )}
+                                            <p className="text-xs font-bold text-slate-600 line-clamp-1">{de.productDetails}</p>
+                                         </div>
+                                      </td>
+                                      <td className="px-6 py-4 text-right font-black text-xs text-slate-600">
+                                         {isPayment ? '-' : `৳${de.totalAmount}`}
+                                      </td>
+                                      <td className="px-6 py-4 text-right font-black text-xs text-emerald-600">৳{de.paidAmount}</td>
+                                      <td className={`px-8 py-4 text-right font-black text-sm ${isPayment ? 'text-emerald-600' : (de.dueAmount > 0 ? 'text-red-600' : 'text-emerald-600')}`}>
+                                         {isPayment ? `৳${de.paidAmount} জমা` : (de.dueAmount > 0 ? `৳${de.dueAmount}` : 'পরিশোধিত')}
+                                      </td>
+                                      <td className="px-8 py-4 text-right whitespace-nowrap">
+                                         <button 
+                                           onClick={() => { setEditingDueEntry(de); setIsDueEntryEditModalOpen(true); }}
+                                           className="p-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg inline-block transition"
+                                         >
+                                           <Edit2 size={16} />
+                                         </button>
+                                      </td>
+                                   </tr>
+                                 );
+                               })}
                             </tbody>
                          </table>
                       </div>
@@ -1039,7 +1050,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                               <p className="text-3xl font-black text-white">৳{selectedCustomer.totalDue}</p>
                            </div>
                            <button 
-                             onClick={() => setCollectionAmount(0)}
+                             onClick={() => { setCollectionAmount(0); setIsCollectionModalOpen(true); }}
                              className="w-full md:w-auto px-10 py-5 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-400 transition"
                            >
                              টাকা জমা নিন (Collect Payment)
@@ -1352,7 +1363,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       )}
 
       {/* Collection Modal */}
-      {selectedCustomer && (
+      {isCollectionModalOpen && selectedCustomer && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
            <div className="bg-white w-full max-w-md rounded-[3rem] p-10 animate-in zoom-in duration-300 shadow-2xl">
               <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800 mb-2">Collect Payment</h2>
@@ -1375,11 +1386,11 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                  </div>
 
                  <div className="flex gap-4">
-                    <button onClick={() => setSelectedCustomer(null)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest">Cancel</button>
+                    <button onClick={() => setIsCollectionModalOpen(false)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest">Cancel</button>
                     <button 
                       onClick={async () => {
                         await updateCustomerDue(selectedCustomer.id, selectedCustomer.name, collectionAmount);
-                        setSelectedCustomer(null);
+                        setIsCollectionModalOpen(false);
                       }}
                       className="flex-[2] py-5 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20"
                     >
@@ -1746,7 +1757,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
-                const total = Number(fd.get('totalAmount'));
+                const isPayment = editingDueEntry.isPayment || editingDueEntry.totalAmount === 0 || editingDueEntry.productDetails.includes('Payment Collection');
+                const total = isPayment ? 0 : Number(fd.get('totalAmount'));
                 const paid = Number(fd.get('paidAmount'));
                 
                 const updatedEntry = {
@@ -1756,9 +1768,10 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                   productDetails: fd.get('productDetails') as string,
                   totalAmount: total,
                   paidAmount: paid,
-                  dueAmount: total - paid,
+                  dueAmount: isPayment ? 0 : total - paid,
                   note: fd.get('note') as string,
-                  isSettled: (total - paid) <= 0
+                  isSettled: isPayment ? true : (total - paid) <= 0,
+                  isPayment: isPayment
                 };
                 
                 await updateDueEntry(editingDueEntry.id, updatedEntry);
@@ -1779,16 +1792,23 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Details</label>
                     <textarea name="productDetails" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none h-20" defaultValue={editingDueEntry.productDetails} placeholder="কি কি নিয়েছে?" />
                  </div>
-                 <div className="grid grid-cols-2 gap-6 font-sans">
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Total Amount (মোট টাকা)</label>
-                       <input name="totalAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.totalAmount} />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Paid Amount (জমা টাকা)</label>
+                 {editingDueEntry.isPayment || editingDueEntry.totalAmount === 0 || editingDueEntry.productDetails.includes('Payment Collection') ? (
+                    <div className="space-y-1 font-sans">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Amount (জমা টাকা)</label>
                        <input name="paidAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.paidAmount} />
                     </div>
-                 </div>
+                 ) : (
+                    <div className="grid grid-cols-2 gap-6 font-sans">
+                       <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Total Amount (মোট টাকা)</label>
+                          <input name="totalAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.totalAmount} />
+                       </div>
+                       <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Paid Amount (জমা টাকা)</label>
+                          <input name="paidAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.paidAmount} />
+                       </div>
+                    </div>
+                 )}
                  <div className="space-y-1 font-sans">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Note (অপশনাল)</label>
                     <input name="note" className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue={editingDueEntry.note || ''} placeholder="কোন বিশেষ তথ্য..." />
