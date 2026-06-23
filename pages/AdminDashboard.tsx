@@ -124,6 +124,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const staffPhotoInputRef = useRef<HTMLInputElement>(null);
   
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [prefilledCustomer, setPrefilledCustomer] = useState<Customer | null>(null);
   const [isDueEntryModalOpen, setIsDueEntryModalOpen] = useState(false);
   const [editingDueEntry, setEditingDueEntry] = useState<DueEntry | null>(null);
   const [isDueEntryEditModalOpen, setIsDueEntryEditModalOpen] = useState(false);
@@ -141,7 +142,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     return list.filter(c => 
       c && (
         (c.name || '').toLowerCase().includes(term) || 
-        (c.id || '').includes(term)
+        (c.id || '').includes(term) ||
+        (c.customerId || '').toLowerCase().includes(term)
       )
     ).sort((a, b) => (b.totalDue || 0) - (a.totalDue || 0));
   }, [customers, customerSearchTerm]);
@@ -938,7 +940,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">বাকি লেনদেনের বিস্তারিত তালিকা</p>
                    </div>
                    <button 
-                     onClick={() => setIsDueEntryModalOpen(true)}
+                     onClick={() => { setPrefilledCustomer(null); setIsDueEntryModalOpen(true); }}
                      className="bg-slate-900 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-lg hover:bg-slate-800 transition w-full md:w-auto justify-center"
                    >
                      <Plus size={16}/> ম্যানুয়ালি ডিউ এড করুন (Add Due)
@@ -968,9 +970,16 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                              className={`w-full p-6 text-left hover:bg-slate-50 transition flex justify-between items-center ${selectedCustomer?.id === c.id ? 'bg-blue-50 ring-2 ring-blue-500/20' : ''}`}
                            >
                               <div className="min-w-0">
-                                 <p className="text-sm font-black text-slate-800 truncate">{c.name}</p>
-                                 <p className="text-[10px] font-bold text-slate-400">{c.id}</p>
-                              </div>
+                                 <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                    <p className="text-sm font-black text-slate-800 truncate">{c.name}</p>
+                                    {c.customerId && (
+                                       <span className="text-[8px] font-mono bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-black tracking-tight uppercase">
+                                          {c.customerId}
+                                        </span>
+                                     )}
+                                  </div>
+                                  <p className="text-[10px] font-bold text-slate-400">{c.id}</p>
+                               </div>
                               <p className="font-black text-red-600 text-sm whitespace-nowrap">৳{c.totalDue}</p>
                            </button>
                          ))}
@@ -1045,16 +1054,31 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       
                       {selectedCustomer && (
                         <div className="p-8 bg-slate-900 border-t flex flex-col md:flex-row justify-between items-center gap-4">
-                           <div>
+                           <div className="text-center md:text-left">
                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">মোট বাকি (Current Balance)</p>
-                              <p className="text-3xl font-black text-white">৳{selectedCustomer.totalDue}</p>
+                              <div className="flex items-center gap-2 justify-center md:justify-start">
+                                 <p className="text-3xl font-black text-white">৳{selectedCustomer.totalDue}</p>
+                                 {selectedCustomer.customerId && (
+                                   <span className="text-[9px] font-black bg-slate-800 text-slate-300 px-2 py-1 rounded-md uppercase font-mono tracking-tight border border-slate-700">
+                                     {selectedCustomer.customerId}
+                                   </span>
+                                 )}
+                              </div>
                            </div>
-                           <button 
-                             onClick={() => { setCollectionAmount(0); setIsCollectionModalOpen(true); }}
-                             className="w-full md:w-auto px-10 py-5 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-400 transition"
-                           >
-                             টাকা জমা নিন (Collect Payment)
-                           </button>
+                           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                              <button 
+                                onClick={() => { setCollectionAmount(0); setIsCollectionModalOpen(true); }}
+                                className="w-full sm:w-auto px-6 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-400 transition text-center"
+                              >
+                                টাকা জমা নিন (Collect Payment)
+                              </button>
+                              <button 
+                                onClick={() => { setPrefilledCustomer(selectedCustomer); setIsDueEntryModalOpen(true); }}
+                                className="w-full sm:w-auto px-6 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:bg-blue-500 transition text-center"
+                              >
+                                নতুন বাকি/প্রোডাক্ট (Add Due)
+                              </button>
+                           </div>
                         </div>
                       )}
                    </div>
@@ -1711,11 +1735,25 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                  <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-1">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Customer Name</label>
-                       <input name="customerName" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" placeholder="কাস্টমারের নাম" />
+                       <input 
+                         name="customerName" 
+                         required 
+                         className={`w-full p-4 rounded-xl font-bold border-none ${prefilledCustomer ? 'bg-slate-100 cursor-not-allowed text-slate-500' : 'bg-slate-50 text-slate-800'}`} 
+                         placeholder="কাস্টমারের নাম" 
+                         defaultValue={prefilledCustomer ? prefilledCustomer.name : ''} 
+                         readOnly={!!prefilledCustomer} 
+                       />
                     </div>
                     <div className="space-y-1">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
-                       <input name="customerPhone" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" placeholder="মোবাইল নাম্বার" />
+                       <input 
+                         name="customerPhone" 
+                         required 
+                         className={`w-full p-4 rounded-xl font-bold border-none ${prefilledCustomer ? 'bg-slate-100 cursor-not-allowed text-slate-500 font-mono' : 'bg-slate-50 text-slate-800'}`} 
+                         placeholder="মোবাইল নাম্বার" 
+                         defaultValue={prefilledCustomer ? prefilledCustomer.id : ''} 
+                         readOnly={!!prefilledCustomer} 
+                       />
                     </div>
                  </div>
                  <div className="space-y-1">

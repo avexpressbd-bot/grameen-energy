@@ -205,6 +205,7 @@ export interface DueEntry {
 
 export interface Customer {
   id: string;
+  customerId?: string;
   name: string;
   totalDue: number;
   lastUpdate: string;

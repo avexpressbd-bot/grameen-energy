@@ -121,7 +121,20 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     });
     
     const unsubSales = onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (s) => setSales(s.docs.map(d => ({...d.data(), id: d.id})) as Sale[]), (err) => handleFirestoreError(err, OperationType.LIST, "sales"));
-    const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => setCustomers(s.docs.map(d => ({...d.data(), id: d.id})) as Customer[]), (err) => handleFirestoreError(err, OperationType.LIST, "customers"));
+    const unsubCustomers = onSnapshot(collection(db, "customers"), (s) => {
+      const list = s.docs.map(d => {
+        const data = d.data();
+        const id = d.id;
+        if (!data.customerId) {
+          const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+          const generatedId = `GE-L-${randomSuffix}`;
+          updateDoc(doc(db, "customers", id), { customerId: generatedId }).catch(err => console.error("Self-heal customerId error:", err));
+          return { ...data, id, customerId: generatedId } as Customer;
+        }
+        return { ...data, id } as Customer;
+      });
+      setCustomers(list);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, "customers"));
     const unsubUsers = onSnapshot(collection(db, "users"), (s) => setRegisteredUsers(s.docs.map(d => ({...d.data(), uid: d.id})) as CustomerUser[]), (err) => handleFirestoreError(err, OperationType.LIST, "users"));
     const unsubBlogs = onSnapshot(query(collection(db, "blogs"), orderBy("date", "desc")), (s) => setBlogs(s.docs.map(d => ({...d.data(), id: d.id})) as BlogPost[]), (err) => handleFirestoreError(err, OperationType.LIST, "blogs"));
     const unsubServiceRequests = onSnapshot(query(collection(db, "serviceRequests"), orderBy("createdAt", "desc")), (s) => setServiceRequests(s.docs.map(d => ({...d.data(), id: d.id})) as ServiceRequest[]), (err) => handleFirestoreError(err, OperationType.LIST, "serviceRequests"));
@@ -253,9 +266,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
         
         if (!cSnap.exists()) {
           console.log("Creating new customer...");
+          const randomSuffix = Math.floor(1000 + Math.random() * 9000);
           await setDoc(cRef, { 
             name: sale.customerName || "Walking", 
             totalDue: sale.dueAmount, 
+            customerId: `GE-L-${randomSuffix}`,
             lastUpdate: new Date().toISOString() 
           });
         } else {
@@ -384,9 +399,11 @@ export const ProductProvider: React.FC<{ children: ReactNode }> = ({ children })
     const cRef = doc(db, "customers", entry.customerPhone);
     const cSnap = await getDoc(cRef);
     if (!cSnap.exists()) {
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       await setDoc(cRef, { 
         name: entry.customerName, 
         totalDue: entry.dueAmount, 
+        customerId: `GE-L-${randomSuffix}`,
         lastUpdate: new Date().toISOString() 
       });
     } else {
