@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
-import { Product, Sale, SaleItem, Category } from '../types';
+import { Product, Sale, SaleItem, Category, Customer } from '../types';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { 
   Search, Plus, Minus, Trash2, Printer, Zap, 
@@ -13,7 +13,7 @@ import {
 import Invoice from '../components/Invoice';
 
 const POS: React.FC = () => {
-  const { products, recordSale } = useProducts();
+  const { products, recordSale, customers } = useProducts();
   const { t } = useLanguage();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,12 +21,53 @@ const POS: React.FC = () => {
   const [currentSale, setCurrentSale] = useState<SaleItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [discount, setDiscount] = useState(0);
-  const [paidAmount, setPaidAmount] = useState<number>(0);
+  const [discount, setDiscount] = useState<number | ''>('');
+  const [paidAmount, setPaidAmount] = useState<number | ''>('');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'POS Machine' | 'Mobile Banking'>('Cash');
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [activeMobileView, setActiveMobileView] = useState<'catalog' | 'cart'>('catalog');
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
+
+  // Customer Autocomplete states
+  const [activeSuggestionField, setActiveSuggestionField] = useState<'name' | 'phone' | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const filteredCustomerSuggestions = useMemo(() => {
+    if (!customers) return [];
+    
+    const nameTerm = customerName.toLowerCase().trim();
+    const phoneTerm = customerPhone.toLowerCase().trim();
+    
+    if (activeSuggestionField === 'name' && nameTerm.length > 0) {
+      return customers.filter(c => 
+        (c.name || '').toLowerCase().includes(nameTerm) ||
+        (c.id || '').includes(nameTerm)
+      );
+    }
+    
+    if (activeSuggestionField === 'phone' && phoneTerm.length > 0) {
+      return customers.filter(c => 
+        (c.id || '').includes(phoneTerm) ||
+        (c.name || '').toLowerCase().includes(phoneTerm)
+      );
+    }
+    
+    if (activeSuggestionField) {
+      // Show top customers with balances when input is clicked/focused but empty
+      return [...customers]
+        .sort((a, b) => (b.totalDue || 0) - (a.totalDue || 0))
+        .slice(0, 5);
+    }
+    
+    return [];
+  }, [customers, customerName, customerPhone, activeSuggestionField]);
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setCustomerName(customer.name);
+    setCustomerPhone(customer.id);
+    setShowSuggestions(false);
+    setActiveSuggestionField(null);
+  };
 
   // Manual Item States
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -41,9 +82,12 @@ const POS: React.FC = () => {
   const paidAmountRef = useRef<HTMLInputElement>(null);
 
   // Derived Calculations
+  const discountVal = discount === '' ? 0 : discount;
+  const paidAmountVal = paidAmount === '' ? 0 : paidAmount;
+
   const subtotal = currentSale.reduce((acc, item) => acc + item.totalPrice, 0);
-  const total = Math.max(0, subtotal - discount);
-  const dueAmount = Math.max(0, total - paidAmount);
+  const total = Math.max(0, subtotal - discountVal);
+  const dueAmount = Math.max(0, total - paidAmountVal);
 
   const finalizeSale = async () => {
     if (currentSale.length === 0) return;
@@ -55,9 +99,9 @@ const POS: React.FC = () => {
       customerCity: t('Store Front', 'শপ ফ্রন্ট'),
       items: currentSale, 
       subtotal, 
-      discount, 
+      discount: discountVal, 
       total, 
-      paidAmount: paidAmount, 
+      paidAmount: paidAmountVal, 
       dueAmount: dueAmount, 
       paymentMethod, 
       status: 'Delivered',
@@ -159,8 +203,8 @@ const POS: React.FC = () => {
     setCurrentSale([]); 
     setCustomerName(''); 
     setCustomerPhone(''); 
-    setDiscount(0); 
-    setPaidAmount(0);
+    setDiscount(''); 
+    setPaidAmount('');
     setCompletedSale(null);
     setActiveMobileView('catalog');
   };
@@ -355,15 +399,102 @@ const POS: React.FC = () => {
                <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[8px] font-black text-slate-400">SHIFT: DAY</div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 relative">
              <div className="space-y-1">
                 <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Customer</p>
-                <input value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:bg-white/10" placeholder="Walk-in Customer" />
+                <input 
+                  value={customerName} 
+                  onChange={e => {
+                    setCustomerName(e.target.value);
+                    setActiveSuggestionField('name');
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    setActiveSuggestionField('name');
+                    setShowSuggestions(true);
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:bg-white/10" 
+                  placeholder="Walk-in Customer" 
+                />
              </div>
              <div className="space-y-1">
                 <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Phone</p>
-                <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:bg-white/10 font-mono" placeholder="01XXXXXXXXX" />
+                <input 
+                  value={customerPhone} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCustomerPhone(val);
+                    setActiveSuggestionField('phone');
+                    setShowSuggestions(true);
+                    
+                    // Auto-lookup exact match
+                    if (customers) {
+                      const match = customers.find(c => c.id === val.trim());
+                      if (match) {
+                        setCustomerName(match.name);
+                      }
+                    }
+                  }}
+                  onFocus={() => {
+                    setActiveSuggestionField('phone');
+                    setShowSuggestions(true);
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:bg-white/10 font-mono" 
+                  placeholder="01XXXXXXXXX" 
+                />
              </div>
+
+             {/* Auto-suggestions Dropdown */}
+             {showSuggestions && filteredCustomerSuggestions.length > 0 && (
+                <>
+                   <div className="fixed inset-0 z-40" onClick={() => { setShowSuggestions(false); setActiveSuggestionField(null); }} />
+                   <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden max-h-60 overflow-y-auto custom-scrollbar-dark animate-in slide-in-from-top-2 duration-150">
+                      <div className="p-2 border-b border-white/5 bg-slate-900/50 flex justify-between items-center px-4">
+                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
+                            {t('Existing Accounts Found', 'বিদ্যমান কাস্টমার তালিকা')}
+                         </span>
+                         <button 
+                           onClick={() => {
+                             setShowSuggestions(false);
+                             setActiveSuggestionField(null);
+                           }}
+                           className="text-slate-400 hover:text-white transition text-xs font-bold"
+                         >
+                            ✕
+                         </button>
+                      </div>
+                      {filteredCustomerSuggestions.map(customer => (
+                         <button
+                           key={customer.id}
+                           type="button"
+                           onClick={() => handleSelectCustomer(customer)}
+                           className="w-full p-4 flex justify-between items-center hover:bg-white/5 transition text-left border-b border-white/5 last:border-none"
+                         >
+                            <div className="min-w-0 pr-2">
+                               <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="text-sm font-black text-white truncate">{customer.name}</p>
+                                  {customer.customerId && (
+                                     <span className="text-[8px] font-mono bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-black tracking-tight uppercase">
+                                        {customer.customerId}
+                                     </span>
+                                  )}
+                               </div>
+                               <p className="text-[10px] font-bold text-slate-400 mt-0.5 font-mono">{customer.id}</p>
+                            </div>
+                            {customer.totalDue > 0 ? (
+                               <span className="text-[10px] font-black bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-1 rounded-md whitespace-nowrap">
+                                  বাকি: ৳{customer.totalDue}
+                               </span>
+                            ) : (
+                               <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-md whitespace-nowrap">
+                                  ৳০ বাকি
+                               </span>
+                            )}
+                         </button>
+                      ))}
+                   </div>
+                </>
+             )}
           </div>
         </div>
 
@@ -443,7 +574,7 @@ const POS: React.FC = () => {
                  </div>
                  <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-red-400">৳</span>
-                    <input type="number" value={discount} onChange={e => setDiscount(Number(e.target.value))} className="bg-transparent text-right font-black text-xl w-24 outline-none border-b border-white/10 focus:border-red-400 transition" />
+                    <input type="number" value={discount} onChange={e => setDiscount(e.target.value === '' ? '' : Number(e.target.value))} className="bg-transparent text-right font-black text-xl w-24 outline-none border-b border-white/10 focus:border-red-400 transition" placeholder="0" />
                  </div>
               </div>
               <div className="flex justify-between items-center bg-blue-500/5 p-4 rounded-2xl border border-blue-500/20">
@@ -453,7 +584,7 @@ const POS: React.FC = () => {
                  </div>
                  <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-blue-400">৳</span>
-                    <input ref={paidAmountRef} type="number" value={paidAmount} onChange={e => setPaidAmount(Number(e.target.value))} className="bg-transparent text-right font-black text-xl w-24 outline-none border-b border-white/10 focus:border-blue-400 transition" />
+                    <input ref={paidAmountRef} type="number" value={paidAmount} onChange={e => setPaidAmount(e.target.value === '' ? '' : Number(e.target.value))} className="bg-transparent text-right font-black text-xl w-24 outline-none border-b border-white/10 focus:border-blue-400 transition" placeholder="0" />
                  </div>
               </div>
               <div className="flex justify-between items-center pt-2">

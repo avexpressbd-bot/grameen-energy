@@ -130,8 +130,44 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
   const [isDueEntryEditModalOpen, setIsDueEntryEditModalOpen] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
-  const [collectionAmount, setCollectionAmount] = useState<number>(0);
+  const [collectionAmount, setCollectionAmount] = useState<number | ''>('');
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
+
+  const todayDueAdded = useMemo(() => {
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDay = today.getDate();
+    
+    return (dueEntries || [])
+      .filter(de => {
+        if (!de || !de.date) return false;
+        const d = new Date(de.date);
+        const isTodayDate = d.getFullYear() === todayYear &&
+                            d.getMonth() === todayMonth &&
+                            d.getDate() === todayDay;
+        const isPayment = de.isPayment || (de.productDetails || '').includes('Payment Collection') || de.totalAmount === 0;
+        return isTodayDate && !isPayment;
+      })
+      .reduce((sum, de) => sum + (de.dueAmount || 0), 0);
+  }, [dueEntries]);
+
+  const todayCashCollected = useMemo(() => {
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDay = today.getDate();
+    
+    return (dueEntries || [])
+      .filter(de => {
+        if (!de || !de.date) return false;
+        const d = new Date(de.date);
+        return d.getFullYear() === todayYear &&
+               d.getMonth() === todayMonth &&
+               d.getDate() === todayDay;
+      })
+      .reduce((sum, de) => sum + (de.paidAmount || 0), 0);
+  }, [dueEntries]);
 
   const filteredCustomers = useMemo(() => {
     const term = customerSearchTerm.toLowerCase().trim();
@@ -947,6 +983,37 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                    </button>
                 </div>
 
+                 {/* Today's Due Ledger Stats */}
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+                       <div className="p-4 rounded-2xl bg-red-50 text-red-600">
+                          <TrendingUp size={24} />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">আজকে কত টাকা বাকি গেল</p>
+                          <p className="text-xl font-black text-slate-800 mt-0.5">৳{todayDueAdded}</p>
+                       </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+                       <div className="p-4 rounded-2xl bg-emerald-50 text-emerald-600">
+                          <DollarSign size={24} />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">আজকে কত টাকা নগদ পেলাম</p>
+                          <p className="text-xl font-black text-slate-800 mt-0.5">৳{todayCashCollected}</p>
+                       </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+                       <div className="p-4 rounded-2xl bg-blue-50 text-blue-600">
+                          <Users size={24} />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">বাকি থাকা মোট কাস্টমার</p>
+                          <p className="text-xl font-black text-slate-800 mt-0.5">{(customers || []).filter(c => c && c.totalDue > 0).length} জন</p>
+                       </div>
+                    </div>
+                 </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                    <div className="lg:col-span-1 bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden h-fit">
                       <div className="p-8 border-b flex flex-col gap-4 bg-slate-50">
@@ -1067,7 +1134,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                            </div>
                            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                               <button 
-                                onClick={() => { setCollectionAmount(0); setIsCollectionModalOpen(true); }}
+                                onClick={() => { setCollectionAmount(''); setIsCollectionModalOpen(true); }}
                                 className="w-full sm:w-auto px-6 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-400 transition text-center"
                               >
                                 টাকা জমা নিন (Collect Payment)
@@ -1405,7 +1472,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                       type="number" 
                       className="w-full p-6 bg-slate-50 rounded-2xl font-black text-2xl border-none text-emerald-600" 
                       value={collectionAmount}
-                      onChange={(e) => setCollectionAmount(Number(e.target.value))}
+                      onChange={(e) => setCollectionAmount(e.target.value === '' ? '' : Number(e.target.value))}
                     />
                  </div>
 
@@ -1413,7 +1480,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                     <button onClick={() => setIsCollectionModalOpen(false)} className="flex-1 py-5 border-2 border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest">Cancel</button>
                     <button 
                       onClick={async () => {
-                        await updateCustomerDue(selectedCustomer.id, selectedCustomer.name, collectionAmount);
+                        await updateCustomerDue(selectedCustomer.id, selectedCustomer.name, Number(collectionAmount) || 0);
                         setIsCollectionModalOpen(false);
                       }}
                       className="flex-[2] py-5 bg-emerald-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20"
@@ -1767,7 +1834,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                     </div>
                     <div className="space-y-1">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Paid Amount (জমা টাকা)</label>
-                       <input name="paidAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" defaultValue="0" />
+                       <input name="paidAmount" type="number" required className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" placeholder="এখানে জমা লিখুন..." />
                     </div>
                  </div>
                  <div className="space-y-1">
