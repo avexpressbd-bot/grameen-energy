@@ -350,26 +350,36 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
     e.preventDefault();
     setIsSaving(true);
     const fd = new FormData(e.currentTarget);
+    
     const s = {
       ...settings,
-      siteName: fd.get('siteName') as string,
-      siteNameBn: fd.get('siteNameBn') as string,
-      contactPhone: fd.get('contactPhone') as string,
-      contactEmail: fd.get('contactEmail') as string,
-      address: fd.get('address') as string,
-      addressBn: fd.get('addressBn') as string,
-      whatsappNumber: fd.get('whatsappNumber') as string,
-      facebookUrl: fd.get('facebookUrl') as string,
-      instagramUrl: fd.get('instagramUrl') as string,
-      youtubeUrl: fd.get('youtubeUrl') as string,
-      heroTitleEn: fd.get('heroTitleEn') as string,
-      heroTitleBn: fd.get('heroTitleBn') as string,
-      heroSubtitleEn: fd.get('heroSubtitleEn') as string,
-      heroSubtitleBn: fd.get('heroSubtitleBn') as string,
-      logoUrl: settingsLogo || settings?.logoUrl
+      siteName: (fd.get('siteName') as string) || '',
+      siteNameBn: (fd.get('siteNameBn') as string) || '',
+      contactPhone: (fd.get('contactPhone') as string) || '',
+      contactEmail: (fd.get('contactEmail') as string) || '',
+      address: (fd.get('address') as string) || '',
+      addressBn: (fd.get('addressBn') as string) || '',
+      whatsappNumber: (fd.get('whatsappNumber') as string) || '',
+      facebookUrl: (fd.get('facebookUrl') as string) || '',
+      instagramUrl: (fd.get('instagramUrl') as string) || '',
+      youtubeUrl: (fd.get('youtubeUrl') as string) || '',
+      heroTitleEn: (fd.get('heroTitleEn') as string) || '',
+      heroTitleBn: (fd.get('heroTitleBn') as string) || '',
+      heroSubtitleEn: (fd.get('heroSubtitleEn') as string) || '',
+      heroSubtitleBn: (fd.get('heroSubtitleBn') as string) || '',
+      logoUrl: settingsLogo || settings?.logoUrl || ''
     };
+
+    // Remove any undefined fields to prevent Firestore setDoc crashes
+    const cleanedSettings: any = {};
+    Object.entries(s).forEach(([key, val]) => {
+      if (val !== undefined) {
+        cleanedSettings[key] = val;
+      }
+    });
+
     try {
-      await updateSettings(s);
+      await updateSettings(cleanedSettings);
       alert('Settings updated successfully!');
     } catch (err) {
       console.error(err);
