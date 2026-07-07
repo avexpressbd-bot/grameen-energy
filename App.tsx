@@ -17,6 +17,7 @@ import POS from './pages/POS.tsx';
 import OrderTracking from './pages/OrderTracking.tsx';
 import CustomerAuth from './pages/CustomerAuth.tsx';
 import Profile from './pages/Profile.tsx';
+import DueLedger from './pages/DueLedger.tsx';
 import { LanguageProvider } from './components/LanguageContext.tsx';
 import { CartProvider } from './components/CartContext.tsx';
 import { ProductProvider, useProducts } from './components/ProductContext.tsx';
@@ -91,6 +92,8 @@ const AppContent: React.FC = () => {
         return (staffRole === 'pos' || staffRole === 'admin')
           ? <POS /> 
           : <CustomerAuth onNavigate={navigateTo} />;
+      case 'due-ledger':
+        return <DueLedger />;
       default:
         return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
     }
