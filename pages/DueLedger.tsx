@@ -142,14 +142,17 @@ const DueLedger: React.FC = () => {
     setError(null);
 
     try {
-      // Validate sheet URL format lightly or ensure it requests pubsub/pub?output=csv
       let correctedUrl = urlToFetch.trim();
-      if (correctedUrl.includes('docs.google.com/spreadsheets') && !correctedUrl.includes('output=csv')) {
-        // Convert typical google spreadsheet url to CSV export if not already formatted
-        if (correctedUrl.includes('/edit')) {
-          correctedUrl = correctedUrl.replace(/\/edit.*/, '/pub?output=csv');
-        } else if (!correctedUrl.includes('output=csv')) {
-          correctedUrl = correctedUrl + (correctedUrl.includes('?') ? '&' : '?') + 'output=csv';
+      if (correctedUrl.includes('docs.google.com/spreadsheets')) {
+        // Extract Spreadsheet ID
+        const idMatch = correctedUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (idMatch && idMatch[1]) {
+          const sheetId = idMatch[1];
+          // Try to get gid if it exists in the url
+          const gidMatch = correctedUrl.match(/[#&?]gid=([0-9]+)/);
+          const gid = gidMatch ? gidMatch[1] : '0';
+          // Convert to direct export CSV URL which works for both shared links and published links!
+          correctedUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
         }
       }
 
@@ -171,7 +174,7 @@ const DueLedger: React.FC = () => {
       localStorage.setItem('due_ledger_cached_data', JSON.stringify(parsed));
     } catch (err: any) {
       console.error(err);
-      setError(err.message || (language === 'en' ? 'Failed to sync. Please ensure Google Sheet is Published to the Web as CSV.' : 'সিঙ্ক করতে সমস্যা হয়েছে। গুগল শিট "Publish to web" করে CSV মোডে আছে কিনা তা নিশ্চিত করুন।'));
+      setError(err.message || (language === 'en' ? 'Failed to sync. Please ensure Google Sheet is Published to the Web as CSV or Shared as Anyone with Link.' : 'সিঙ্ক করতে সমস্যা হয়েছে। গুগল শিট "Publish to web" অথবা "Anyone with link" দিয়ে শেয়ার করা আছে কিনা নিশ্চিত করুন।'));
     } finally {
       setIsLoading(false);
     }
@@ -312,17 +315,31 @@ const DueLedger: React.FC = () => {
               </div>
 
               {/* Guide block inside modal */}
-              <div className="bg-emerald-50/50 rounded-2xl p-5 border border-emerald-100 space-y-3">
+              <div className="bg-emerald-50/50 rounded-2xl p-5 border border-emerald-100 space-y-3 text-left">
                 <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
                   <BookOpen size={16} />
-                  {t('How to publish Google Sheet as CSV:', 'কিভাবে লিঙ্কটি পাবেন:')}
+                  {t('Google Sheet Connection Guide:', 'গুগল শিট কানেক্ট করার সহজ নিয়ম:')}
                 </h4>
-                <ol className="text-xs text-emerald-700 font-bold space-y-2 list-decimal list-inside leading-relaxed">
-                  <li>{t('Open your Google Sheet.', 'আপনার গুগল শিট ফাইলটি ওপেন করুন।')}</li>
-                  <li>{t('Click "File" ➔ "Share" ➔ "Publish to web".', 'উপরে বামে "File" ➔ "Share" ➔ "Publish to web" সিলেক্ট করুন।')}</li>
-                  <li>{t('Select "Entire Document" (or specific sheet) and change "Web page" to "Comma-separated values (.csv)".', 'লিঙ্ক সিলেক্ট করে "Entire Document" এর জায়গায় কাঙ্ক্ষিত শিট এবং "Web page" পরিবর্তন করে "Comma-separated values (.csv)" সিলেক্ট করুন।')}</li>
-                  <li>{t('Click "Publish" and copy the generated URL link.', '"Publish" বাটনে ক্লিক করুন এবং তৈরি হওয়া লিঙ্কটি কপি করে এখানে পেস্ট করুন।')}</li>
-                </ol>
+                <div className="space-y-3 text-xs text-emerald-800">
+                  <p className="font-bold border-b border-emerald-200/50 pb-1 text-emerald-900">
+                    {t('Method 1: Share Link (Easiest & Recommended)', 'পদ্ধতি ১: গুগল শিট শেয়ার লিংক (সবচেয়ে সহজ)')}
+                  </p>
+                  <ol className="font-bold space-y-1 list-decimal list-inside leading-relaxed pl-1 text-emerald-700">
+                    <li>{t('Open your Google Sheet.', 'আপনার বকেয়া খাতার গুগল শিটটি ওপেন করুন।')}</li>
+                    <li>{t('Click "Share" (শেয়ার) button on the top-right.', 'উপরে ডানদিকের "Share" (শেয়ার) বাটনে ক্লিক করুন।')}</li>
+                    <li>{t('Under General Access, change "Restricted" to "Anyone with the link" and keep as "Viewer".', 'General Access থেকে "Restricted" পরিবর্তন করে "Anyone with the link" (লিঙ্ক আছে এমন যে কেউ) সিলেক্ট করুন।')}</li>
+                    <li>{t('Copy your browser URL (or share link) and paste it here!', 'ব্রাউজারের এড্রেস বার থেকে সাধারণ লিংকটি কপি করে সরাসরি নিচে পেস্ট করে দিন! সিস্টেম নিজে থেকেই এটি প্রসেস করবে।')}</li>
+                  </ol>
+
+                  <p className="font-bold border-b border-emerald-200/50 pt-2 pb-1 text-emerald-900">
+                    {t('Method 2: Publish to Web', 'পদ্ধতি ২: ওয়েব-এ পাবলিশ করে')}
+                  </p>
+                  <ol className="font-bold space-y-1 list-decimal list-inside leading-relaxed pl-1 text-emerald-700">
+                    <li>{t('Go to File ➔ Share ➔ Publish to web.', 'গুগল শিটে File ➔ Share ➔ Publish to web এ যান।')}</li>
+                    <li>{t('Select "Comma-separated values (.csv)" from dropdown instead of "Web page", and click Publish.', '"Web page" পরিবর্তন করে "Comma-separated values (.csv)" সিলেক্ট করে Publish এ ক্লিক করুন।')}</li>
+                    <li>{t('Copy that link and paste it here.', 'সেখান থেকে প্রাপ্ত লিঙ্কটি কপি করে পেস্ট করে দিন।')}</li>
+                  </ol>
+                </div>
               </div>
             </div>
 
@@ -410,6 +427,82 @@ const DueLedger: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ALWAYS VISIBLE Google Sheets Link Configurator */}
+      <div className="bg-emerald-50 border-2 border-emerald-200/60 rounded-[2.5rem] p-6 md:p-8 space-y-4 animate-in fade-in duration-300 shadow-sm text-left">
+        <div className="flex items-start gap-4">
+          <span className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl shrink-0 mt-1">
+            <FileSpreadsheet size={24} />
+          </span>
+          <div className="space-y-1 flex-1">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-lg font-black text-emerald-900">
+                {t('Connect Your Google Sheet Ledger', 'এখানে আপনার বকেয়া খাতার গুগল শিট লিঙ্কটি দিন (সহজ নিয়ম)')}
+              </h3>
+              {csvUrl && (
+                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-full uppercase tracking-wider flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                  {t('Connected', 'সংযুক্ত আছে')}
+                </span>
+              )}
+            </div>
+            <p className="text-xs font-bold text-emerald-700 leading-relaxed">
+              {t(
+                'Simply enter your Google Sheet link below and click Save & Sync. Make sure to share your sheet as "Anyone with the link can view" so our application can access it safely.',
+                'আপনার বকেয়া খাতার গুগল শিট লিঙ্কটি নিচের বক্সে পেস্ট করে "Save & Sync" এ ক্লিক করলেই আপনার কাস্টমার ডেটা রিয়েল-টাইমে এখানে চলে আসবে। শিটটি অবশ্যই "Anyone with the link" (Viewer) হিসেবে শেয়ার করা থাকতে হবে।'
+              )}
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <input 
+            type="url" 
+            value={inputUrl}
+            onChange={(e) => setInputUrl(e.target.value)}
+            placeholder="গুগল শিট লিঙ্ক পেস্ট করুন (যেমন: https://docs.google.com/spreadsheets/d/...)"
+            className="flex-1 p-4 bg-white border border-emerald-200 rounded-2xl font-semibold text-sm text-slate-700 outline-none focus:border-emerald-500 transition shadow-inner"
+          />
+          <div className="flex gap-2">
+            <button 
+              onClick={() => {
+                let cleanUrl = inputUrl.trim();
+                setCsvUrl(cleanUrl);
+                localStorage.setItem('due_ledger_csv_url', cleanUrl);
+                if (cleanUrl) {
+                  fetchLedgerData(cleanUrl);
+                } else {
+                  setLedgerData(DEFAULT_LEDGER_DATA);
+                  setLastSynced(null);
+                  localStorage.removeItem('due_ledger_cached_data');
+                  localStorage.removeItem('due_ledger_last_synced');
+                }
+              }}
+              className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/15 whitespace-nowrap flex-1 sm:flex-none"
+            >
+              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+              {t('Save & Sync', 'সেভ এবং সিঙ্ক')}
+            </button>
+            {csvUrl && (
+              <button 
+                onClick={() => {
+                  setInputUrl('');
+                  setCsvUrl('');
+                  localStorage.removeItem('due_ledger_csv_url');
+                  localStorage.removeItem('due_ledger_cached_data');
+                  localStorage.removeItem('due_ledger_last_synced');
+                  setLedgerData(DEFAULT_LEDGER_DATA);
+                  setLastSynced(null);
+                }}
+                className="px-4 py-4 bg-red-100 hover:bg-red-200 text-red-600 rounded-2xl font-black uppercase text-xs tracking-widest transition flex items-center justify-center gap-2"
+                title={t('Disconnect Sheet', 'কানেকশন মুছুন')}
+              >
+                {t('Disconnect', 'মুছে ফেলুন')}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -502,14 +595,14 @@ const DueLedger: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <p className="font-black text-slate-800 text-[10px] uppercase tracking-widest text-[#005CB9]">{t('2. Publish & Insert Link', '২. পাবলিশ করে লিঙ্ক বসানো')}</p>
-                <p>{t('Click File ➔ Share ➔ Publish to Web. Change link settings to CSV and copy-paste it into the "Sheet Setup" modal.', 'ফাইল থেকে শেয়ার এবং ওয়েবে প্রকাশ অপশনে গিয়ে টাইপটি পরিবর্তন করে CSV সিলেক্ট করুন এবং কপি করা লিঙ্কটি উপরের "Sheet Setup" বাটনে ক্লিক করে পেস্ট করে দিন।')}</p>
+                <p className="font-black text-slate-800 text-[10px] uppercase tracking-widest text-[#005CB9]">{t('2. Share & Paste Link', '২. লিঙ্ক কানেক্ট করা (সহজ নিয়ম)')}</p>
+                <p>{t('Simply click "Share" on your Google Sheet, change General Access to "Anyone with the link" as Viewer, then copy your browser URL and paste it into the Sheet Setup modal. Our app automatically handles the connection!', 'গুগল শিটের ডানে "Share" বাটনে ক্লিক করে General Access থেকে "Anyone with the link" (লিঙ্ক আছে এমন যে কেউ) সিলেক্ট করে দিন। এরপর ব্রাউজারের সাধারণ গুগল শিটের লিংকটি কপি করে "Sheet Setup" বক্সে পেস্ট করে দিন। আমাদের অ্যাপ নিজে থেকেই এটি প্রসেস করে নিবে!')}</p>
                 <button 
                   onClick={() => {
                     setIsUrlModalOpen(true);
                     setShowInstructions(false);
                   }}
-                  className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold uppercase text-[9px] tracking-widest hover:bg-slate-800 transition"
+                  className="px-4 py-2 bg-[#005CB9] hover:bg-blue-800 text-white rounded-xl font-bold uppercase text-[9px] tracking-widest transition"
                 >
                   {t('Open Sheet Setup Now', 'এখনই শিট লিঙ্ক সেট করুন')}
                 </button>
