@@ -9,10 +9,11 @@ import {
   Plus, Edit2, Trash2, Box, X, Search, DollarSign, BarChart3, Users,
   Wallet, CheckCircle, Settings, LayoutDashboard, ShoppingCart, Printer, AlertTriangle, TrendingUp, Award, ChevronRight, Hash, Activity,
   UserPlus, UserMinus, CreditCard, Banknote, Wrench, Clock, Bell, MapPin, Calendar, FileText, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, ShieldOff, Coins, UserCog,
-  Upload, Camera, Image as ImageIcon, Loader2, Scan
+  Upload, Camera, Image as ImageIcon, Loader2, Scan, FileSpreadsheet
 } from 'lucide-react';
+import DueLedger from './DueLedger';
 
-type AdminTab = 'overview' | 'inventory' | 'service-requests' | 'technicians' | 'shop-staff' | 'staff-salary' | 'stock-logs' | 'sales' | 'customers' | 'reports' | 'settings';
+type AdminTab = 'overview' | 'inventory' | 'service-requests' | 'technicians' | 'shop-staff' | 'staff-salary' | 'stock-logs' | 'sales' | 'customers' | 'due-ledger-sheets' | 'reports' | 'settings';
 
 const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
   const { 
@@ -474,7 +475,8 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
             { id: 'staff-salary', icon: Coins, label: 'Salary Profiles' },
             { id: 'stock-logs', icon: Activity, label: 'Movement Logs' },
             { id: 'sales', icon: ShoppingCart, label: 'Sales Records' },
-            { id: 'customers', icon: Users, label: 'Due Ledger' },
+            { id: 'customers', icon: Users, label: 'Due Ledger (Local)' },
+            { id: 'due-ledger-sheets', icon: FileSpreadsheet, label: 'Due Ledger (Google Sheet)' },
             { id: 'reports', icon: BarChart3, label: 'Profit & Loss' },
             { id: 'settings', icon: Settings, label: 'Site Settings' },
           ].map(tab => (
@@ -1192,6 +1194,12 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                 </div>
              </div>
            )}
+
+            {activeTab === 'due-ledger-sheets' && (
+              <div className="space-y-6">
+                <DueLedger />
+              </div>
+            )}
 
             {activeTab === 'settings' && (
               <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">

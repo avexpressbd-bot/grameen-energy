@@ -89,9 +89,7 @@ const Header: React.FC<{
                     <button onClick={() => { onNavigate('profile'); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2">
                       <User size={16} /> Profile
                     </button>
-                    <button onClick={() => { onNavigate('due-ledger'); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-emerald-50 text-emerald-600 flex items-center gap-2 font-bold">
-                      <FileSpreadsheet size={16} /> Due Ledger
-                    </button>
+
                     {currentStaffRole && (
                       <button onClick={() => { onNavigate(currentStaffRole); setIsAccountMenuOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-blue-600">
                         <LayoutDashboard size={16} /> Dashboard
@@ -126,9 +124,7 @@ const Header: React.FC<{
             <button className="text-left font-black uppercase text-xs tracking-widest" onClick={() => { onNavigate('shop'); setIsMenuOpen(false); }}>{t('Shop', 'শপ')}</button>
             <button className="text-left font-black uppercase text-xs tracking-widest" onClick={() => { onNavigate('services'); setIsMenuOpen(false); }}>{t('Services', 'সার্ভিস')}</button>
             <button className="text-left font-black uppercase text-xs tracking-widest" onClick={() => { onNavigate('staff'); setIsMenuOpen(false); }}>{t('Technicians', 'টেকনিশিয়ান')}</button>
-            <button className="text-left font-black uppercase text-xs tracking-widest text-emerald-600 flex items-center gap-2" onClick={() => { onNavigate('due-ledger'); setIsMenuOpen(false); }}>
-              <FileSpreadsheet size={16} /> {t('Due Ledger', 'বকেয়া খাতা')}
-            </button>
+
           </div>
         )}
       </header>

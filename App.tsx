@@ -95,7 +95,9 @@ const AppContent: React.FC = () => {
           ? <POS /> 
           : <CustomerAuth onNavigate={navigateTo} />;
       case 'due-ledger':
-        return <DueLedger />;
+        return staffRole === 'admin' 
+          ? <DueLedger /> 
+          : <CustomerAuth onNavigate={navigateTo} />;
       default:
         return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
     }
@@ -118,6 +120,7 @@ const AppContent: React.FC = () => {
             onNavigate={navigateTo} 
             isAuthenticated={!!staffRole || !!user} 
             onLogout={logout} 
+            isAdmin={staffRole === 'admin'}
           />
           <BottomNav currentPage={currentPage} onNavigate={navigateTo} />
           <FloatingActions />

@@ -8,9 +8,10 @@ interface FooterProps {
   onNavigate?: (page: string) => void;
   isAuthenticated?: boolean;
   onLogout?: () => void;
+  isAdmin?: boolean;
 }
 
-const Footer: React.FC<FooterProps> = ({ onNavigate, isAuthenticated, onLogout }) => {
+const Footer: React.FC<FooterProps> = ({ onNavigate, isAuthenticated, onLogout, isAdmin }) => {
   const { t, language } = useLanguage();
   const { settings } = useProducts();
 
@@ -69,7 +70,6 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, isAuthenticated, onLogout }
             <li><button onClick={() => onNavigate?.('shop')} className="hover:text-emerald-500 transition">{t('All Products', 'সব পণ্য')}</button></li>
             <li><button onClick={() => onNavigate?.('track-order')} className="hover:text-emerald-500 transition">{t('Track Order', 'অর্ডার ট্র্যাক')}</button></li>
             <li><button onClick={() => onNavigate?.('profile')} className="hover:text-emerald-500 transition">{t('My Account', 'আমার প্রোফাইল')}</button></li>
-            <li><button onClick={() => onNavigate?.('due-ledger')} className="text-emerald-400 hover:text-emerald-500 transition">{t('Due Ledger (বকেয়া খাতা)', 'বকেয়া খাতা (Due Ledger)')}</button></li>
             {isAuthenticated ? (
               <li><button onClick={onLogout} className="flex items-center gap-1 text-red-400 hover:text-red-500 transition"><LogOut size={14}/> {t('Logout', 'লগআউট')}</button></li>
             ) : (
