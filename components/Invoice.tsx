@@ -18,7 +18,7 @@ const Invoice: React.FC<InvoiceProps> = ({ sale, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[110] bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:relative print:inset-auto">
-      <div className="bg-white w-full max-w-[400px] rounded-2xl shadow-2xl p-6 print:shadow-none print:max-w-none animate-in zoom-in duration-300 font-sans">
+      <div id="invoice-receipt-card" className="bg-white invoice-receipt-card w-full max-w-[400px] rounded-2xl shadow-2xl p-6 print:shadow-none print:max-w-none animate-in zoom-in duration-300 font-sans">
         {/* Header */}
         <div className="text-center space-y-2 border-b-2 border-dashed pb-6 mb-6">
           <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Grameen Energy</h1>
@@ -117,11 +117,22 @@ const Invoice: React.FC<InvoiceProps> = ({ sale, onClose }) => {
 
       <style>{`
         @media print {
-          @page { margin: 0; size: 80mm 200mm; }
-          body * { visibility: hidden; }
-          .print:relative { position: static; }
-          .bg-white { visibility: visible; width: 80mm; position: absolute; left: 0; top: 0; padding: 5mm !important; }
-          .bg-white * { visibility: visible; }
+          @page { margin: 0; size: 80mm auto; }
+          body * { visibility: hidden !important; }
+          #invoice-receipt-card, #invoice-receipt-card * { visibility: visible !important; }
+          #invoice-receipt-card {
+            visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            padding: 4mm !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: white !important;
+            color: black !important;
+          }
           .print\\:hidden { display: none !important; }
         }
       `}</style>
