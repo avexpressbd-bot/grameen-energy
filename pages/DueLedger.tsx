@@ -6,6 +6,7 @@ import {
   AlertTriangle, Clock, ArrowUpDown, SlidersHorizontal, ExternalLink, Settings, X, ChevronRight, BookOpen
 } from 'lucide-react';
 import { useLanguage } from '../components/LanguageContext';
+import { useProducts } from '../components/ProductContext';
 
 interface LedgerItem {
   customerName: string;
@@ -32,11 +33,8 @@ const DueLedger: React.FC = () => {
   const { t, language } = useLanguage();
   
   // URL configurations
-  const [csvUrl, setCsvUrl] = useState<string>(() => {
-    return localStorage.getItem('due_ledger_csv_url') || '';
-  });
-  const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
-  const [inputUrl, setInputUrl] = useState(csvUrl);
+  const { settings } = useProducts();
+  const csvUrl = settings?.dueLedgerCsvUrl || '';
   
   // Data states
   const [ledgerData, setLedgerData] = useState<LedgerItem[]>(DEFAULT_LEDGER_DATA);
@@ -189,26 +187,18 @@ const DueLedger: React.FC = () => {
       } catch (e) {
         console.error(e);
       }
-    } else if (csvUrl) {
-      fetchLedgerData(csvUrl);
     }
   }, []);
 
-  const handleSaveUrl = () => {
-    let cleanUrl = inputUrl.trim();
-    setCsvUrl(cleanUrl);
-    localStorage.setItem('due_ledger_csv_url', cleanUrl);
-    setIsUrlModalOpen(false);
-    if (cleanUrl) {
-      fetchLedgerData(cleanUrl);
-    } else {
-      // Revert to fallback data if empty
+  // Sync on csvUrl mount or update
+  useEffect(() => {
+    if (csvUrl) {
+      fetchLedgerData(csvUrl);
+    } else if (settings !== null) {
+      // Revert to default demo data if no URL
       setLedgerData(DEFAULT_LEDGER_DATA);
-      setLastSynced(null);
-      localStorage.removeItem('due_ledger_cached_data');
-      localStorage.removeItem('due_ledger_last_synced');
     }
-  };
+  }, [csvUrl, settings]);
 
   const handleSort = (field: 'customerName' | 'totalDue' | 'lastPaymentDate') => {
     if (sortField === field) {
@@ -282,94 +272,6 @@ const DueLedger: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 lg:py-12 space-y-8" id="due-ledger-container">
       
-      {/* Configure Google Sheets URL Modal */}
-      {isUrlModalOpen && (
-        <div className="fixed inset-0 z-[110] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-2xl w-full border border-slate-100 space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                  <FileSpreadsheet className="text-emerald-500" size={24} />
-                  {t('Configure Google Sheet CSV Link', 'গুগল শিট লিঙ্ক সেটআপ করুন')}
-                </h3>
-                <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider">Connect your online ledger</p>
-              </div>
-              <button 
-                onClick={() => setIsUrlModalOpen(false)}
-                className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Published CSV URL (পাবলিশ করা CSV লিঙ্ক)</label>
-                <input 
-                  type="url" 
-                  value={inputUrl}
-                  onChange={(e) => setInputUrl(e.target.value)}
-                  placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv"
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-semibold text-sm text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition"
-                />
-              </div>
-
-              {/* Guide block inside modal */}
-              <div className="bg-emerald-50/50 rounded-2xl p-5 border border-emerald-100 space-y-3 text-left">
-                <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <BookOpen size={16} />
-                  {t('Google Sheet Connection Guide:', 'গুগল শিট কানেক্ট করার সহজ নিয়ম:')}
-                </h4>
-                <div className="space-y-3 text-xs text-emerald-800">
-                  <p className="font-bold border-b border-emerald-200/50 pb-1 text-emerald-900">
-                    {t('Method 1: Share Link (Easiest & Recommended)', 'পদ্ধতি ১: গুগল শিট শেয়ার লিংক (সবচেয়ে সহজ)')}
-                  </p>
-                  <ol className="font-bold space-y-1 list-decimal list-inside leading-relaxed pl-1 text-emerald-700">
-                    <li>{t('Open your Google Sheet.', 'আপনার বকেয়া খাতার গুগল শিটটি ওপেন করুন।')}</li>
-                    <li>{t('Click "Share" (শেয়ার) button on the top-right.', 'উপরে ডানদিকের "Share" (শেয়ার) বাটনে ক্লিক করুন।')}</li>
-                    <li>{t('Under General Access, change "Restricted" to "Anyone with the link" and keep as "Viewer".', 'General Access থেকে "Restricted" পরিবর্তন করে "Anyone with the link" (লিঙ্ক আছে এমন যে কেউ) সিলেক্ট করুন।')}</li>
-                    <li>{t('Copy your browser URL (or share link) and paste it here!', 'ব্রাউজারের এড্রেস বার থেকে সাধারণ লিংকটি কপি করে সরাসরি নিচে পেস্ট করে দিন! সিস্টেম নিজে থেকেই এটি প্রসেস করবে।')}</li>
-                  </ol>
-
-                  <p className="font-bold border-b border-emerald-200/50 pt-2 pb-1 text-emerald-900">
-                    {t('Method 2: Publish to Web', 'পদ্ধতি ২: ওয়েব-এ পাবলিশ করে')}
-                  </p>
-                  <ol className="font-bold space-y-1 list-decimal list-inside leading-relaxed pl-1 text-emerald-700">
-                    <li>{t('Go to File ➔ Share ➔ Publish to web.', 'গুগল শিটে File ➔ Share ➔ Publish to web এ যান।')}</li>
-                    <li>{t('Select "Comma-separated values (.csv)" from dropdown instead of "Web page", and click Publish.', '"Web page" পরিবর্তন করে "Comma-separated values (.csv)" সিলেক্ট করে Publish এ ক্লিক করুন।')}</li>
-                    <li>{t('Copy that link and paste it here.', 'সেখান থেকে প্রাপ্ত লিঙ্কটি কপি করে পেস্ট করে দিন।')}</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4 pt-2">
-              <button 
-                onClick={() => {
-                  setInputUrl('');
-                  setCsvUrl('');
-                  localStorage.removeItem('due_ledger_csv_url');
-                  localStorage.removeItem('due_ledger_cached_data');
-                  localStorage.removeItem('due_ledger_last_synced');
-                  setLedgerData(DEFAULT_LEDGER_DATA);
-                  setLastSynced(null);
-                  setIsUrlModalOpen(false);
-                }}
-                className="flex-1 py-4 border-2 border-slate-100 hover:bg-slate-50 text-slate-500 rounded-2xl font-black uppercase text-xs tracking-widest transition"
-              >
-                {t('Reset to Demo Data', 'ডেমো ডেটাতে ফিরুন')}
-              </button>
-              <button 
-                onClick={handleSaveUrl}
-                className="flex-[2] py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/10 transition"
-              >
-                {t('Save & Sync', 'সেভ এবং সিঙ্ক')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -389,25 +291,16 @@ const DueLedger: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button 
-            onClick={() => {
-              setInputUrl(csvUrl);
-              setIsUrlModalOpen(true);
-            }}
-            className="flex-1 sm:flex-none px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center justify-center gap-2"
-          >
-            <Settings size={14} />
-            {t('Sheet Setup', 'শিট সেটআপ')}
-          </button>
-          
-          <button 
-            onClick={() => csvUrl ? fetchLedgerData() : setIsUrlModalOpen(true)}
-            disabled={isLoading}
-            className={`flex-1 sm:flex-none px-6 py-3.5 bg-[#005CB9] hover:bg-blue-800 disabled:bg-blue-200 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10`}
-          >
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-            {isLoading ? t('Syncing...', 'সিঙ্ক হচ্ছে...') : t('Refresh Sync', 'রিফ্রেশ সিঙ্ক')}
-          </button>
+          {csvUrl && (
+            <button 
+              onClick={() => fetchLedgerData(csvUrl)}
+              disabled={isLoading}
+              className={`flex-1 sm:flex-none px-6 py-3.5 bg-[#005CB9] hover:bg-blue-800 disabled:bg-blue-200 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10`}
+            >
+              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+              {isLoading ? t('Syncing...', 'সিঙ্ক হচ্ছে...') : t('Refresh Sync', 'রিফ্রেশ সিঙ্ক')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -418,91 +311,9 @@ const DueLedger: React.FC = () => {
           <div className="space-y-1">
             <p className="text-sm font-black text-red-800">{t('Spreadsheet Connection Failed', 'গুগল শিট কানেকশন ব্যর্থ হয়েছে')}</p>
             <p className="text-xs font-bold text-red-600 leading-relaxed">{error}</p>
-            <button 
-              onClick={() => setIsUrlModalOpen(true)}
-              className="text-[10px] font-black text-red-700 uppercase tracking-widest underline mt-2 block"
-            >
-              {t('Update Configuration URL', 'কনফিগারেশন ইউআরএল আপডেট করুন')}
-            </button>
           </div>
         </div>
       )}
-
-      {/* ALWAYS VISIBLE Google Sheets Link Configurator */}
-      <div className="bg-emerald-50 border-2 border-emerald-200/60 rounded-[2.5rem] p-6 md:p-8 space-y-4 animate-in fade-in duration-300 shadow-sm text-left">
-        <div className="flex items-start gap-4">
-          <span className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl shrink-0 mt-1">
-            <FileSpreadsheet size={24} />
-          </span>
-          <div className="space-y-1 flex-1">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h3 className="text-lg font-black text-emerald-900">
-                {t('Connect Your Google Sheet Ledger', 'এখানে আপনার বকেয়া খাতার গুগল শিট লিঙ্কটি দিন (সহজ নিয়ম)')}
-              </h3>
-              {csvUrl && (
-                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-full uppercase tracking-wider flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
-                  {t('Connected', 'সংযুক্ত আছে')}
-                </span>
-              )}
-            </div>
-            <p className="text-xs font-bold text-emerald-700 leading-relaxed">
-              {t(
-                'Simply enter your Google Sheet link below and click Save & Sync. Make sure to share your sheet as "Anyone with the link can view" so our application can access it safely.',
-                'আপনার বকেয়া খাতার গুগল শিট লিঙ্কটি নিচের বক্সে পেস্ট করে "Save & Sync" এ ক্লিক করলেই আপনার কাস্টমার ডেটা রিয়েল-টাইমে এখানে চলে আসবে। শিটটি অবশ্যই "Anyone with the link" (Viewer) হিসেবে শেয়ার করা থাকতে হবে।'
-              )}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <input 
-            type="url" 
-            value={inputUrl}
-            onChange={(e) => setInputUrl(e.target.value)}
-            placeholder="গুগল শিট লিঙ্ক পেস্ট করুন (যেমন: https://docs.google.com/spreadsheets/d/...)"
-            className="flex-1 p-4 bg-white border border-emerald-200 rounded-2xl font-semibold text-sm text-slate-700 outline-none focus:border-emerald-500 transition shadow-inner"
-          />
-          <div className="flex gap-2">
-            <button 
-              onClick={() => {
-                let cleanUrl = inputUrl.trim();
-                setCsvUrl(cleanUrl);
-                localStorage.setItem('due_ledger_csv_url', cleanUrl);
-                if (cleanUrl) {
-                  fetchLedgerData(cleanUrl);
-                } else {
-                  setLedgerData(DEFAULT_LEDGER_DATA);
-                  setLastSynced(null);
-                  localStorage.removeItem('due_ledger_cached_data');
-                  localStorage.removeItem('due_ledger_last_synced');
-                }
-              }}
-              className="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/15 whitespace-nowrap flex-1 sm:flex-none"
-            >
-              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-              {t('Save & Sync', 'সেভ এবং সিঙ্ক')}
-            </button>
-            {csvUrl && (
-              <button 
-                onClick={() => {
-                  setInputUrl('');
-                  setCsvUrl('');
-                  localStorage.removeItem('due_ledger_csv_url');
-                  localStorage.removeItem('due_ledger_cached_data');
-                  localStorage.removeItem('due_ledger_last_synced');
-                  setLedgerData(DEFAULT_LEDGER_DATA);
-                  setLastSynced(null);
-                }}
-                className="px-4 py-4 bg-red-100 hover:bg-red-200 text-red-600 rounded-2xl font-black uppercase text-xs tracking-widest transition flex items-center justify-center gap-2"
-                title={t('Disconnect Sheet', 'কানেকশন মুছুন')}
-              >
-                {t('Disconnect', 'মুছে ফেলুন')}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

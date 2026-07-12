@@ -72,6 +72,7 @@ export interface SiteSettings {
   heroTitleBn: string;
   heroSubtitleEn: string;
   heroSubtitleBn: string;
+  dueLedgerCsvUrl?: string;
 }
 
 export interface BlogPost {

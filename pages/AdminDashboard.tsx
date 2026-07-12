@@ -366,6 +366,7 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
       heroTitleBn: fd.get('heroTitleBn') as string,
       heroSubtitleEn: fd.get('heroSubtitleEn') as string,
       heroSubtitleBn: fd.get('heroSubtitleBn') as string,
+      dueLedgerCsvUrl: (fd.get('dueLedgerCsvUrl') as string) || '',
       logoUrl: settingsLogo || settings?.logoUrl
     };
     try {
@@ -1322,6 +1323,25 @@ const AdminDashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNa
                             <div className="space-y-1">
                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YouTube URL</label>
                                <input name="youtubeUrl" defaultValue={settings?.youtubeUrl} className="w-full p-4 bg-slate-50 rounded-xl font-bold border-none" />
+                            </div>
+                         </div>
+                      </div>
+
+                      {/* Due Ledger Configuration */}
+                      <div className="space-y-6 md:col-span-2 border-t pt-8">
+                         <h4 className="text-xs font-black uppercase tracking-widest text-emerald-600">Due Ledger Integration (বকেয়া খাতা শিট লিঙ্ক)</h4>
+                         <div className="bg-emerald-50/50 rounded-2xl p-6 border border-emerald-100 space-y-4">
+                            <div className="space-y-1">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Google Sheet CSV / Published Link</label>
+                               <input name="dueLedgerCsvUrl" defaultValue={settings?.dueLedgerCsvUrl} placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" className="w-full p-4 bg-white rounded-xl font-bold border border-emerald-200 text-slate-700 focus:border-emerald-500 outline-none transition" />
+                            </div>
+                            <div className="text-xs text-emerald-800 space-y-2">
+                               <p className="font-bold">গুগল শিট কানেক্ট করার নিয়ম (Google Sheet Connection Guide):</p>
+                               <ol className="list-decimal list-inside space-y-1 pl-1 text-emerald-700">
+                                  <li>গুগল শিটের "Share" বাটনে ক্লিক করে General Access থেকে "Anyone with the link" (Viewer) সিলেক্ট করুন।</li>
+                                  <li>ব্রাউজারের এড্রেস বার থেকে সাধারণ লিঙ্কটি কপি করে উপরের বক্সে পেস্ট করে দিন!</li>
+                                  <li>অথবা File ➔ Share ➔ Publish to web থেকে CSV অপশন সিলেক্ট করে প্রাপ্ত লিঙ্কটি এখানে দিন।</li>
+                               </ol>
                             </div>
                          </div>
                       </div>
