@@ -6,15 +6,20 @@ import { ShieldCheck, CheckCircle2, AlertCircle, ScanLine, Printer } from 'lucid
 
 interface InvoiceProps {
   sale: Sale;
+  customerPreviousDue?: number;
   onClose: () => void;
 }
 
-const Invoice: React.FC<InvoiceProps> = ({ sale, onClose }) => {
+const Invoice: React.FC<InvoiceProps> = ({ sale, customerPreviousDue = 0, onClose }) => {
   const { t } = useLanguage();
 
   const handlePrint = () => {
     window.print();
   };
+
+  const previousDue = customerPreviousDue || 0;
+  const currentInvoiceDue = sale.dueAmount || 0;
+  const totalOutstandingDue = previousDue + currentInvoiceDue;
 
   return (
     <div className="fixed inset-0 z-[110] bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:relative print:inset-auto">
@@ -94,7 +99,25 @@ const Invoice: React.FC<InvoiceProps> = ({ sale, onClose }) => {
            )}
         </div>
 
-        {/* Footer Barcode */}
+        {sale.customerPhone && (previousDue > 0 || currentInvoiceDue > 0) && (
+              <div className="border-t border-dashed pt-3 mt-3 space-y-1.5 text-[10px] text-slate-700 mb-6">
+                <div className="flex justify-between font-bold">
+                  <span>{t('Previous Due Balance', 'পূর্বের বকেয়া')}:</span>
+                  <span>৳ {previousDue}</span>
+                </div>
+                {currentInvoiceDue > 0 && (
+                  <div className="flex justify-between font-bold text-red-600">
+                    <span>{t('Current Invoice Due', 'আজকের বকেয়া')}:</span>
+                    <span>৳ {currentInvoiceDue}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-dotted pt-1 text-xs font-black text-slate-900">
+                  <span>{t('Total Outstanding Due', 'সর্বমোট বকেয়া')}:</span>
+                  <span>৳ {totalOutstandingDue}</span>
+                </div>
+              </div>
+            )}
+         {/* Footer Barcode */}
         <div className="text-center space-y-4 pt-4 border-t border-dashed">
            <div className="flex justify-center flex-col items-center opacity-70">
               <ScanLine size={32} className="text-slate-300 mb-1" />

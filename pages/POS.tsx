@@ -25,6 +25,7 @@ const POS: React.FC = () => {
   const [paidAmount, setPaidAmount] = useState<number | ''>('');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'POS Machine' | 'Mobile Banking'>('Cash');
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const [completedSalePrevDue, setCompletedSalePrevDue] = useState<number>(0);
   const [activeMobileView, setActiveMobileView] = useState<'catalog' | 'cart'>('catalog');
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
 
@@ -89,7 +90,7 @@ const POS: React.FC = () => {
   const total = Math.max(0, subtotal - discountVal);
   const dueAmount = Math.max(0, total - paidAmountVal);
 
-  const finalizeSale = async () => {
+  const finalizeSale = async (shouldPrint: boolean = true) => {
     if (currentSale.length === 0) return;
     const newSale: Sale = {
       id: 'POS-' + Date.now().toString().slice(-8),
@@ -109,7 +110,15 @@ const POS: React.FC = () => {
     };
     try {
       await recordSale(newSale);
-      setCompletedSale(newSale);
+      if (shouldPrint) {
+        const matchedCustomer = customers?.find(c => c.id === customerPhone.trim());
+        const prevDue = matchedCustomer ? (matchedCustomer.totalDue || 0) : 0;
+        setCompletedSalePrevDue(prevDue);
+        setCompletedSale(newSale);
+      } else {
+        alert(t("Sale recorded successfully!", "বিক্রয় সফলভাবে সম্পন্ন হয়েছে!"));
+        resetPOS();
+      }
     } catch (error) {
       console.error("POS Sale Error:", error);
       alert(t("Failed to record sale. Please check connection.", "বিক্রয় রেকর্ড করা সম্ভব হয়নি। কানেকশন চেক করুন।"));
@@ -263,7 +272,7 @@ const POS: React.FC = () => {
 
   return (
     <div className="h-screen bg-slate-100 flex flex-col md:flex-row overflow-hidden relative font-sans">
-      {completedSale && <Invoice sale={completedSale} onClose={resetPOS} />}
+      {completedSale && <Invoice sale={completedSale} customerPreviousDue={completedSalePrevDue} onClose={resetPOS} />}
 
       {/* Manual Item Modal (F2) */}
       {isManualModalOpen && (
@@ -620,6 +629,13 @@ const POS: React.FC = () => {
              className="w-full bg-white text-slate-900 py-6 rounded-3xl font-black uppercase tracking-[0.3em] text-sm hover:bg-emerald-400 transition transform active:scale-95 disabled:opacity-20 shadow-2xl disabled:grayscale"
            >
              COMPLETE & PRINT (F9)
+            </button>
+            <button 
+              disabled={currentSale.length === 0}
+              onClick={() => finalizeSale(false)}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-white py-5 rounded-2xl font-black uppercase tracking-wider text-xs transition transform active:scale-95 disabled:opacity-25 shadow-lg mt-3"
+            >
+              {t('COMPLETE ONLY', 'শুধুমাত্র কমপ্লিট')}
            </button>
         </div>
       </div>
