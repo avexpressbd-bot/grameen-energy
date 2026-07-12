@@ -18,6 +18,7 @@ import OrderTracking from './pages/OrderTracking.tsx';
 import CustomerAuth from './pages/CustomerAuth.tsx';
 import Profile from './pages/Profile.tsx';
 import DueLedger from './pages/DueLedger.tsx';
+import ProductAIChat from './components/ProductAIChat.tsx';
 import { LanguageProvider } from './components/LanguageContext.tsx';
 import { CartProvider } from './components/CartContext.tsx';
 import { ProductProvider, useProducts } from './components/ProductContext.tsx';
@@ -27,6 +28,7 @@ const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [trackingContext, setTrackingContext] = useState<{id: string, phone: string} | null>(null);
+  const [aiProductForChat, setAiProductForChat] = useState<any>(null);
   
   const { products } = useProducts();
   const { user, staffRole, logout } = useAuth();
@@ -61,9 +63,9 @@ const AppContent: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        return <Home onProductClick={showProduct} onNavigate={navigateTo} />;
+        return <Home onProductClick={showProduct} onNavigate={navigateTo} onAIClick={setAiProductForChat} />;
       case 'shop':
-        return <Shop onProductClick={showProduct} />;
+        return <Shop onProductClick={showProduct} onAIClick={setAiProductForChat} />;
       case 'services':
         return <Services />;
       case 'staff':
@@ -72,7 +74,7 @@ const AppContent: React.FC = () => {
         return <TechnicianPortal />;
       case 'product-detail':
         const product = products.find(p => p.id === selectedProductId);
-        return product ? <ProductDetail product={product} onNavigate={navigateTo} /> : <Home onProductClick={showProduct} onNavigate={navigateTo} />;
+        return product ? <ProductDetail product={product} onNavigate={navigateTo} onAIChatClick={setAiProductForChat} /> : <Home onProductClick={showProduct} onNavigate={navigateTo} onAIClick={setAiProductForChat} />;
       case 'cart':
         return <Cart onNavigate={navigateTo} />;
       case 'checkout':
@@ -120,6 +122,13 @@ const AppContent: React.FC = () => {
           <BottomNav currentPage={currentPage} onNavigate={navigateTo} />
           <FloatingActions />
         </>
+      )}
+
+      {aiProductForChat && (
+        <ProductAIChat 
+          product={aiProductForChat} 
+          onClose={() => setAiProductForChat(null)} 
+        />
       )}
     </div>
   );

@@ -4,10 +4,14 @@ import React, { useState } from 'react';
 import { Product } from '../types';
 import { useLanguage } from '../components/LanguageContext';
 import { useCart } from '../components/CartContext';
-import { ShoppingCart, Zap, MessageSquare, ChevronRight, Share2, Star, ShieldCheck, HelpCircle } from 'lucide-react';
+import { ShoppingCart, Zap, MessageSquare, ChevronRight, Share2, Star, ShieldCheck, HelpCircle, Sparkles } from 'lucide-react';
 import { getEnergyAdvice } from '../services/geminiService';
 
-const ProductDetail: React.FC<{ product: Product, onNavigate: (page: string) => void }> = ({ product, onNavigate }) => {
+const ProductDetail: React.FC<{ 
+  product: Product, 
+  onNavigate: (page: string) => void,
+  onAIChatClick?: (product: Product) => void 
+}> = ({ product, onNavigate, onAIChatClick }) => {
   const { t, language } = useLanguage();
   const { addToCart } = useCart();
   const [advice, setAdvice] = useState<string | null>(null);
@@ -121,13 +125,25 @@ const ProductDetail: React.FC<{ product: Product, onNavigate: (page: string) => 
               <p className="text-xs text-blue-100">
                 {t('Need to know if this fits your home?', 'আপনার বাসার জন্য এটি সঠিক কি না জানতে চান?')}
               </p>
-              <button 
-                onClick={askExpert}
-                disabled={loadingAdvice}
-                className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50"
-              >
-                {loadingAdvice ? t('Asking AI...', 'জিজ্ঞাসা করা হচ্ছে...') : t('Ask AI Advisor', 'এআই এডভাইজরকে জিজ্ঞাসা করুন')}
-              </button>
+              <div className="flex flex-col gap-2 pt-1">
+                <button 
+                  onClick={askExpert}
+                  disabled={loadingAdvice}
+                  className="w-full py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loadingAdvice ? t('Asking AI...', 'জিজ্ঞাসা করা হচ্ছে...') : t('Get Quick Advice', 'তাৎক্ষণিক পরামর্শ নিন')}
+                </button>
+                {onAIChatClick && (
+                  <button 
+                    onClick={() => onAIChatClick(product)}
+                    type="button"
+                    className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition duration-200 hover:scale-[1.02]"
+                  >
+                    <Sparkles size={14} className="text-yellow-300 animate-pulse" />
+                    {t('Chat with Product AI', 'প্রোডাক্ট এআই চ্যাট')}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

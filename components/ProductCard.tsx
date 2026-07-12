@@ -3,14 +3,15 @@ import React from 'react';
 import { Product } from '../types';
 import { useLanguage } from './LanguageContext';
 import { useCart } from './CartContext';
-import { ShoppingCart, Zap, Plus } from 'lucide-react';
+import { ShoppingCart, Zap, Plus, Sparkles } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
   onClick: () => void;
+  onAIClick?: (product: Product) => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, onAIClick }) => {
   const { t } = useLanguage();
   const { addToCart } = useCart();
 
@@ -26,6 +27,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
           <span className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-full shadow-lg tracking-widest">
             {t('OFFER', 'অফার')}
           </span>
+        )}
+        
+        {onAIClick && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onAIClick(product); }}
+            className="absolute top-2 right-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1 active:scale-90 transition transform z-10"
+            title={t('Ask AI about this product', 'প্রোডাক্টটি সম্পর্কে এআই-কে জিজ্ঞাসা করুন')}
+          >
+            <Sparkles size={11} className="animate-pulse text-yellow-300" />
+            <span>AI</span>
+          </button>
         )}
         
         {/* Quick Add Button Mobile Only */}

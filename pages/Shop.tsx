@@ -6,7 +6,10 @@ import { useLanguage } from '../components/LanguageContext';
 import ProductCard from '../components/ProductCard';
 import { Filter, SlidersHorizontal, Search, ShoppingCart } from 'lucide-react';
 
-const Shop: React.FC<{ onProductClick: (id: string) => void }> = ({ onProductClick }) => {
+const Shop: React.FC<{ 
+  onProductClick: (id: string) => void,
+  onAIClick?: (product: Product) => void
+}> = ({ onProductClick, onAIClick }) => {
   const { t } = useLanguage();
   const { products } = useProducts();
   console.log("Shop products state:", products);
@@ -117,7 +120,12 @@ const Shop: React.FC<{ onProductClick: (id: string) => void }> = ({ onProductCli
           {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
               {filteredProducts.map(product => (
-                <ProductCard key={product.id} product={product} onClick={() => onProductClick(product.id)} />
+                <ProductCard 
+                  key={product.id} 
+                  product={product} 
+                  onClick={() => onProductClick(product.id)} 
+                  onAIClick={onAIClick}
+                />
               ))}
             </div>
           ) : (

@@ -2,8 +2,8 @@ import React from 'react';
 import { useProducts } from '../components/ProductContext';
 import { useLanguage } from '../components/LanguageContext';
 import ProductCard from '../components/ProductCard';
-import { Zap, ShieldCheck, Truck, RefreshCcw, ArrowRight } from 'lucide-react';
-import { Category } from '../types';
+import { Zap, ShieldCheck, Truck, RefreshCcw, ArrowRight, Sparkles } from 'lucide-react';
+import { Category, Product } from '../types';
 
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -39,7 +39,11 @@ const CategorySection: React.FC<{
   </section>
 );
 
-const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: string) => void }> = ({ onProductClick, onNavigate }) => {
+const Home: React.FC<{ 
+  onProductClick: (id: string) => void, 
+  onNavigate: (page: string) => void,
+  onAIClick?: (product: Product) => void
+}> = ({ onProductClick, onNavigate, onAIClick }) => {
   const { t, language } = useLanguage();
   const { products, settings } = useProducts();
   const [currentBanner, setCurrentBanner] = React.useState(0);
@@ -141,9 +145,19 @@ const Home: React.FC<{ onProductClick: (id: string) => void, onNavigate: (page: 
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
           {featuredProducts.map(product => (
-            <div key={product.id} onClick={() => onProductClick(product.id)} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 group cursor-pointer hover:shadow-lg transition">
-              <div className="aspect-square rounded-xl overflow-hidden mb-4 bg-slate-50">
+            <div key={product.id} onClick={() => onProductClick(product.id)} className="relative bg-white p-4 rounded-2xl shadow-sm border border-slate-100 group cursor-pointer hover:shadow-lg transition">
+              <div className="relative aspect-square rounded-xl overflow-hidden mb-4 bg-slate-50">
                 <img src={product.image} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 transition" referrerPolicy="no-referrer" />
+                {onAIClick && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onAIClick(product); }}
+                    className="absolute top-2 right-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full shadow-lg flex items-center gap-1 active:scale-90 transition transform z-10"
+                    title={t('Ask AI about this product', 'প্রোডাক্টটি সম্পর্কে এআই-কে জিজ্ঞাসা করুন')}
+                  >
+                    <Sparkles size={11} className="text-yellow-300 animate-pulse" />
+                    <span>AI</span>
+                  </button>
+                )}
               </div>
               <p className="text-[10px] font-black text-blue-600 uppercase mb-1">{product.brand}</p>
               <h4 className="text-xs font-bold text-slate-800 line-clamp-2">{product.name}</h4>

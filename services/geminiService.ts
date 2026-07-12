@@ -1,29 +1,55 @@
-
-import { GoogleGenAI } from "@google/genai";
-
 /**
- * Service to provide energy advice using Gemini AI.
- * Following guidelines to initialize right before making an API call and using process.env.API_KEY directly.
+ * Service to call Gemini AI through the backend server.
  */
-export const getEnergyAdvice = async (loadDetails: string, language: 'en' | 'bn') => {
+
+export const getEnergyAdvice = async (loadDetails: string, language: 'en' | 'bn'): Promise<string> => {
   try {
-    // Fix: Initialize GoogleGenAI strictly using process.env.API_KEY as per the guidelines.
-    // Assume API_KEY is pre-configured and accessible.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    // Fix: Using gemini-3-flash-preview for general text task.
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `You are an energy expert at "Grameen Energy". Based on these load details: "${loadDetails}", recommend the best setup (IPS, Solar, or Battery) and provide 3 energy saving tips. Response should be in ${language === 'bn' ? 'Bengali' : 'English'}.`,
-      config: {
-        thinkingConfig: { thinkingBudget: 0 } // Disabling thinking for lower latency as per guidelines
-      }
+    const response = await fetch("/api/gemini/advice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ loadDetails, language }),
     });
 
-    // Fix: Accessing .text property directly (not a method call) as per SDK response rules.
-    return response.text;
+    if (!response.ok) {
+      throw new Error("Server error");
+    }
+
+    const data = await response.json();
+    return data.text || (language === 'bn' ? "দুঃখিত, বর্তমানে পরামর্শ প্রদান করা সম্ভব হচ্ছে না।" : "Sorry, I cannot provide advice at the moment.");
   } catch (error) {
-    console.error("Gemini Error:", error);
+    console.error("Energy advice fetch error:", error);
     return language === 'bn' ? "দুঃখিত, বর্তমানে পরামর্শ প্রদান করা সম্ভব হচ্ছে না।" : "Sorry, I cannot provide advice at the moment.";
+  }
+};
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+export const chatAboutProduct = async (product: any, messages: ChatMessage[], language: 'en' | 'bn'): Promise<string> => {
+  try {
+    const response = await fetch("/api/gemini/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ product, messages, language }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || "Server error");
+    }
+
+    const data = await response.json();
+    return data.text || (language === 'bn' ? "দুঃখিত, কোনো উত্তর পাওয়া যায়নি।" : "Sorry, no response could be generated.");
+  } catch (error: any) {
+    console.error("Product Chat API error:", error);
+    return language === 'bn' 
+      ? `দুঃখিত, এআই সার্ভারের সাথে যোগাযোগ করা সম্ভব হয়নি: ${error.message || ''}` 
+      : `Sorry, could not connect to the AI server: ${error.message || ''}`;
   }
 };
