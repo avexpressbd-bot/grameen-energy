@@ -58,108 +58,65 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (id: string, password: string): Promise<'admin' | 'pos' | 'customer' | 'technician' | false> => {
-    const inputId = id.trim().toLowerCase();
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password })
+      });
 
-    // 1. Check Hardcoded Staff Roles
-    if (inputId === 'admin' && password === 'admin123') {
-      setStaffRole('admin');
-      localStorage.setItem('ge_staff_role', 'admin');
-      return 'admin';
-    }
-    
-    if (inputId === 'posuser' && password === 'pos123') {
-      setStaffRole('pos');
-      localStorage.setItem('ge_staff_role', 'pos');
-      return 'pos';
-    }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
+      }
 
-    // 2. Try to find user by Phone (Document ID)
-    let userDoc = await getDoc(doc(db, 'users', id));
-    let userData = userDoc.exists() ? userDoc.data() : null;
-
-    // 3. If not found by phone, try to find by Account ID or Email
-    if (!userData) {
-      // Check by accountId
-      const qAcc = query(collection(db, 'users'), where('accountId', '==', id));
-      const qAccSnap = await getDocs(qAcc);
-      
-      if (!qAccSnap.empty) {
-        userData = qAccSnap.docs[0].data();
-        id = qAccSnap.docs[0].id;
-      } else {
-        // Check by email
-        const qEmail = query(collection(db, 'users'), where('email', '==', inputId));
-        const qEmailSnap = await getDocs(qEmail);
-        if (!qEmailSnap.empty) {
-          userData = qEmailSnap.docs[0].data();
-          id = qEmailSnap.docs[0].id;
+      const data = await response.json();
+      if (data.success) {
+        if (data.role === 'admin') {
+          setStaffRole('admin');
+          localStorage.setItem('ge_staff_role', 'admin');
+          return 'admin';
+        } else if (data.role === 'pos') {
+          setStaffRole('pos');
+          localStorage.setItem('ge_staff_role', 'pos');
+          return 'pos';
+        } else {
+          setUser(data.user);
+          localStorage.setItem('ge_customer_user', JSON.stringify(data.user));
+          return data.user.role === 'technician' ? 'technician' : 'customer';
         }
       }
+    } catch (error: any) {
+      console.error("AuthContext Login error:", error);
+      throw error;
     }
-
-    if (userData && userData.password === password) {
-      const customer: CustomerUser = {
-        uid: id,
-        accountId: userData.accountId,
-        name: userData.name,
-        phone: userData.phone,
-        email: userData.email,
-        address: userData.address,
-        city: userData.city,
-        role: userData.role || 'customer',
-        createdAt: userData.createdAt
-      };
-      setUser(customer);
-      localStorage.setItem('ge_customer_user', JSON.stringify(customer));
-      return customer.role === 'technician' ? 'technician' : 'customer';
-    }
-    
     return false;
   };
 
   const register = async (userData: Omit<CustomerUser, 'uid' | 'createdAt' | 'accountId'>, password: string, role: 'customer' | 'technician' = 'customer') => {
-    const userRef = doc(db, 'users', userData.phone);
-    const userSnap = await getDoc(userRef);
-    
-    if (userSnap.exists()) {
-      throw new Error('This phone number is already registered.');
-    }
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userData, password, role })
+      });
 
-    // Also check if email is already taken
-    if (userData.email) {
-      const qEmail = query(collection(db, 'users'), where('email', '==', userData.email.toLowerCase()));
-      const qEmailSnap = await getDocs(qEmail);
-      if (!qEmailSnap.empty) {
-        throw new Error('This email is already registered.');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Registration failed');
       }
+
+      const data = await response.json();
+      if (data.success) {
+        setUser(data.user);
+        localStorage.setItem('ge_customer_user', JSON.stringify(data.user));
+        return true;
+      }
+    } catch (error: any) {
+      console.error("AuthContext Register error:", error);
+      throw error;
     }
-
-    const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-    const accountId = role === 'technician' ? `GE-T-${randomSuffix}` : `GE-C-${randomSuffix}`;
-
-    const newUserDoc = {
-      ...userData,
-      email: userData.email?.toLowerCase(),
-      accountId,
-      password,
-      role,
-      createdAt: new Date().toISOString()
-    };
-
-    await setDoc(userRef, newUserDoc);
-    
-    const customer: CustomerUser = {
-      uid: userData.phone,
-      accountId,
-      ...userData,
-      email: userData.email?.toLowerCase(),
-      role,
-      createdAt: newUserDoc.createdAt
-    };
-    
-    setUser(customer);
-    localStorage.setItem('ge_customer_user', JSON.stringify(customer));
-    return true;
+    return false;
   };
 
   const logout = () => {
@@ -171,10 +128,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateProfile = async (data: Partial<CustomerUser>) => {
     if (!user) return;
-    const updated = { ...user, ...data };
-    await setDoc(doc(db, 'users', user.phone), data, { merge: true });
-    setUser(updated);
-    localStorage.setItem('ge_customer_user', JSON.stringify(updated));
+    try {
+      const updated = { ...user, ...data };
+      const response = await fetch('/api/auth/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: user.phone, data })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Profile update failed');
+      }
+
+      setUser(updated);
+      localStorage.setItem('ge_customer_user', JSON.stringify(updated));
+    } catch (error: any) {
+      console.error("AuthContext Profile Update error:", error);
+      throw error;
+    }
   };
 
   return (

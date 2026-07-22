@@ -2,12 +2,151 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import { initializeMySqlTables, dbGetUserByPhone, dbGetUserByAccountId, dbGetUserByEmail, dbCreateUser, dbUpdateUser } from "./services/db";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT: string | number = process.env.PORT ? (isNaN(Number(process.env.PORT)) ? process.env.PORT : Number(process.env.PORT)) : 3000;
 
   app.use(express.json());
+
+  // Initialize tables (if MySQL configuration exists in environment variables)
+  await initializeMySqlTables();
+
+  // API Route: Register
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { userData, password, role } = req.body;
+      const { phone, name, email, address, city } = userData;
+
+      if (!phone || !name || !password) {
+        return res.status(400).json({ error: "Phone, name, and password are required." });
+      }
+
+      // Check if user exists by phone
+      const existingUser = await dbGetUserByPhone(phone);
+      if (existingUser) {
+        return res.status(400).json({ error: "This phone number is already registered." });
+      }
+
+      // Check if email is already taken
+      if (email) {
+        const existingEmail = await dbGetUserByEmail(email);
+        if (existingEmail) {
+          return res.status(400).json({ error: "This email is already registered." });
+        }
+      }
+
+      const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+      const accountId = role === 'technician' ? `GE-T-${randomSuffix}` : `GE-C-${randomSuffix}`;
+
+      const newUser = {
+        phone,
+        accountId,
+        name,
+        password,
+        email: email ? email.toLowerCase() : null,
+        address: address || null,
+        city: city || null,
+        role: role || 'customer',
+        createdAt: new Date().toISOString()
+      };
+
+      await dbCreateUser(newUser);
+
+      res.status(201).json({ success: true, user: newUser });
+    } catch (error: any) {
+      console.error("Auth register API Error:", error);
+      res.status(500).json({ error: error.message || "Registration failed." });
+    }
+  });
+
+  // API Route: Login
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { id, password } = req.body;
+      const inputId = id.trim().toLowerCase();
+
+      // Check staff credentials
+      if (inputId === 'admin' && password === 'admin123') {
+        return res.json({
+          success: true,
+          role: 'admin',
+          user: {
+            uid: 'admin',
+            accountId: 'admin',
+            name: 'System Admin',
+            phone: 'admin',
+            role: 'admin'
+          }
+        });
+      }
+
+      if (inputId === 'posuser' && password === 'pos123') {
+        return res.json({
+          success: true,
+          role: 'pos',
+          user: {
+            uid: 'posuser',
+            accountId: 'posuser',
+            name: 'POS Sales Assistant',
+            phone: 'posuser',
+            role: 'pos'
+          }
+        });
+      }
+
+      // Try finding user by phone, accountId, or email
+      let userData = await dbGetUserByPhone(inputId);
+      
+      if (!userData) {
+        userData = await dbGetUserByAccountId(id);
+      }
+
+      if (!userData) {
+        userData = await dbGetUserByEmail(inputId);
+      }
+
+      if (userData && userData.password === password) {
+        return res.json({
+          success: true,
+          role: userData.role || 'customer',
+          user: {
+            uid: userData.phone,
+            accountId: userData.accountId,
+            name: userData.name,
+            phone: userData.phone,
+            email: userData.email,
+            address: userData.address,
+            city: userData.city,
+            role: userData.role || 'customer',
+            createdAt: userData.createdAt
+          }
+        });
+      }
+
+      res.status(401).json({ error: "Invalid Credentials or Password" });
+    } catch (error: any) {
+      console.error("Auth login API Error:", error);
+      res.status(500).json({ error: error.message || "Login failed." });
+    }
+  });
+
+  // API Route: Update Profile
+  app.post("/api/auth/profile", async (req, res) => {
+    try {
+      const { phone, data } = req.body;
+      if (!phone) {
+        return res.status(400).json({ error: "Phone number is required." });
+      }
+
+      await dbUpdateUser(phone, data);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Auth profile update API Error:", error);
+      res.status(500).json({ error: error.message || "Profile update failed." });
+    }
+  });
 
   // API Route: Gemini advice
   app.post("/api/gemini/advice", async (req, res) => {
@@ -120,9 +259,15 @@ Instructions:
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  if (typeof PORT === "number") {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } else {
+    app.listen(PORT, () => {
+      console.log(`Server running on socket path ${PORT}`);
+    });
+  }
 }
 
 startServer();

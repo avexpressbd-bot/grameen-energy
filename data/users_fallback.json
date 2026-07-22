@@ -1,0 +1,29 @@
+[
+  {
+    "phone": "admin",
+    "accountId": "admin",
+    "name": "System Admin",
+    "password": "admin123",
+    "role": "admin",
+    "createdAt": "2026-07-18T16:42:30.279Z"
+  },
+  {
+    "phone": "posuser",
+    "accountId": "posuser",
+    "name": "POS Sales Assistant",
+    "password": "pos123",
+    "role": "pos",
+    "createdAt": "2026-07-18T16:42:30.279Z"
+  },
+  {
+    "phone": "01712345678",
+    "accountId": "GE-C-86061",
+    "name": "Test User",
+    "password": "password123",
+    "email": "test@example.com",
+    "address": "Dhaka",
+    "city": "Dhaka",
+    "role": "customer",
+    "createdAt": "2026-07-18T16:44:24.902Z"
+  }
+]
